@@ -1,7 +1,13 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import CustomUser
+from django.contrib.auth.models import Permission
 
+class AdminPermission(admin.ModelAdmin):
+    model = Permission
+    list_display = ("codename","name")
+    search_fields = ["codename", "name"]
+    # prepopulated_fields = {"slug": ("name",)}
 
 class CustomUserAdmin(UserAdmin):
     model = CustomUser
@@ -57,3 +63,4 @@ class CustomUserAdmin(UserAdmin):
     )
 
 admin.site.register(CustomUser, CustomUserAdmin)
+admin.site.register(Permission, AdminPermission)
