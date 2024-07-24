@@ -55,6 +55,6 @@ class CustomUser(AbstractUser):
     def __str__(self):
         return self.username
 
-# Set the related_name attributes for the groups and user_permissions fields
+# Set the related_name attributes for the groups and user_permissions fieldss
 CustomUser.groups.field.remote_field.related_name = "custom_user_set"
 CustomUser.user_permissions.field.remote_field.related_name = "custom_user_set"
