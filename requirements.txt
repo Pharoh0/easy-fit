@@ -53,3 +53,5 @@ urllib3==1.26.14
 virtualenv==20.16.6
 wcwidth==0.2.6
 zipp==3.12.1
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.2.2
