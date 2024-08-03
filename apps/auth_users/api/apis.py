@@ -31,6 +31,7 @@ from datetime import datetime as dt
 from .serializers import (
     CustomUserSerializer,
     UserLoginSerializer,
+    UserRegistrationSerializer
 
 )
 from django.contrib.auth import login
@@ -120,3 +121,33 @@ class UserLoginAPIView(APIView):
         response = Response(response_data, status=status.HTTP_200_OK)
         response["Authorization"] = f"Bearer {response_data['tokens']['access']}"
         return response
+
+
+
+class UserRegistrationAPIView(GenericAPIView):
+    """
+    An endpoint for the client to create a new User.
+    """
+    permission_classes = (AllowAny,)
+    serializer_class = UserRegistrationSerializer
+
+    def post(self, request, *args, **kwargs):
+        group_id = request.data.get("group_id",None)
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        is_enabled = serializer.validated_data.get('is_enabled', False)
+        is_whitelisted = serializer.validated_data.get('is_whitelisted', False)
+        user = serializer.save(is_enabled=is_enabled, is_whitelisted=is_whitelisted)
+
+        if group_id:
+            try:
+                group_obj=Group.objects.get(id=group_id)
+            except Group.DoesNotExist as e:
+                return Response({"message":str(e)}, status=status.HTTP_404_NOT_FOUND)
+            user.groups.add(group_obj)
+        
+        token = RefreshToken.for_user(user)
+        data = serializer.data
+        data["tokens"] = {"refresh": str(token), "access": str(token.access_token)}
+        return Response(data, status=status.HTTP_201_CREATED)
+
