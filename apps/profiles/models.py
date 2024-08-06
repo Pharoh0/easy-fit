@@ -1,3 +1,6 @@
 from django.db import models
+from apps.auth_users.models import CustomUser
 
-# Create your models here.
+
+class ClientProfile(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE, related_name='client_profile')
