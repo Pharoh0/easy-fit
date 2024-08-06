@@ -41,6 +41,13 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 
 class CustomUser(AbstractUser):
+    USER_TYPE_CHOICES = (
+        ('client', 'Client'),
+        ('coach', 'Coach'),
+        ('staff', 'Staff'),
+    )
+    user_type = models.CharField(max_length=10, choices=USER_TYPE_CHOICES)
+
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
     is_enabled = models.BooleanField(default=False)
