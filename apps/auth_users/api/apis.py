@@ -6,7 +6,8 @@ from rest_framework_simplejwt.views import TokenRefreshView
 
 from rest_framework.response import Response
 
-
+from rest_framework.exceptions import ValidationError
+# from .models import ActiveToken
 import json
 from django.utils import timezone
 from django.http import Http404
@@ -121,6 +122,45 @@ class UserLoginAPIView(APIView):
         response = Response(response_data, status=status.HTTP_200_OK)
         response["Authorization"] = f"Bearer {response_data['tokens']['access']}"
         return response
+
+
+class UserLogoutAPIView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def post(self, request, *args, **kwargs):
+        try:
+            # Blacklist the refresh token
+            refresh_token = request.data.get('refresh')
+            if not refresh_token:
+                raise ValidationError('Refresh token is required.')
+
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+
+            # Remove the active token from the ActiveToken model
+            # ActiveToken.objects.filter(token=refresh_token).delete()
+
+            # Mark the user as offline and update last activity
+            user = request.user
+            print("User offline",user)
+            user.is_online = False
+            user.last_activity = None  # or set to timezone.now() for logout time
+            user.request_ip = None
+            
+            user.save(update_fields=['is_online', 'last_activity', 'request_ip'])
+            print("user.last_activity",user.last_activity)
+
+            # Delete JWT token cookies from the response
+            response = Response(status=status.HTTP_205_RESET_CONTENT)
+            response.delete_cookie('access_token')
+            response.delete_cookie('refresh_token')
+
+            return response
+
+        except Exception as e:
+            print(e)
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+
 
 
 
