@@ -1,11 +1,18 @@
-from rest_framework import serializers
+
+from rest_framework import serializers # type: ignore
 from django.contrib.auth.password_validation import validate_password
-from rest_framework.validators import UniqueValidator
+from rest_framework.validators import UniqueValidator # type: ignore
 from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.models import  Group, Permission
 from django.contrib.auth import get_user_model
 
+# profiles import
+from apps.profiles.client_profile.models import ClientProfile
+from apps.profiles.coach_profile.models import CoachProfile
+from apps.profiles.staff_profile.models import StaffProfile
+
 User = get_user_model()
+
 
 
 class GroupSerializer(serializers.ModelSerializer):
@@ -18,7 +25,7 @@ class CustomUserSerializer(serializers.ModelSerializer):
     groups=GroupSerializer(many=True,read_only=True)
     class Meta:
         model = User
-        fields = ["id","username" ,"first_name", "last_name", "email","is_superuser", "is_enabled","is_whitelisted","groups", "is_online", "last_activity"]
+        fields = ["id","username" ,"first_name", "last_name", "email","is_superuser", "is_enabled","is_whitelisted","groups", "is_online","user_type", "last_activity"]
         # fields = ["id","username" ,"first_name","user_type", "last_name", "email","is_superuser", "is_enabled","is_whitelisted","groups", "is_online", "last_activity"]
 
 
@@ -63,8 +70,20 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "password", "is_enabled", "is_whitelisted", "first_name", "last_name")
+        fields = ("id", "username", "email", "password",  "is_enabled", "is_whitelisted","user_type", "first_name", "last_name")
 
     def create(self, validated_data):
+        # user = User.objects.create_user(**validated_data)
+        # return user
+        # Create the user
         user = User.objects.create_user(**validated_data)
+        
+        # Create the appropriate profile based on user_type
+        if validated_data['user_type'] == 'client':
+            ClientProfile.objects.create(user=user)
+        elif validated_data['user_type'] == 'coach':
+            CoachProfile.objects.create(user=user)
+        elif validated_data['user_type'] == 'staff':
+            StaffProfile.objects.create(user=user)
+        
         return user
