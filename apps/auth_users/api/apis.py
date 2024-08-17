@@ -90,6 +90,34 @@ class UserLoginAPIView(APIView):
         response_data = self.generate_tokens_response(user)
         return self.add_authorization_header(response_data)
 
+    # def generate_tokens_response(self, user):
+    #     # Use Django's login function
+    #     login(self.request, user)
+
+    #     # Generate tokens
+    #     refresh = RefreshToken.for_user(user)
+    #     access_token = refresh.access_token
+
+    #     # Save the refresh token to the database
+    #     # active_token = ActiveToken.objects.create(user=user, token=str(refresh))
+    #     # print("Logged in and created active token: ", active_token)
+
+    #     # Additional logic for the response data
+    #     access_token_expiration = timezone.now() + refresh.lifetime - timedelta(
+    #         seconds=settings.SIMPLE_JWT["SLIDING_TOKEN_REFRESH_LIFETIME"].total_seconds())
+    #     refresh_token_expiration = timezone.now() + refresh.lifetime
+
+    #     data = {
+    #         "user": CustomUserSerializer(user).data,
+    #         "tokens": {
+    #             "access": str(access_token),
+    #             "access_token_expiration": access_token_expiration,
+    #             "refresh": str(refresh),
+    #             "refresh_token_expiration": refresh_token_expiration,
+    #         },
+    #     }
+    #     return data
+    
     def generate_tokens_response(self, user):
         # Use Django's login function
         login(self.request, user)
@@ -98,16 +126,16 @@ class UserLoginAPIView(APIView):
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
-        # Save the refresh token to the database
-        # active_token = ActiveToken.objects.create(user=user, token=str(refresh))
-        # print("Logged in and created active token: ", active_token)
+        # Debugging output
+        print(f"Access Token: {access_token}")
+        print(f"Refresh Token: {refresh}")
 
-        # Additional logic for the response data
+        # Calculate expiration times
         access_token_expiration = timezone.now() + refresh.lifetime - timedelta(
             seconds=settings.SIMPLE_JWT["SLIDING_TOKEN_REFRESH_LIFETIME"].total_seconds())
         refresh_token_expiration = timezone.now() + refresh.lifetime
 
-        data = {
+        response_data = {
             "user": CustomUserSerializer(user).data,
             "tokens": {
                 "access": str(access_token),
@@ -115,8 +143,13 @@ class UserLoginAPIView(APIView):
                 "refresh": str(refresh),
                 "refresh_token_expiration": refresh_token_expiration,
             },
+            "redirect_url": "/dashboard/"  # Set this to your desired dashboard URL
         }
-        return data
+
+        # Print the response data to ensure it's correct
+        print(f"Response Data: {response_data}")
+
+        return response_data
 
     def add_authorization_header(self, response_data):
         response = Response(response_data, status=status.HTTP_200_OK)
