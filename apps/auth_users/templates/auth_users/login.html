@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Login{% endblock %}
+
+{% block content %}
+<h2>Login</h2>
+<form method="post" id="login-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Login</button>
+</form>
+<div id="error-messages"></div>
+
+<script>
+    document.getElementById('login-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+        
+        const form = event.target;
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    
+        fetch("{% url 'auth_users:api-user-login' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            console.log("Fetch completed with status:", response.status);
+    
+            if (response.ok) {
+                console.log("Response is OK, parsing JSON");
+                return response.json();  // Parse JSON if response is OK
+            } else {
+                console.log("Response not OK, throwing error");
+                throw new Error('Failed to login. Please check your credentials.');
+            }
+        })
+        .then(data => {
+            console.log("Processing response data", data);
+    
+            // Check if the data contains the expected fields
+            if (data && data.hasOwnProperty('redirect_url') && data.hasOwnProperty('tokens')) {
+                console.log("hiiiiiiiii");
+    
+                if (data.tokens.access && data.tokens.refresh) {
+                    localStorage.setItem('access_token', data.tokens.access);
+                    localStorage.setItem('refresh_token', data.tokens.refresh);
+                    console.log("hiiiiiiiii2222");
+    
+                    console.log("Redirecting to:", data.redirect_url);
+    
+                    window.location.href = data.redirect_url;  // Redirect to the provided URL
+                } else {
+                    throw new Error('Tokens not found in the response. Please try again.');
+                }
+            } else {
+                console.error("Unexpected response structure:", data);
+                document.getElementById('error-messages').innerHTML = `<p>Unexpected response structure. Please check the server response.</p>`;
+            }
+        })
+        .catch(error => {
+            console.error('Error occurred:', error.message);
+            document.getElementById('error-messages').innerHTML = `<p>${error.message}</p>`;
+        });
+    });
+    
+</script>
+{% endblock %}

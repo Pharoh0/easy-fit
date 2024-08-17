@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<h2>Register</h2>
+<form method="post" id="register-form">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Register</button>
+</form>
+<div id="error-messages"></div>
+
+<script>
+document.getElementById('register-form').addEventListener('submit', function(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const formData = new FormData(form);
+
+    fetch("{% url 'auth_users:user-register' %}", {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': form.querySelector('[name=csrfmiddlewaretoken]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'ok') {
+            window.location.href = "{% url 'auth_users:user-login' %}";
+        } else {
+            let errors = '';
+            for (let error in data.errors) {
+                errors += `<p>${error}: ${data.errors[error]}</p>`;
+            }
+            document.getElementById('error-messages').innerHTML = errors;
+        }
+    })
+    .catch(error => console.error('Error:', error));
+});
+</script>
+{% endblock %}
