@@ -34,9 +34,10 @@ environ.Env.read_env(os.path.join(BASE_DIR, ".env"))
 SECRET_KEY = env("SECRET_KEY")
 # SECURITY WARNING: don't run with debug turned on in production!
 # DEBUG = True
-DEBUG = env("DEBUG")
+DEBUG = env.bool("DEBUG", default=False)
+# ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["*"])
 
-ALLOWED_HOSTS = []
 
 # Application definition
 
@@ -183,15 +184,24 @@ AUTH_USER_MODEL = 'auth_users.CustomUser'
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
 
-STATIC_URL = env("STATIC_URL")
+# STATIC_URL = env("STATIC_URL")
+# STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
+# STATICFILES_DIRS = [
+#     os.path.join(BASE_DIR, "static"),
+# ]
+
+# # Media files
+# MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+# MEDIA_URL = env("MEDIA_URL")
+
+STATIC_URL = env("STATIC_URL", default='/static/')
 STATIC_ROOT = os.path.join(BASE_DIR, "staticfiles")
 STATICFILES_DIRS = [
     os.path.join(BASE_DIR, "static"),
 ]
 
-# Media files
+MEDIA_URL = env("MEDIA_URL", default='/media/')
 MEDIA_ROOT = os.path.join(BASE_DIR, "media")
-MEDIA_URL = env("MEDIA_URL")
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
