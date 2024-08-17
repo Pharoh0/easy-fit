@@ -73,8 +73,6 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         fields = ("id", "username", "email", "password",  "is_enabled", "is_whitelisted","user_type", "first_name", "last_name")
 
     def create(self, validated_data):
-        # user = User.objects.create_user(**validated_data)
-        # return user
         # Create the user
         user = User.objects.create_user(**validated_data)
         
