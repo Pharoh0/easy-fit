@@ -36,7 +36,7 @@ class UserLoginView(FormView):
 class UserRegistrationView(FormView):
     template_name = 'auth_users/register.html'
     form_class = UserRegistrationForm
-    success_url = reverse_lazy('user-login')
+    success_url = reverse_lazy('auth_users:user-login')
 
     def form_valid(self, form):
         form.save()
