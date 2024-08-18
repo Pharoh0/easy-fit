@@ -24,6 +24,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("auth-users/", include("apps.auth_users.urls", namespace="auth_users")),
     path("profiles/", include("apps.profiles.urls", namespace="profiles")),
+
+    path("user-friendship/", include("apps.user_friendship.urls", namespace="user_friendship")),
+
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
