@@ -1,8 +1,6 @@
-
 from django.urls import path, reverse_lazy, include
 from .api import apis
 from . import views
-
 
 app_name = "auth_users"
 
@@ -12,7 +10,7 @@ urlpatterns = [
     path("api/v1/logout/", apis.UserLogoutAPIView.as_view(), name="api-user-logout"),
     path("api/v1/register/", apis.UserRegistrationAPIView.as_view(), name="api-user-register"),
     path("api/v1/token/refresh/", apis.CustomTokenRefreshView.as_view(), name="api-token-refresh"),
-    
+
     # Template views
     path('login/', views.UserLoginView.as_view(), name='user-login'),
     path('register/', views.UserRegistrationView.as_view(), name='user-register'),
