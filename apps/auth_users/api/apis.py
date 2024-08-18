@@ -40,7 +40,7 @@ from django.contrib.auth import login
 from django.db import transaction
 from rest_framework import generics, status
 from rest_framework.response import Response
-
+from django.urls import reverse_lazy
 
 
 User = get_user_model()
@@ -143,7 +143,7 @@ class UserLoginAPIView(APIView):
                 "refresh": str(refresh),
                 "refresh_token_expiration": refresh_token_expiration,
             },
-            "redirect_url": "/dashboard/"  # Set this to your desired dashboard URL
+             "redirect_url": reverse_lazy('auth_users:dashboard')  # Dynamically get the dashboard URL
         }
 
         # Print the response data to ensure it's correct
