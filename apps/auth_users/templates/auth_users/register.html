@@ -67,6 +67,24 @@
     const formData = new FormData(form);
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
 
+    // Get the password and confirm password values
+    const password = formData.get('password');
+    const confirmPassword = formData.get('password2');
+
+    // Clear any previous error messages
+    document.querySelectorAll('.error-message').forEach(el => el.remove());
+
+    // Check if passwords match
+    if (password !== confirmPassword) {
+        const confirmPasswordField = document.querySelector('[name=password2]');
+        const errorElement = document.createElement('div');
+        errorElement.className = 'error-message';
+        errorElement.style.color = 'red';
+        errorElement.textContent = "Passwords do not match.";
+        confirmPasswordField.parentNode.insertBefore(errorElement, confirmPasswordField.nextSibling);
+        return;  // Stop form submission if passwords do not match
+    } 
+
     fetch("{% url 'auth_users:api-user-register' %}", {
         method: 'POST',
         body: formData,
