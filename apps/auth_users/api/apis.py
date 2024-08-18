@@ -195,8 +195,6 @@ class UserLogoutAPIView(APIView):
             return Response(status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class UserRegistrationAPIView(GenericAPIView):
     """
     An endpoint for the client to create a new User.
@@ -205,7 +203,7 @@ class UserRegistrationAPIView(GenericAPIView):
     serializer_class = UserRegistrationSerializer
 
     def post(self, request, *args, **kwargs):
-        group_id = request.data.get("group_id",None)
+        group_id = request.data.get("group_id", None)
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         is_enabled = serializer.validated_data.get('is_enabled', False)
@@ -214,13 +212,20 @@ class UserRegistrationAPIView(GenericAPIView):
 
         if group_id:
             try:
-                group_obj=Group.objects.get(id=group_id)
+                group_obj = Group.objects.get(id=group_id)
             except Group.DoesNotExist as e:
-                return Response({"message":str(e)}, status=status.HTTP_404_NOT_FOUND)
+                return Response({"message": str(e)}, status=status.HTTP_404_NOT_FOUND)
             user.groups.add(group_obj)
-        
+
         token = RefreshToken.for_user(user)
         data = serializer.data
-        data["tokens"] = {"refresh": str(token), "access": str(token.access_token)}
+        data["tokens"] = {
+            "refresh": str(token),
+            "access": str(token.access_token)
+        }
+
+        # Include the redirect URL in the response
+        data["redirect_url"] = reverse_lazy('auth_users:dashboard')
+
         return Response(data, status=status.HTTP_201_CREATED)
 
