@@ -10,4 +10,4 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientProfile
         fields = ['gender','age', 'height', 'weight', 'bmi', 'body_fat_percentage', 'waist_size', 'chest_size', 
-                  'health_conditions', 'fitness_goals', 'dietary_preferences']
+                  'health_conditions', 'fitness_goals', 'dietary_preferences', 'avatar']

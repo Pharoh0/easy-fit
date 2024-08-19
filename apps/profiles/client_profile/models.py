@@ -16,3 +16,4 @@ class ClientProfile(models.Model):
     health_conditions = models.TextField(null=True, blank=True)
     fitness_goals = models.TextField(null=True, blank=True)
     dietary_preferences = models.TextField(null=True, blank=True)
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
