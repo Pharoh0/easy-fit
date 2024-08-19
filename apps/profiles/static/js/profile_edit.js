@@ -4,16 +4,18 @@ document.getElementById('profile-form').addEventListener('submit', function(even
     const form = event.target;
     const formData = new FormData(form);
     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const url = form.getAttribute('data-url');  // Get the correct URL from the data attribute
 
-    // Clear any previous error messages
-    document.querySelectorAll('.error-message').forEach(el => el.remove());
+    // Get the access token from local storage
+    const accessToken = localStorage.getItem('access_token');
 
-    fetch("{% url 'client-profile' %}", {
+    fetch(url, {
         method: 'PATCH',  // Use PATCH for partial updates
         body: formData,
         headers: {
             'X-CSRFToken': csrfToken,
             'Accept': 'application/json',
+            'Authorization': `Bearer ${accessToken}`,  // Include the access token in the header
         }
     })
     .then(response => {
@@ -32,6 +34,9 @@ document.getElementById('profile-form').addEventListener('submit', function(even
     })
     .catch(errorData => {
         if (errorData.errors) {
+            // Clear any previous error messages
+            document.querySelectorAll('.error-message').forEach(el => el.remove());
+
             // Loop through each error and display it
             errorData.errors.forEach(error => {
                 const field = document.querySelector(`[name=${error.attr}]`);
