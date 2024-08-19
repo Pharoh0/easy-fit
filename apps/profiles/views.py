@@ -1,11 +1,36 @@
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from .client_profile.models import ClientProfile
 from .client_profile.serializers import ClientProfileSerializer
+from django.urls import reverse
+
+
+
+@login_required
+def view_profile(request):
+    profile = get_object_or_404(ClientProfile, user=request.user)
+    return render(request, 'profile_view.html', {
+        'profile': profile,  # Pass the profile instance directly
+    })
+
 
 @login_required
 def edit_profile(request):
     profile = get_object_or_404(ClientProfile, user=request.user)
-    serializer = ClientProfileSerializer(profile)
-    return render(request, 'profile_edit.html', {'profile': serializer.data})
+
+    if request.method == 'POST':
+        # Use both POST data and FILES for the serializer
+        serializer = ClientProfileSerializer(profile, data=request.POST, files=request.FILES, partial=True)
+
+        if serializer.is_valid():
+            serializer.save()
+            return redirect('profiles:view_profile')
+    else:
+        serializer = ClientProfileSerializer(profile)
+
+    return render(request, 'profile_edit.html', {
+        'profile': serializer.data,
+        'profile_instance': profile,
+        'api_url': reverse('profiles:client-profile-detail', kwargs={'pk': profile.pk}),
+    })
