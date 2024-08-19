@@ -8,5 +8,9 @@ class ClientProfileViewSet(viewsets.ModelViewSet):
     serializer_class = ClientProfileSerializer
 
     def get_queryset(self):
-        # Ensure this filters based on the currently authenticated user or other conditions
+        # Filter the queryset to only include the profile of the authenticated user
         return self.queryset.filter(user=self.request.user)
+
+    def perform_update(self, serializer):
+        # Ensure that the user field is not updated to another user
+        serializer.save(user=self.request.user)
