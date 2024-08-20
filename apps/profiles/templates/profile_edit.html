@@ -14,7 +14,8 @@
         <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
             {% csrf_token %}
 
-        <p><strong>Current Avatar:</strong>
+
+            <p><strong>Current Avatar:</strong>
             {% if profile_instance.avatar %}
                 <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">
                 <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
