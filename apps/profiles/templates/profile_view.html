@@ -8,26 +8,31 @@
 {% endblock %}
 
 {% block content %}
-<h2>Profile</h2>
-{% if profile.avatar %}
-    <img src="{{ profile.avatar.url }}" alt="Profile Avatar" style="max-width: 150px;">
-{% endif %}
-<p><strong>Age:</strong> {{ profile.age }}</p>
-<p><strong>Gender:</strong> {{ profile.gender }}</p>
-<p><strong>Height:</strong> {{ profile.height }} cm</p>
-<p><strong>Weight:</strong> {{ profile.weight }} kg</p>
-<p><strong>BMI:</strong> {{ profile.bmi }}</p>
-<p><strong>Body Fat Percentage:</strong> {{ profile.body_fat_percentage }}%</p>
-<p><strong>Waist Size:</strong> {{ profile.waist_size }} cm</p>
-<p><strong>Chest Size:</strong> {{ profile.chest_size }} cm</p>
-<p><strong>Health Conditions:</strong> {{ profile.health_conditions }}</p>
-<p><strong>Fitness Goals:</strong> {{ profile.fitness_goals }}</p>
-<p><strong>Dietary Preferences:</strong> {{ profile.dietary_preferences }}</p>
 
+<div class="card mb-4">
+    <div class="card-header">
+        <h2>Profile</h2>
+        <a href="{% url 'profiles:edit_profile' %}" class="btn btn-outline-primary float-right">Edit Profile</a>
+    </div>
+    <div class="card-body">
+        <p><strong>Age:</strong> {{ profile.age }}</p>
+        <p><strong>Gender:</strong> {{ profile.gender }}</p>
+        <p><strong>Height:</strong> {{ profile.height }} cm</p>
+        <p><strong>Weight:</strong> {{ profile.weight }} kg</p>
+        <p><strong>BMI:</strong> {{ profile.bmi }}</p>
+        <p><strong>Body Fat Percentage:</strong> {{ profile.body_fat_percentage }}%</p>
+        <p><strong>Waist Size:</strong> {{ profile.waist_size }} cm</p>
+        <p><strong>Chest Size:</strong> {{ profile.chest_size }} cm</p>
+        <p><strong>Health Conditions:</strong> {{ profile.health_conditions }}</p>
+        <p><strong>Fitness Goals:</strong> {{ profile.fitness_goals }}</p>
+        <p><strong>Dietary Preferences:</strong> {{ profile.dietary_preferences }}</p>
+        {% if profile.avatar %}
+            <img src="{{ profile.avatar.url }}" alt="Profile Avatar" class="img-thumbnail" style="max-width: 150px;">
+        {% else %}
+            <img src="{% static 'img/default-avatar.png' %}" alt="Default Avatar" class="img-thumbnail" style="max-width: 150px;">
+        {% endif %}
+    </div>
+</div>
 
-<!-- Add Edit Profile button -->
-<p>
-    <a href="{% url 'profiles:edit_profile' %}" class="btn btn-primary">Edit Profile</a>
-</p>
 
 {% endblock %}
