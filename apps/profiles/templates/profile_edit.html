@@ -4,7 +4,7 @@
 {% block title %}Edit Profile{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="{% static 'css/profile_edit.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -12,7 +12,20 @@
     <h1>Edit Profile</h1>
     {% comment %} <form id="profile-form" method="POST" enctype="multipart/form-data"> {% endcomment %}
         <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
-            {% csrf_token %}        
+            {% csrf_token %}
+
+        <p><strong>Current Avatar:</strong>
+            {% if profile_instance.avatar %}
+                <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">
+                <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
+            {% else %}
+                <span>No avatar uploaded yet.</span>
+            {% endif %}
+        </p>
+
+        <p><strong>Upload New Avatar:</strong>
+            <input type="file" name="avatar">
+        </p>
 
         <div class="form-group">
             <label for="gender">Gender:</label>
@@ -76,18 +89,7 @@
             <label for="avatar">Avatar:</label>
             <input type="file" id="avatar" name="avatar">
         </div> {% endcomment %}
-        <p><strong>Current Avatar:</strong> 
-            {% if profile_instance.avatar %}
-                <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">
-                <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
-            {% else %}
-                <span>No avatar uploaded yet.</span>
-            {% endif %}
-        </p>
-    
-        <p><strong>Upload New Avatar:</strong> 
-            <input type="file" name="avatar">
-        </p>
+
 
         <button type="submit">Save Changes</button>
     </form>
