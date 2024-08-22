@@ -31,3 +31,9 @@ class Certification(models.Model):
     coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='certifications')
     file = models.FileField(upload_to='certifications/')
     description = models.CharField(max_length=255, null=True, blank=True)
+
+class ClientPicture(models.Model):
+    coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='client_pictures')
+    image = models.ImageField(upload_to='client_pictures/')
+    description = models.CharField(max_length=255, null=True, blank=True)
+
