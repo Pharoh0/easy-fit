@@ -1,3 +1,4 @@
+<!--profile_edit.html-->
 {% extends 'base.html' %}
 {% load static %}
 
@@ -10,31 +11,73 @@
 {% block content %}
 <div class="container">
     <h1>Edit Profile</h1>
-    {% comment %} <form id="profile-form" method="POST" enctype="multipart/form-data"> {% endcomment %}
-        <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
-            {% csrf_token %}
+<!--    {% comment %} <form id="profile-form" method="POST" enctype="multipart/form-data"> {% endcomment %}-->
+<!--        <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">-->
+<!--            {% csrf_token %}-->
 
 
-            <p><strong>Current Avatar:</strong>
-            {% if profile_instance.avatar %}
-                <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">
-                <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
-            {% else %}
-                <span>No avatar uploaded yet.</span>
-            {% endif %}
-        </p>
+<!--            <p><strong>Current Avatar:</strong>-->
+<!--            {% if profile_instance.avatar %}-->
+<!--                <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">-->
+<!--                <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>-->
+<!--            {% else %}-->
+<!--                <span>No avatar uploaded yet.</span>-->
+<!--            {% endif %}-->
+<!--        </p>-->
 
-        <p><strong>Upload New Avatar:</strong>
-            <input type="file" name="avatar">
-        </p>
+<!--        <p><strong>Upload New Avatar:</strong>-->
+<!--            <input type="file" name="avatar">-->
+<!--        </p>-->
 
-        <div class="form-group">
-            <label for="gender">Gender:</label>
-            <select id="gender" name="gender">
-                <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>
-                <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>
-            </select>
-        </div>
+<!--        <div class="form-group">-->
+<!--            <label for="gender">Gender:</label>-->
+<!--            <select id="gender" name="gender">-->
+<!--                <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>-->
+<!--                <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>-->
+<!--            </select>-->
+<!--        </div>-->
+
+    {% if messages %}
+    <div id="messages">
+        {% for message in messages %}
+            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+<form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
+    {% csrf_token %}
+
+    <!-- Avatar Upload -->
+    <p><strong>Current Avatar:</strong>
+        {% if profile_instance.avatar %}
+            <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px;">
+            <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
+        {% else %}
+            <span>No avatar uploaded yet.</span>
+        {% endif %}
+    </p>
+
+    <p><strong>Upload New Avatar:</strong>
+        <input type="file" name="avatar">
+        {% if form.avatar.errors %}
+            <span class="error-message">{{ form.avatar.errors }}</span>
+        {% endif %}
+    </p>
+
+    <!-- Other Form Fields -->
+    <div class="form-group">
+        <label for="gender">Gender:</label>
+        <select id="gender" name="gender">
+            <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>
+            <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>
+        </select>
+        {% if form.gender.errors %}
+            <span class="error-message">{{ form.gender.errors }}</span>
+        {% endif %}
+    </div>
 
         <div class="form-group">
             <label for="age">Age:</label>
