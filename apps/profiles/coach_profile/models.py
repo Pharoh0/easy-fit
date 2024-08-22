@@ -2,6 +2,9 @@ from django.db import models
 from apps.auth_users.models import CustomUser
 from ..choices  import DAYS_OF_WEEK, GENDER_CHOICES
 from django_countries.fields import CountryField
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 class CoachProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='coach_profile')
