@@ -14,7 +14,8 @@
         <nav>
             <ul>
                 <li><a href="{% url 'auth_users:dashboard' %}">Dashboard</a></li>
-                <li><a href="{% url 'auth_users:user-logout' %}">Logout</a></li>
+<!--                <li><a href="{% url 'auth_users:user-logout' %}">Logout</a></li>-->
+                <li><a href="{% url 'auth_users:user-logout' %}" id="logout-button">Logout</a></li> <!-- Added ID here -->
                 <li><a href="{% url 'profiles:view_profile' %}">View Profile</a></li>
             </ul>
         </nav>
@@ -23,7 +24,17 @@
         {% block content %}
         {% endblock %}
     </main>
+    <script src="{% static 'js/auth_jwt.js' %}"></script>
     <script src="{% static 'js/scripts.js' %}"></script>
+
+    <script>
+        document.getElementById('logout-button').addEventListener('click', function(event) {
+            console.log("loge out btn!!")
+            event.preventDefault(); // Prevent the default link behavior
+            logout(); // Call the logout function from auth_jwt.js
+        });
+    </script>
+
     {% block extra_js %}
     {% endblock %}
 </body>
