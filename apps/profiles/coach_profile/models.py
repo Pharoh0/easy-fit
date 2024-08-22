@@ -37,3 +37,7 @@ class ClientPicture(models.Model):
     image = models.ImageField(upload_to='client_pictures/')
     description = models.CharField(max_length=255, null=True, blank=True)
 
+class CoachPicture(models.Model):
+    coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='coach_pictures')
+    image = models.ImageField(upload_to='coach_pictures/')
+    description = models.CharField(max_length=255, null=True, blank=True)
