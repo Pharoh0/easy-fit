@@ -26,3 +26,8 @@ class Availability(models.Model):
 
     def __str__(self):
         return f"{self.day_of_week}: {self.start_time} - {self.end_time}"
+
+class Certification(models.Model):
+    coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='certifications')
+    file = models.FileField(upload_to='certifications/')
+    description = models.CharField(max_length=255, null=True, blank=True)
