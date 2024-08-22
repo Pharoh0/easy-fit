@@ -16,3 +16,13 @@ class CoachProfile(models.Model):
     specialties = models.TextField(null=True, blank=True)
     expertise = models.CharField(max_length=255, null=True, blank=True)
     hourly_rate = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+
+class Availability(models.Model):
+    coach = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='availabilities')
+    day_of_week = models.CharField(max_length=10, choices=DAYS_OF_WEEK)
+    start_time = models.TimeField()
+    end_time = models.TimeField()
+
+    def __str__(self):
+        return f"{self.day_of_week}: {self.start_time} - {self.end_time}"
