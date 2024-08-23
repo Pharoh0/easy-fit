@@ -58,6 +58,7 @@ LOCAL_INSTALLED_APPS = [
 THIRD_PARTIES_INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    'cities_light',
 ]
 
 INSTALLED_APPS = BASE_INSTALLED_APPS + LOCAL_INSTALLED_APPS + THIRD_PARTIES_INSTALLED_APPS
