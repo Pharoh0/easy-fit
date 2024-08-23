@@ -30,7 +30,7 @@ class CoachProfile(models.Model):
 
 
 class Availability(models.Model):
-    coach = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='availabilities')
+    coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='availabilities')
     day_of_week = models.CharField(max_length=10, choices=DAYS_OF_WEEK)
     start_time = models.TimeField()
     end_time = models.TimeField()
