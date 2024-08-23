@@ -14,7 +14,7 @@ class CoachProfile(models.Model):
     # country = CountryField(null=True, blank=True)
     # city = models.CharField(max_length=255, null=True, blank=True)
     country = models.ForeignKey(Country, on_delete=models.SET_NULL, null=True, blank=True)
-    Region = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True)
+    region = models.ForeignKey(Region, on_delete=models.SET_NULL, null=True, blank=True)
     city = models.ForeignKey(City, on_delete=models.SET_NULL, null=True, blank=True)
     locations = models.TextField(null=True, blank=True)
     # reviews = models.TextField(null=True, blank=True)
