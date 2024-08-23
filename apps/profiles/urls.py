@@ -12,9 +12,9 @@ router.register(r'client-profile', client_apis.ClientProfileViewSet, basename='c
 # coach urls
 
 router.register(r'coach-profiles', coach_apis.CoachProfileViewSet, basename='coach-profile')
-router.register(r'availabilities', coach_apis.AvailabilityViewSet, basename='availability')
-router.register(r'certifications', coach_apis.CertificationViewSet, basename='certification')
-router.register(r'client-pictures', coach_apis.ClientPictureViewSet, basename='client-picture')
+router.register(r'coach-availabilities', coach_apis.AvailabilityViewSet, basename='availability')
+router.register(r'coach-certifications', coach_apis.CertificationViewSet, basename='certification')
+router.register(r'coach-client-pictures', coach_apis.ClientPictureViewSet, basename='client-picture')
 router.register(r'coach-pictures', coach_apis.CoachPictureViewSet, basename='coach-picture')
 
 
