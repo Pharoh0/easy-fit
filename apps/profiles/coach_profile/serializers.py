@@ -12,3 +12,8 @@ class ClientPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientPicture
         fields = ['id', 'image', 'description']
+
+class CoachPictureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CoachPicture
+        fields = ['id', 'image', 'description']
