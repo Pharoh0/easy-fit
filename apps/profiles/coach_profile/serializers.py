@@ -32,8 +32,6 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     region = serializers.PrimaryKeyRelatedField(queryset=Region.objects.all(), required=False)
     city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False)
 
-
-
     class Meta:
         model = CoachProfile
         fields = [
@@ -51,6 +49,30 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     #         'code': obj.country.code if obj.country else None,
     #         'name': obj.country.name if obj.country else ""
     #     }
+    
+    
+    def get_country(self, obj):
+        if obj.country:
+            return {
+                'id': obj.country.id,
+                'name': obj.country.name
+            }
+        return None
+
+    def get_region(self, obj):
+        if obj.region:
+            return {
+                'id': obj.region.id,
+                'name': obj.region.name
+            }
+        return None
+
+    def get_city(self, obj):
+        if obj.city:
+            return {
+                'id': obj.city.id,
+                'name': obj.city.name
+            }
     
 
     def create(self, validated_data):
