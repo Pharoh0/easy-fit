@@ -26,6 +26,9 @@ class CoachProfile(models.Model):
     youtube_profile_url = models.TextField(null=True, blank=True)
     tiktok_profilel_url = models.TextField(null=True, blank=True)
     linkedin_profile_url = models.TextField(null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.id}: {self.user}"
 
 
 
@@ -43,15 +46,24 @@ class Certification(models.Model):
     coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='certifications')
     file = models.FileField(upload_to='certifications/')
     description = models.CharField(max_length=255, null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.id}: {self.coach_profile}"
 
 
 class ClientPicture(models.Model):
     coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='client_pictures')
     image = models.ImageField(upload_to='client_pictures/')
     description = models.CharField(max_length=255, null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.id}: {self.coach_profile}"
 
 
 class CoachPicture(models.Model):
     coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='coach_pictures')
     image = models.ImageField(upload_to='coach_pictures/')
     description = models.CharField(max_length=255, null=True, blank=True)
+    
+    def __str__(self):
+        return f"{self.id}: {self.coach_profile}"
