@@ -60,6 +60,18 @@ class CustomUser(AbstractUser):
 
     def __str__(self):
         return self.username
+    
+    @property
+    def is_client(self):
+        return self.user_type == 'client'
+
+    @property
+    def is_coach(self):
+        return self.user_type == 'coach'
+
+    @property
+    def is_staff_member(self):
+        return self.user_type == 'staff'
 
 # Set the related_name attributes for the groups and user_permissions fieldss
 CustomUser.groups.field.remote_field.related_name = "custom_user_set"
