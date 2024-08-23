@@ -7,3 +7,8 @@ class CertificationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Certification
         fields = ['id', 'file', 'description']
+
+class ClientPictureSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ClientPicture
+        fields = ['id', 'image', 'description']
