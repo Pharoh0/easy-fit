@@ -17,3 +17,8 @@ class CoachPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachPicture
         fields = ['id', 'image', 'description']
+
+class AvailabilitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Availability
+        fields = ['id', 'day_of_week', 'start_time', 'end_time']
