@@ -3,24 +3,28 @@ from .models import CoachProfile, Availability, Certification, ClientPicture, Co
 
 
 class CertificationSerializer(serializers.ModelSerializer):
+    # coach_profile = serializers.PrimaryKeyRelatedField(queryset=CoachProfile.objects.all())
+
     class Meta:
         model = Certification
-        fields = ['id', 'file', 'description']
+        fields = ['id', 'coach_profile', 'file', 'description']
+
 
 class ClientPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientPicture
-        fields = ['id', 'image', 'description']
+        fields = ['id', 'coach_profile','image', 'description']
 
 class CoachPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachPicture
-        fields = ['id', 'image', 'description']
+        fields = ['id', 'coach_profile','image', 'description']
 
 class AvailabilitySerializer(serializers.ModelSerializer):
     class Meta:
         model = Availability
-        fields = ['id', 'day_of_week', 'start_time', 'end_time']
+        fields = ['id', 'coach_profile','day_of_week', 'start_time', 'end_time']
+
 
 class CoachProfileSerializer(serializers.ModelSerializer):
     certifications = CertificationSerializer(many=True, read_only=True)
