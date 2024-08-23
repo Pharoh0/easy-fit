@@ -1,5 +1,4 @@
 from rest_framework import serializers
-from cities_light.models import Country, City, Region
 from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
 
 
@@ -28,9 +27,9 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     client_pictures = ClientPictureSerializer(many=True, read_only=True)
     coach_pictures = CoachPictureSerializer(many=True, read_only=True)
     availabilities = AvailabilitySerializer(many=True, read_only=True)
-    country = serializers.PrimaryKeyRelatedField(queryset=Country.objects.all(), required=False)
-    region = serializers.PrimaryKeyRelatedField(queryset=Region.objects.all(), required=False)
-    city = serializers.PrimaryKeyRelatedField(queryset=City.objects.all(), required=False)
+    country = serializers.SerializerMethodField()
+    region = serializers.SerializerMethodField()
+    city = serializers.SerializerMethodField()
 
     class Meta:
         model = CoachProfile
