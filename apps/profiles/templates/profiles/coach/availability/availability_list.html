@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Availabilities{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Your Availabilities</h1>
+    <button id="add-availability-button" class="btn btn-primary">Add Availability</button>
+    <div id="availabilities-container" class="mt-4">
+        <!-- Availabilities will be loaded here via JavaScript -->
+    </div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="loading-indicator" class="loading" style="display: none;">Loading...</div>
+</div>
+
+<!-- Modal for Adding/Editing Availability -->
+<div id="availability-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <form id="availability-form">
+            {% csrf_token %}
+            <label for="day_of_week">Day of the Week:</label>
+            <select name="day_of_week" id="day_of_week">
+                {% for day in DAYS_OF_WEEK %}
+                    <option value="{{ day.0 }}">{{ day.1 }}</option>
+                {% endfor %}
+            </select>
+
+            <label for="start_time">Start Time:</label>
+            <input type="time" name="start_time" id="start_time" required>
+
+            <label for="end_time">End Time:</label>
+            <input type="time" name="end_time" id="end_time" required>
+
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
+        <div id="form-errors" class="text-danger"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% comment %} <script src="{% static 'profiles/js/auth_jwt.js' %}" defer></script> {% endcomment %}
+<script src="{% static 'profiles/js/coach/availability/availabilities.js' %}" defer></script>
+{% endblock %}
