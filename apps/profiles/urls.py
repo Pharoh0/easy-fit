@@ -4,6 +4,7 @@ from .client_profile import apis as client_apis
 from .coach_profile import apis as coach_apis
 from . import views
 from .coach_profile import views_coach
+from .coach_profile import views_availability
 
 app_name = "profiles"
 
@@ -30,6 +31,9 @@ urlpatterns = [
     # Coach profile URLs
     path('coach-profile/', views_coach.view_coach_profile, name='view_coach_profile'),
     path('coach-profile/edit/', views_coach.edit_coach_profile, name='edit_coach_profile'),
+    
+    # coach availabilty
+    path('coach-profile/availabilities/', views_availability.view_availabilities, name='view_availabilities'),
 
 ]
 
