@@ -1,0 +1,113 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Coach Profile{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_views.css' %}">
+{% endblock %}
+
+
+
+{% block content %}
+<div class="profile-container">
+    <!-- Profile Header -->
+    <div class="profile-header">
+        <div class="avatar-section">
+            {% if profile.avatar %}
+                <img src="{{ profile.avatar.url }}" alt="{{ profile.user.username }}'s Avatar" class="avatar">
+            {% else %}
+                <img src="{% static 'img/default-avatar.png' %}" alt="Default Avatar" class="avatar">
+            {% endif %}
+        </div>
+        <div class="profile-info">
+            <h1>{{ profile.user.username }}</h1>
+            <p><strong>Bio:</strong> {{ profile.bio }}</p>
+            <p><strong>Experience:</strong> {{ profile.years_of_experience }} years</p>
+            <p><strong>Location:</strong> {{ profile.city.name }}, {{ profile.country.name }}</p>
+            <p><strong>Specialties:</strong> {{ profile.specialties }}</p>
+            <p><strong>Hourly Rate:</strong> ${{ profile.hourly_rate }}</p>
+        </div>
+    </div>
+
+    <!-- Edit Profile Button -->
+    <div class="edit-profile-btn">
+        <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-primary">Edit Profile</a>
+    </div>
+
+    <!-- Social Media Links -->
+    <div class="social-media">
+        <h3>Connect with me</h3>
+        <ul>
+            {% if profile.facebook_profile_url %}
+            <li><a href="{{ profile.facebook_profile_url }}" target="_blank"><i class="fab fa-facebook-f"></i> Facebook</a></li>
+            {% endif %}
+            {% if profile.instagram_profile_url %}
+            <li><a href="{{ profile.instagram_profile_url }}" target="_blank"><i class="fab fa-instagram"></i> Instagram</a></li>
+            {% endif %}
+            {% if profile.twitter_profile_url %}
+            <li><a href="{{ profile.twitter_profile_url }}" target="_blank"><i class="fab fa-twitter"></i> Twitter</a></li>
+            {% endif %}
+            {% if profile.youtube_profile_url %}
+            <li><a href="{{ profile.youtube_profile_url }}" target="_blank"><i class="fab fa-youtube"></i> YouTube</a></li>
+            {% endif %}
+            {% if profile.tiktok_profilel_url %}
+            <li><a href="{{ profile.tiktok_profilel_url }}" target="_blank"><i class="fab fa-tiktok"></i> TikTok</a></li>
+            {% endif %}
+            {% if profile.linkedin_profile_url %}
+            <li><a href="{{ profile.linkedin_profile_url }}" target="_blank"><i class="fab fa-linkedin-in"></i> LinkedIn</a></li>
+            {% endif %}
+        </ul>
+    </div>
+
+    <!-- Certifications -->
+    <div class="certifications">
+        <h3>Certifications</h3>
+        <div class="certifications-list">
+            {% for certification in profile.certifications.all %}
+            <div class="certification-item">
+                <a href="{{ certification.file.url }}" target="_blank">{{ certification.description }}</a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Pictures Section -->
+    <div class="pictures-section">
+        <div class="client-pictures">
+            <h3>Client Progress</h3>
+            <div class="pictures-grid">
+                {% for picture in profile.client_pictures.all %}
+                <div class="picture-item">
+                    <img src="{{ picture.image.url }}" alt="Client Picture">
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="coach-pictures">
+            <h3>My Journey</h3>
+            <div class="pictures-grid">
+                {% for picture in profile.coach_pictures.all %}
+                <div class="picture-item">
+                    <img src="{{ picture.image.url }}" alt="Coach Picture">
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Availability -->
+    <div class="availability">
+        <h3>Availability</h3>
+        <ul>
+            {% for availability in profile.availabilities.all %}
+            <li>{{ availability.day_of_week }}: {{ availability.start_time|date:"g:i A" }} - {{ availability.end_time|date:"g:i A" }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block extra_js %}
+<script src="{% static 'profiles/js/coach/coach_profile_views.js' %}"></script>
+{% endblock %}
