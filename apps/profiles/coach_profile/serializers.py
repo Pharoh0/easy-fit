@@ -26,7 +26,7 @@ class AvailabilitySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Availability
-        fields = ['id', 'coach_profile','day_of_week', 'start_time', 'end_time', 'start_time_formatted', 'end_time_formatted']
+        fields = ['id', 'day_of_week', 'start_time', 'end_time', 'start_time_formatted', 'end_time_formatted']
         
     def get_start_time_formatted(self, obj):
         return obj.start_time.strftime("%I:%M %p")
