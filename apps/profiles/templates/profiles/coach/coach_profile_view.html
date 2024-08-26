@@ -95,20 +95,20 @@
         </div>
     </div>
 
-    <!-- Availability -->
+     <!-- Availability -->
     <div class="availability">
-        <!-- View Availability Button (only if user is authenticated and has access token) -->
-    {% if request.user.is_authenticated %}
-    <div class="view-availability-btn">
-        <a href="{% url 'profiles:view_availabilities' %}" class="btn btn-secondary">View Availability</a>
-    </div>
-{% endif %}
         <h3>Availability</h3>
+        {% if request.user == profile.user %}
+        <div class="availability-btn">
+            <a href="{% url 'profiles:view_availabilities' %}" class="btn btn-secondary">Manage Availability</a>
+        </div>
         <ul>
             {% for availability in profile.availabilities.all %}
             <li>{{ availability.day_of_week }}: {{ availability.start_time|date:"g:i A" }} - {{ availability.end_time|date:"g:i A" }}</li>
             {% endfor %}
         </ul>
+        
+        {% endif %}
     </div>
 </div>
 {% endblock %}
