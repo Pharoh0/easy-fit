@@ -97,6 +97,12 @@
 
     <!-- Availability -->
     <div class="availability">
+        <!-- View Availability Button (only if user is authenticated and has access token) -->
+    {% if request.user.is_authenticated %}
+    <div class="view-availability-btn">
+        <a href="{% url 'profiles:view_availabilities' %}" class="btn btn-secondary">View Availability</a>
+    </div>
+{% endif %}
         <h3>Availability</h3>
         <ul>
             {% for availability in profile.availabilities.all %}

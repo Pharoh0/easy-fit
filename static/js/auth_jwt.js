@@ -35,6 +35,39 @@ function refreshToken() {
     });
 }
 
+// function logout() {
+//     const refreshToken = localStorage.getItem('refresh_token');
+//     const accessToken = localStorage.getItem('access_token');
+
+//     if (!refreshToken || !accessToken) {
+//         alert("Session has already expired. Please log in again.");
+//         window.location.href = "/auth-users/login/";  // Redirect to login page
+//         return;
+//     }
+
+//     fetch("/auth-users/api/v1/logout/", {
+//         method: 'POST',
+//         headers: {
+//             'Content-Type': 'application/json',
+//             'Accept': 'application/json',
+//             'Authorization': `Bearer ${accessToken}`
+//         },
+//         body: JSON.stringify({ refresh: refreshToken })
+//     })
+//     .then(response => {
+//         if (response.ok) {
+//             localStorage.removeItem('access_token');
+//             localStorage.removeItem('refresh_token');
+//             window.location.href = "/auth-users/login/";  // Redirect to login page
+//         } else {
+//             console.error('Failed to logout.');
+//         }
+//     })
+//     .catch(error => {
+//         console.error('Error occurred during logout:', error.message);
+//     });
+// }
+
 function logout() {
     const refreshToken = localStorage.getItem('refresh_token');
     const accessToken = localStorage.getItem('access_token');
@@ -45,6 +78,7 @@ function logout() {
         return;
     }
 
+    // JWT Logout
     fetch("/auth-users/api/v1/logout/", {
         method: 'POST',
         headers: {
@@ -58,13 +92,31 @@ function logout() {
         if (response.ok) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-            window.location.href = "/auth-users/login/";  // Redirect to login page
         } else {
-            console.error('Failed to logout.');
+            console.error('Failed to logout from JWT.');
         }
     })
     .catch(error => {
-        console.error('Error occurred during logout:', error.message);
+        console.error('Error occurred during JWT logout:', error.message);
+    });
+
+    // Django Session Logout
+    fetch("/auth-users/api/v1/session/logout/", {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+    })
+    .then(response => {
+        if (response.ok) {
+            window.location.href = "/auth-users/login/";  // Redirect to login page
+        } else {
+            console.error('Failed to logout from session.');
+        }
+    })
+    .catch(error => {
+        console.error('Error occurred during session logout:', error.message);
     });
 }
 

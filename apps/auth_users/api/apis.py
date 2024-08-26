@@ -1,9 +1,9 @@
 from django.contrib.auth import get_user_model
 from datetime import timedelta
 import datetime
+from django.contrib.auth import logout
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
-
 from rest_framework.response import Response
 
 from rest_framework.exceptions import ValidationError
@@ -182,6 +182,9 @@ class UserLogoutAPIView(APIView):
             
             user.save(update_fields=['is_online', 'last_activity', 'request_ip'])
             print("user.last_activity",user.last_activity)
+            
+            # Log out the user from Django session
+            logout(request)
 
             # Delete JWT token cookies from the response
             response = Response(status=status.HTTP_205_RESET_CONTENT)
@@ -193,6 +196,14 @@ class UserLogoutAPIView(APIView):
         except Exception as e:
             print(e)
             return Response(status=status.HTTP_400_BAD_REQUEST)
+
+
+
+
+class DjangoSessionLogoutView(APIView):
+    def post(self, request):
+        logout(request)
+        return Response(status=status.HTTP_200_OK)
 
 
 class UserRegistrationAPIView(GenericAPIView):
