@@ -84,6 +84,11 @@ class CoachPictureViewSet(viewsets.ModelViewSet):
         return CoachPicture.objects.filter(coach_profile=coach_profile)
 
     def perform_create(self, serializer):
-        # Automatically associate the new coach picture with the user's coach profile
-        serializer.save(coach_profile=self.request.user.coach_profile)
+        # serializer.save(coach_profile=self.request.user.coach_profile
+        try:
+            # Automatically associate the new availability with the user's coach profile
+            serializer.save(coach_profile=self.request.user.coach_profile)
+            print("Data saved successfully")
+        except Exception as e:
+            print(f"Error saving data: {str(e)}")
     
