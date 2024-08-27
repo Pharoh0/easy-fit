@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Coach Pictures{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_images/pictures.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Your Coach Pictures</h1>
+    <button id="add-picture-button" class="btn btn-primary">Add Picture</button>
+    <div id="pictures-container" class="mt-4">
+        <!-- Coach Pictures will be loaded here via JavaScript -->
+    </div>
+</div>
+
+
+<!-- Modal for Adding/Editing Picture -->
+<div id="picture-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <form id="picture-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label for="image">Upload Picture:</label>
+            <input type="file" name="image" id="image" required>
+
+            <label for="description">Description:</label>
+            <input type="text" name="description" id="description">
+
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
+    </div>
+    <div id="form-errors" class="text-danger"></div>
+</div>
+
+<!-- Modal for Confirming Delete -->
+<div id="confirm-delete-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-delete">&times;</span>
+        <h3>Are you sure you want to delete this picture?</h3>
+        <div class="modal-actions">
+            <button id="confirm-delete-button" class="btn btn-danger">Yes</button>
+            <button id="cancel-delete-button" class="btn btn-secondary">Cancel</button>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'profiles/js/coach/coach_images/pictures.js' %}" defer></script>
+{% endblock %}
