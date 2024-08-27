@@ -82,9 +82,17 @@
                 </div>
                 {% endfor %}
             </div>
+
         </div>
         <div class="coach-pictures">
             <h3>My Journey</h3>
+
+            {% if request.user == profile.user %}
+            <div class="pictures-btn">
+                <a href="{% url 'profiles:view_pictures' %}" class="btn btn-secondary">Manage Pictures</a>
+            </div>
+            {% endif %}
+            
             <div class="pictures-grid">
                 {% for picture in profile.coach_pictures.all %}
                 <div class="picture-item">
