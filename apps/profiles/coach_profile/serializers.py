@@ -18,7 +18,8 @@ class ClientPictureSerializer(serializers.ModelSerializer):
 class CoachPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachPicture
-        fields = ['id', 'coach_profile','image', 'description']
+        # fields = ['id', 'coach_profile','image', 'description']
+        fields = ['id', 'image', 'description']
 
 class AvailabilitySerializer(serializers.ModelSerializer):
     start_time_formatted = serializers.SerializerMethodField()
