@@ -70,6 +70,10 @@ class ClientPictureViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         # Automatically associate the new client picture with the user's coach profile
         serializer.save(coach_profile=self.request.user.coach_profile)
+        
+    def perform_update(self, serializer):
+        # Update the instance, allowing partial updates
+        serializer.save(coach_profile=self.request.user.coach_profile)
     
 
 
