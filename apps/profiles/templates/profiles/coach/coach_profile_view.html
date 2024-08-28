@@ -75,6 +75,13 @@
     <div class="pictures-section">
         <div class="client-pictures">
             <h3>Client Progress</h3>
+
+            {% if request.user == profile.user %}
+            <div class="pictures-btn">
+                <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-secondary">Manage Pictures</a>
+            </div>
+            {% endif %}
+
             <div class="pictures-grid">
                 {% for picture in profile.client_pictures.all %}
                 <div class="picture-item">

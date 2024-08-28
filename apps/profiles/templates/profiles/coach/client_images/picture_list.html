@@ -1,17 +1,17 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Coach Pictures{% endblock %}
+{% block title %}Client Pictures{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_images/pictures.css' %}">
+    <link rel="stylesheet" href="{% static 'profiles/css/coach/client_images/pictures.css' %}">
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>Your Coach Pictures</h1>
+    <h1>Your Client Pictures</h1>
     <button id="add-picture-button" class="btn btn-primary">Add Picture</button>
     <div id="pictures-container" class="mt-4">
-        <!-- Coach Pictures will be loaded here via JavaScript -->
+        <!-- Client Pictures will be loaded here via JavaScript -->
     </div>
 </div>
 
@@ -22,23 +22,17 @@
         <form id="picture-form" enctype="multipart/form-data">
             {% csrf_token %}
             <label for="image">Upload New Picture:</label>
+            <!-- The image preview and label will be inserted here dynamically if editing -->
             <input type="file" name="image" id="image">
 
-            <!-- Current Image Preview -->
-            <div id="current-image-container" style="display:none; margin-top: 10px;">
-                <label>Current Picture:</label>
-                <img id="current-image" src="" alt="Current Image" style="width: 100px; height: 100px; display: block; margin-bottom: 10px;">
-            </div>
-
             <label for="description">Description:</label>
-            <input type="text" name="description" id="description" required>
+            <input type="text" name="description" id="description">
 
             <button type="submit" class="btn btn-success">Save</button>
         </form>
     </div>
     <div id="form-errors" class="text-danger"></div>
 </div>
-
 
 <!-- Modal for Confirming Delete -->
 <div id="confirm-delete-modal" class="modal">
@@ -51,10 +45,8 @@
         </div>
     </div>
 </div>
-
-
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'profiles/js/coach/coach_images/pictures.js' %}" defer></script>
+<script src="{% static 'profiles/js/coach/client_images/pictures.js' %}" defer></script>
 {% endblock %}
