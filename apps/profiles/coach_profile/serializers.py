@@ -13,13 +13,30 @@ class CertificationSerializer(serializers.ModelSerializer):
 class ClientPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = ClientPicture
-        fields = ['id', 'coach_profile','image', 'description']
+        # fields = ['id', 'coach_profile','image', 'description']
+        fields = ['id', 'image', 'description']
+        
+    
+    def __init__(self, *args, **kwargs):
+        super(ClientPictureSerializer, self).__init__(*args, **kwargs)
+        if self.instance:
+            # If the instance exists (we're updating), make the image field not required
+            self.fields['image'].required = False
+        
+    
+        
 
 class CoachPictureSerializer(serializers.ModelSerializer):
     class Meta:
         model = CoachPicture
         # fields = ['id', 'coach_profile','image', 'description']
         fields = ['id', 'image', 'description']
+        
+    def __init__(self, *args, **kwargs):
+        super(CoachPictureSerializer, self).__init__(*args, **kwargs)
+        if self.instance:
+            # If the instance exists (we're updating), make the image field not required
+            self.fields['image'].required = False
 
 class AvailabilitySerializer(serializers.ModelSerializer):
     start_time_formatted = serializers.SerializerMethodField()
