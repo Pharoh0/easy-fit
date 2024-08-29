@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', function() {
-    const apiUrl = 'http://127.0.0.1:8000/profiles/api/v1/coach-availabilities/';
+    const apiUrl = '/profiles/api/v1/coach-availabilities/';
     const container = document.getElementById('availabilities-container');
     const addButton = document.getElementById('add-availability-button');
     const modal = document.getElementById('availability-modal');
@@ -8,24 +8,31 @@ document.addEventListener('DOMContentLoaded', function() {
     const loadingIndicator = document.getElementById('loading-indicator');
     const successMessage = document.getElementById('success-message');
 
-    function loadAvailabilities() {
-        showLoading();
-        fetch(apiUrl, {
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${getAccessToken()}`,
-            }
-        })
-        .then(response => {
+    async function loadAvailabilities() {
+        try {
+            showLoading();
+            let response = await fetch(apiUrl, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${getAccessToken()}`,
+                }
+            });
+
             if (response.status === 401) {
-                return refreshToken().then(() => loadAvailabilities());
+                await refreshToken();
+                response = await fetch(apiUrl, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${getAccessToken()}`,
+                    }
+                });
             }
+
             if (!response.ok) {
                 throw new Error('Network response was not ok');
             }
-            return response.json();
-        })
-        .then(data => {
+
+            const data = await response.json();
             container.innerHTML = '';
             data.forEach(avail => {
                 const div = document.createElement('div');
@@ -38,11 +45,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 container.appendChild(div);
             });
             hideLoading();
-        })
-        .catch(error => {
+        } catch (error) {
             console.error('Error fetching availabilities:', error);
             hideLoading();
-        });
+        }
     }
 
     function showLoading() {
@@ -71,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function() {
         openModal();
     });
 
-    form.addEventListener('submit', function(event) {
+    form.addEventListener('submit', async function(event) {
         event.preventDefault();
         formErrors.innerHTML = '';
 
@@ -82,44 +88,51 @@ document.addEventListener('DOMContentLoaded', function() {
                 data[key] = value;
             }
         });
-    
-        // formData.forEach((value, key) => data[key] = value);
 
         const isEdit = form.dataset.edit === 'true';
         const url = isEdit ? `${apiUrl}${form.dataset.id}/` : apiUrl;
         const method = isEdit ? 'PUT' : 'POST';
 
-        fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': getCSRFToken(),
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${getAccessToken()}`,
-            },
-            body: JSON.stringify(data),
-        })
-        .then(response => {
+        try {
+            let response = await fetch(url, {
+                method: method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken(),
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${getAccessToken()}`,
+                },
+                body: JSON.stringify(data),
+            });
+
             if (response.status === 401) {
-                return refreshToken().then(() => form.submit());
+                await refreshToken();
+                response = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken(),
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${getAccessToken()}`,
+                    },
+                    body: JSON.stringify(data),
+                });
             }
+
             if (response.ok) {
-                return response.json();
+                closeModal();
+                loadAvailabilities();
+                showSuccessMessage(isEdit ? 'Availability updated successfully!' : 'Availability added successfully!');
             } else {
-                return response.json().then(data => { throw data; });
+                const errorData = await response.json();
+                throw errorData;
             }
-        })
-        .then(() => {
-            closeModal();
-            loadAvailabilities();
-            showSuccessMessage(isEdit ? 'Availability updated successfully!' : 'Availability added successfully!');
-        })
-        .catch(errors => {
+        } catch (errors) {
             displayErrors(errors);
-        });
+        }
     });
 
-    container.addEventListener('click', function(event) {
+    container.addEventListener('click', async function(event) {
         if (event.target.classList.contains('edit-button')) {
             const id = event.target.dataset.id;
             editAvailability(id);
@@ -130,40 +143,66 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    function editAvailability(id) {
-        fetch(`${apiUrl}${id}/`, {
-            headers: {
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${getAccessToken()}`,
+    async function editAvailability(id) {
+        try {
+            let response = await fetch(`${apiUrl}${id}/`, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${getAccessToken()}`,
+                }
+            });
+
+            if (response.status === 401) {
+                await refreshToken();
+                response = await fetch(`${apiUrl}${id}/`, {
+                    headers: {
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${getAccessToken()}`,
+                    }
+                });
             }
-        })
-        .then(response => response.json())
-        .then(avail => {
+
+            const avail = await response.json();
             openModal(avail);
-        })
-        .catch(error => console.error('Error fetching availability:', error));
+        } catch (error) {
+            console.error('Error fetching availability:', error);
+        }
     }
 
-    function deleteAvailability(id) {
+    async function deleteAvailability(id) {
         if (!confirm('Are you sure you want to delete this availability?')) return;
 
-        fetch(`${apiUrl}${id}/`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRFToken': getCSRFToken(),
-                'Accept': 'application/json',
-                'Authorization': `Bearer ${getAccessToken()}`,
+        try {
+            let response = await fetch(`${apiUrl}${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCSRFToken(),
+                    'Accept': 'application/json',
+                    'Authorization': `Bearer ${getAccessToken()}`,
+                }
+            });
+
+            if (response.status === 401) {
+                await refreshToken();
+                response = await fetch(`${apiUrl}${id}/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': getCSRFToken(),
+                        'Accept': 'application/json',
+                        'Authorization': `Bearer ${getAccessToken()}`,
+                    }
+                });
             }
-        })
-        .then(response => {
+
             if (response.ok) {
                 loadAvailabilities();
                 showSuccessMessage('Availability deleted successfully!');
             } else {
                 console.error('Failed to delete availability.');
             }
-        })
-        .catch(error => console.error('Error deleting availability:', error));
+        } catch (error) {
+            console.error('Error deleting availability:', error);
+        }
     }
 
     function openModal(avail = null) {
@@ -194,7 +233,7 @@ document.addEventListener('DOMContentLoaded', function() {
         for (const field in errors) {
             const errorMessages = errors[field];
             let errorMessageText;
-    
+
             // Check if errorMessages is an array and join the messages
             if (Array.isArray(errorMessages)) {
                 errorMessageText = errorMessages.join(', ');
@@ -208,7 +247,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Fallback to handling as a string
                 errorMessageText = String(errorMessages);
             }
-    
+
             const errorDiv = document.createElement('div');
             errorDiv.className = 'error-message';
             errorDiv.textContent = `${field}: ${errorMessageText}`;
