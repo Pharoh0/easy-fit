@@ -18,11 +18,18 @@ router.register(r'coach-certifications', coach_apis.CertificationViewSet, basena
 router.register(r'coach-client-pictures', coach_apis.ClientPictureViewSet, basename='client-picture')
 router.register(r'coach-pictures', coach_apis.CoachPictureViewSet, basename='coach-picture')
 
+router.register(r'regions', coach_apis.RegionViewSet, basename='region')
+router.register(r'cities', coach_apis.CityViewSet, basename='city')
+
 
 
 urlpatterns = [
     #apis
     path('api/v1/', include(router.urls)),
+
+    # path('regions/', coach_apis.RegionListView.as_view(), name='region-list'),
+    # path('cities/', coach_apis.CityListView.as_view(), name='city-list'),
+
 
     # client URLs
     path('view-profile/', views.view_profile, name='view_profile'),
