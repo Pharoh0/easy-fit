@@ -70,17 +70,36 @@
         <!-- Location -->
 <div class="form-group">
     <label for="country">Country:</label>
-    {{ form.country|add_class:"form-control" id="country-select" }}
-</div>
-<div class="form-group">
-    <label for="region">Region:</label>
-    {{ form.region|add_class:"form-control" id="region-select" }}
-</div>
-<div class="form-group">
-    <label for="city">City:</label>
-    {{ form.city|add_class:"form-control" id="city-select" }}
+    <select id="country" name="country">
+        {% for country in countries %}
+            <option value="{{ country.id }}" {% if coach_profile.country.id == country.id %}selected{% endif %}>
+                {{ country.name }}
+            </option>
+        {% endfor %}
+    </select>
 </div>
 
+<div class="form-group">
+    <label for="region">Region:</label>
+    <select id="region" name="region">
+        {% for region in regions %}
+            <option value="{{ region.id }}" {% if coach_profile.region.id == region.id %}selected{% endif %}>
+                {{ region.name }}
+            </option>
+        {% endfor %}
+    </select>
+</div>
+
+<div class="form-group">
+    <label for="city">City:</label>
+    <select id="city" name="city">
+        {% for city in cities %}
+            <option value="{{ city.id }}" {% if coach_profile.city.id == city.id %}selected{% endif %}>
+                {{ city.name }}
+            </option>
+        {% endfor %}
+    </select>
+</div>
 
         <!-- Specialties -->
         <div class="form-group">
@@ -249,4 +268,6 @@
 
 {% block extra_js %}
 <script src="{% static 'profiles/js/coach/coach_profile_edit.js' %}"></script>
+<script src="{% static 'profiles/js/coach/coach_location_filtering.js' %}"></script>
+
 {% endblock %}
