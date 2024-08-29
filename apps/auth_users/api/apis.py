@@ -228,6 +228,9 @@ class UserRegistrationAPIView(GenericAPIView):
                 return Response({"message": str(e)}, status=status.HTTP_404_NOT_FOUND)
             user.groups.add(group_obj)
 
+        # Log the user in
+        login(request, user)
+
         token = RefreshToken.for_user(user)
         data = serializer.data
         data["tokens"] = {
