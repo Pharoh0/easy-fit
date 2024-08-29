@@ -4,6 +4,7 @@ from django.urls import reverse
 from .models import CoachProfile
 from ..forms import CoachProfileForm
 from django.contrib import messages
+from cities_light.models import Country, Region, City
 
 @login_required
 def view_coach_profile(request):
@@ -30,15 +31,46 @@ def view_coach_profile(request):
 
 from django.http import JsonResponse
 @login_required
+# def edit_coach_profile(request):
+#     # coach_profile = get_object_or_404(CoachProfile, user=request.user)
+#     coach_profile = CoachProfile.objects.select_related('user', 'country', 'region', 'city').prefetch_related('certifications', 'client_pictures', 'coach_pictures', 'availabilities').get(user=request.user)
+#
+#
+#     if request.method == 'POST':
+#         # Preserve the existing avatar if not in the request
+#         form = CoachProfileForm(request.POST, request.FILES, instance=coach_profile)
+#
+#         if form.is_valid():
+#             if 'avatar' not in request.FILES:
+#                 form.instance.avatar = coach_profile.avatar  # Preserve the existing avatar
+#             form.save()
+#
+#             if request.headers.get('x-requested-with') == 'XMLHttpRequest':  # Check for AJAX request
+#                 return JsonResponse({'success': True})
+#             else:
+#                 messages.success(request, 'Your profile has been updated successfully.')
+#                 return redirect('profiles:view_coach_profile')
+#         else:
+#             if request.headers.get('x-requested-with') == 'XMLHttpRequest':  # Check for AJAX request
+#                 return JsonResponse({'success': False, 'errors': form.errors}, status=400)
+#             else:
+#                 messages.error(request, 'Please correct the errors below.')
+#     else:
+#         form = CoachProfileForm(instance=coach_profile)
+#
+#     return render(request, 'profiles/coach/coach_profile_edit.html', {
+#         'form': form,
+#         'profile': coach_profile,
+#         'api_url': reverse('profiles:coach-profile-detail', kwargs={'pk': coach_profile.pk}),
+#     })
+
 def edit_coach_profile(request):
-    # coach_profile = get_object_or_404(CoachProfile, user=request.user)
-    coach_profile = CoachProfile.objects.select_related('user', 'country', 'region', 'city').prefetch_related('certifications', 'client_pictures', 'coach_pictures', 'availabilities').get(user=request.user)
-    
+    coach_profile = CoachProfile.objects.select_related('user', 'country', 'region', 'city').prefetch_related(
+        'certifications', 'client_pictures', 'coach_pictures', 'availabilities').get(user=request.user)
 
     if request.method == 'POST':
-        # Preserve the existing avatar if not in the request
         form = CoachProfileForm(request.POST, request.FILES, instance=coach_profile)
-        
+
         if form.is_valid():
             if 'avatar' not in request.FILES:
                 form.instance.avatar = coach_profile.avatar  # Preserve the existing avatar
@@ -57,8 +89,20 @@ def edit_coach_profile(request):
     else:
         form = CoachProfileForm(instance=coach_profile)
 
+    # Get all countries
+    countries = Country.objects.all()
+
+    # Get regions based on selected country
+    regions = Region.objects.filter(country=coach_profile.country) if coach_profile.country else Region.objects.none()
+
+    # Get cities based on selected region
+    cities = City.objects.filter(region=coach_profile.region) if coach_profile.region else City.objects.none()
+
     return render(request, 'profiles/coach/coach_profile_edit.html', {
         'form': form,
         'profile': coach_profile,
+        'countries': countries,
+        'regions': regions,
+        'cities': cities,
         'api_url': reverse('profiles:coach-profile-detail', kwargs={'pk': coach_profile.pk}),
     })
