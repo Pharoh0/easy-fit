@@ -105,7 +105,12 @@
     })
     .then(data => {
         if (data.tokens) {
-            window.location.href = data.redirect_url;  // Redirect on success
+            // Save the tokens to local storage
+            localStorage.setItem('access_token', data.tokens.access);
+            localStorage.setItem('refresh_token', data.tokens.refresh);
+
+            // Redirect on success
+            window.location.href = data.redirect_url;
         }
     })
     .catch(errorData => {
@@ -131,6 +136,7 @@
         }
     });
 });
+
 // document.getElementById('register-form').addEventListener('submit', function(event) {
 //     event.preventDefault();
 //
