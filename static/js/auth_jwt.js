@@ -84,7 +84,7 @@ function logout() {
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': `Bearer ${accessToken}`
+            'Authorization': `Bearer ${accessToken}`  // Use the access token here
         },
         body: JSON.stringify({ refresh: refreshToken })
     })
@@ -92,34 +92,18 @@ function logout() {
         if (response.ok) {
             localStorage.removeItem('access_token');
             localStorage.removeItem('refresh_token');
-        } else {
-            console.error('Failed to logout from JWT.');
-        }
-    })
-    .catch(error => {
-        console.error('Error occurred during JWT logout:', error.message);
-    });
-
-    // Django Session Logout
-    fetch("/auth-users/api/v1/session/logout/", {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-        }
-    })
-    .then(response => {
-        if (response.ok) {
             window.location.href = "/auth-users/login/";  // Redirect to login page
+        } else if (response.status === 401) {
+            console.error('Unauthorized request. Possibly due to expired token.');
+            handleTokenExpiry();  // Handle token expiry by logging the user out of the session
         } else {
-            console.error('Failed to logout from session.');
+            console.error('Failed to logout.');
         }
     })
     .catch(error => {
-        console.error('Error occurred during session logout:', error.message);
+        console.error('Error occurred during logout:', error.message);
     });
 }
-
 
 function handleTokenExpiry() {
     // Clear the tokens from local storage
