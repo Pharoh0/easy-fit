@@ -54,18 +54,33 @@
         </div>
 
         <!-- Location -->
-        <div class="form-group">
-            <label for="country">Country:</label>
-            {{ form.country }}
-        </div>
-        <div class="form-group">
-            <label for="region">Region:</label>
-            {{ form.region }}
-        </div>
-        <div class="form-group">
-            <label for="city">City:</label>
-            {{ form.city }}
-        </div>
+<!--        <div class="form-group">-->
+<!--            <label for="country">Country:</label>-->
+<!--            {{ form.country }}-->
+<!--        </div>-->
+<!--        <div class="form-group">-->
+<!--            <label for="region">Region:</label>-->
+<!--            {{ form.region }}-->
+<!--        </div>-->
+<!--        <div class="form-group">-->
+<!--            <label for="city">City:</label>-->
+<!--            {{ form.city }}-->
+<!--        </div>-->
+
+        <!-- Location -->
+<div class="form-group">
+    <label for="country">Country:</label>
+    {{ form.country|add_class:"form-control" id="country-select" }}
+</div>
+<div class="form-group">
+    <label for="region">Region:</label>
+    {{ form.region|add_class:"form-control" id="region-select" }}
+</div>
+<div class="form-group">
+    <label for="city">City:</label>
+    {{ form.city|add_class:"form-control" id="city-select" }}
+</div>
+
 
         <!-- Specialties -->
         <div class="form-group">
