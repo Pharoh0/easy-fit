@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
+from cities_light.models import Country, Region, City
 
 
 class CertificationSerializer(serializers.ModelSerializer):
@@ -7,7 +8,14 @@ class CertificationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Certification
-        fields = ['id', 'coach_profile', 'file', 'description']
+        # fields = ['id', 'coach_profile', 'file', 'description']
+        fields = ['id', 'file', 'description']
+
+    def __init__(self, *args, **kwargs):
+        super(CertificationSerializer, self).__init__(*args, **kwargs)
+        if self.instance:
+            # If the instance exists (we're updating), make the image field not required
+            self.fields['file'].required = False
 
 
 class ClientPictureSerializer(serializers.ModelSerializer):
@@ -254,3 +262,21 @@ class CoachProfileSerializer(serializers.ModelSerializer):
                 Availability.objects.create(coach_profile=instance, **avail_data)
 
         return instance
+
+
+# country ,city and regions
+
+class CountrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Country
+        fields = ['id', 'name']
+
+class RegionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Region
+        fields = ['id', 'name', 'country']
+
+class CitySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = City
+        fields = ['id', 'name', 'region']
