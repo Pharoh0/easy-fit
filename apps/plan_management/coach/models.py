@@ -1,5 +1,6 @@
+from django.utils import timezone
 from django.db import models
-from apps.auth_users.models import CustomUser
+from django.core.exceptions import ValidationError
 from apps.profiles.coach_profile.models import CoachProfile
 from ..choices import PLAN_TYPE_CHOICES
 from django.contrib.auth import get_user_model
@@ -25,6 +26,43 @@ class ProductPlan(models.Model):
     @property
     def total_price(self):
         return self.price_per_session * self.session_count
+    
+    def clean(self):
+        # Ensure start_date is before end_date
+        if self.start_date >= self.end_date:
+            raise ValidationError("End date must be after the start date.")
+
+        # Ensure start_date is not in the past
+        if self.start_date < timezone.now().date():
+            raise ValidationError("Start date cannot be in the past.")
+
+    def save(self, *args, **kwargs):
+        self.clean()  # Perform the validations before saving
+        super().save(*args, **kwargs)
+
 
     def __str__(self):
         return f"{self.name} by {self.coach.user.username}"
+
+
+class PlanItem(models.Model):
+    plan = models.ForeignKey(ProductPlan, related_name='items', on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    order = models.PositiveIntegerField()
+    media = models.FileField(upload_to='plan_items_media/', blank=True, null=True)  # For video demonstrations or images
+    
+
+    def save(self, *args, **kwargs):
+        if self.order is None:
+            # Assign the next order value if it's not provided
+            last_item = PlanItem.objects.filter(plan=self.plan).order_by('-order').first()
+            self.order = last_item.order + 1 if last_item else 1
+        super().save(*args, **kwargs)
+
+
+    def __str__(self):
+        return f'{self.name} ({self.plan.name})'
+
+    class Meta:
+        ordering = ['order']
