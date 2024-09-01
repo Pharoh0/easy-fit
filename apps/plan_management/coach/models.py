@@ -1,16 +1,12 @@
 from django.db import models
 from apps.auth_users.models import CustomUser
 from apps.profiles.coach_profile.models import CoachProfile
+from ..choices import PLAN_TYPE_CHOICES
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
 class ProductPlan(models.Model):
-    PLAN_TYPE_CHOICES = (
-        ('workout', 'Workout Plan'),
-        ('diet', 'Diet Plan'),
-    )
-
     coach = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='plans')
     name = models.CharField(max_length=255)
     description = models.TextField()
