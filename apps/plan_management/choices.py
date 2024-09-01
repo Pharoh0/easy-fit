@@ -3,7 +3,9 @@ PLAN_TYPE_CHOICES = (
         ('diet', 'Diet Plan'),
     )
 
-PLAN_SUBSCRIPTION_CHOICES = (('active', 'active'),
-                    ('cancelled', 'cancelled'),
-                    ('pending', 'Pending'),
-                    ('completed', 'Completed')),
+PLAN_SUBSCRIPTION_CHOICES = [
+    ('active', 'Active'),
+    ('cancelled', 'Cancelled'),
+    ('pending', 'Pending'),
+    ('completed', 'Completed'),
+]
