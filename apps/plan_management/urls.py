@@ -1,5 +1,5 @@
 from django.urls import path, reverse_lazy, include
-from .api import apis
+# from .api import apis
 from . import views
 
 app_name = "plan_management"
