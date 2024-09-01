@@ -1,19 +1,14 @@
-from django.urls import path, reverse_lazy, include
-# from .api import apis
-from . import views
+from django.urls import path, include
+from rest_framework.routers import DefaultRouter
+from .coach import apis as coach_apis
+from client import apis as client_apis
 
-app_name = "plan_management"
+
+router = DefaultRouter()
+router.register(r'product-plans', coach_apis.ProductPlanViewSet)
+router.register(r'plan-items', coach_apis.PlanItemViewSet)
+router.register(r'plan-subscriptions', client_apis.PlanSubscriptionViewSet)
 
 urlpatterns = [
-    # API paths
-    # path("api/v1/login/", apis.UserLoginAPIView.as_view(), name="api-user-login"),
-    # path("api/v1/logout/", apis.UserLogoutAPIView.as_view(), name="api-user-logout"),
-    # path("api/v1/register/", apis.UserRegistrationAPIView.as_view(), name="api-user-register"),
-    # path("api/v1/token/refresh/", apis.CustomTokenRefreshView.as_view(), name="api-token-refresh"),
-    #
-    # # Template views
-    # path('login/', views.UserLoginView.as_view(), name='user-login'),
-    # path('register/', views.UserRegistrationView.as_view(), name='user-register'),
-    # path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
-    # path('logout/', views.UserLogoutView.as_view(), name='user-logout'),
+    path('', include(router.urls)),
 ]
