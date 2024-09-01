@@ -53,6 +53,7 @@ BASE_INSTALLED_APPS = [
 LOCAL_INSTALLED_APPS = [
     "apps.auth_users.apps.AuthUsersConfig",
     "apps.profiles.apps.ProfilesConfig",
+    "apps.plan_management.apps.PlanManagementConfig",
     ]
 
 THIRD_PARTIES_INSTALLED_APPS = [
