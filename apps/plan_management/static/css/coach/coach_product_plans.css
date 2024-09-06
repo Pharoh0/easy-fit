@@ -1,0 +1,90 @@
+/* coach_product_plans.css */
+.container {
+    width: 80%;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.plan-item {
+    border-bottom: 1px solid #ccc;
+    padding: 15px 0;
+}
+
+.plan-item h3 {
+    margin: 0 0 10px;
+}
+
+.plan-item p {
+    margin: 5px 0;
+}
+
+button {
+    margin-right: 10px;
+}
+
+
+/* Common styles for both modals */
+#plan-modal, #confirm-delete-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6); /* Semi-transparent background */
+    display: none; /* Hidden by default */
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;  /* Ensure it's above other elements */
+}
+
+.modal-content {
+    background: white;
+    padding: 20px;
+    width: 500px;
+    max-width: 90%;  /* Make sure it's responsive on smaller screens */
+    border-radius: 5px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+/* Close button style */
+.modal-content .close {
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 24px;
+    cursor: pointer;
+    color: #333;
+    font-weight: bold;
+}
+
+
+/* Optional: Add smooth transition for the modal */
+#plan-modal.show, #confirm-delete-modal.show {
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Optional: Add smooth transition for the modal */
+#plan-modal.show, #confirm-delete-modal.show {
+    opacity: 1;
+    transition: opacity 0.3s ease-in-out;
+}
+
+.error-message {
+    color: red;
+}
+
+.loading {
+    text-align: center;
+    font-size: 18px;
+}
+
+.alert {
+    margin-top: 20px;
+}
+
+.form-errors {
+    margin-top: 10px;
+    color: red;
+}
