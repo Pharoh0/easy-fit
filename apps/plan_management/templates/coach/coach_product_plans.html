@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}Manage Product Plans{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{% static 'css/coach/coach_product_plans.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Your Product Plans</h1>
+    <button id="add-plan-button" class="btn btn-primary">Add Product Plan</button>
+    <div id="plans-container" class="mt-4">
+        <!-- Product Plans will be loaded here via JavaScript -->
+    </div>
+    <div id="success-message" class="alert alert-success" style="display: none;"></div>
+    <div id="loading-indicator" class="loading" style="display: none;">Loading...</div>
+</div>
+
+<!-- Modal for Adding/Editing Product Plan -->
+<div id="plan-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span> <!-- Close button -->
+       
+        <form id="plan-form" enctype="multipart/form-data">
+            {% csrf_token %}
+            <label for="name">Plan Name:</label>
+            <input type="text" name="name" id="name" required>
+
+            <label for="description">Description:</label>
+            <textarea name="description" id="description" required></textarea>
+
+            <label for="plan_type">Plan Type:</label>
+            <select name="plan_type" id="plan_type" required>
+                <option value="workout">Workout Plan</option>
+                <option value="diet">Diet Plan</option>
+            </select>
+
+            <label for="price">Price:</label>
+            <input type="number" name="price" id="price" step="0.01" required>
+
+            <label for="price_per_session">Price per Session:</label>
+            <input type="number" name="price_per_session" id="price_per_session" step="0.01" required>
+
+            <label for="session_count">Session Count:</label>
+            <input type="number" name="session_count" id="session_count" required>
+
+            <label for="start_date">Start Date:</label>
+            <input type="date" name="start_date" id="start_date" required>
+
+            <label for="end_date">End Date:</label>
+            <input type="date" name="end_date" id="end_date" required>
+
+            <label for="renewal_period">Renewal Period:</label>
+            <select name="renewal_period" id="renewal_period" required>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+            </select>
+
+            <label for="image">Plan Image:</label>
+            <input type="file" name="image" id="image">
+
+            <button type="submit" class="btn btn-success">Save</button>
+        </form>
+        <div id="form-errors" class="text-danger"></div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div id="confirm-delete-modal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Are you sure you want to delete this product plan?</h2>
+        <button id="confirm-delete-button" class="btn btn-danger">Yes, Delete</button>
+        <button id="cancel-delete-button" class="btn btn-secondary">Cancel</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/coach/coach_product_plans.js' %}" defer></script>
+{% endblock %}
