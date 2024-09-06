@@ -1,3 +1,4 @@
+/* coach_profile_views.css */
 /* Coach Profile Specific Styles */
 .profile {
     padding: 20px;
@@ -185,4 +186,26 @@
 
 .edit-profile-btn .btn:hover {
     background-color: #0056b3;
+}
+
+
+/* product plan section */
+.product-plans-section {
+    margin-top: 30px;
+}
+
+.plan-item {
+    border: 1px solid #ddd;
+    padding: 15px;
+    margin-bottom: 15px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+}
+
+.plan-item h3 {
+    margin-top: 0;
+}
+
+.plan-item p {
+    margin-bottom: 10px;
 }

@@ -1,4 +1,5 @@
 
+/* pictures.css */
 /* Each picture item container */
 .picture-item {
     flex: 1 1 calc(33.333% - 20px); /* Adjust the percentage to control the number of items per row */
