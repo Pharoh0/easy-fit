@@ -24,6 +24,9 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path("auth-users/", include("apps.auth_users.urls", namespace="auth_users")),
     path("profiles/", include("apps.profiles.urls", namespace="profiles")),
+    
+    path("plan-management/", include("apps.plan_management.urls", namespace="plan_management")),
+    
 
     path("user-friendship/", include("apps.user_friendship.urls", namespace="user_friendship")),
 
