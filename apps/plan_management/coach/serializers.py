@@ -26,9 +26,7 @@ class ProductPlanSerializer(serializers.ModelSerializer):
             'price_per_session', 'session_count', 'start_date', 'end_date', 
             'renewal_period', 'created_at', 'updated_at', 'total_price', 'items', 'image'
         ]
+        # Mark the 'coach' field as read-only
+        read_only_fields = ['coach']
         
-    def validate(self, data):
-        request = self.context.get('request')
-        if request and request.user != data['coach'].user:
-            raise PermissionDenied("You do not have permission to create or modify this plan.")
-        return data
+
