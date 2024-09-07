@@ -3,44 +3,90 @@
 {% block title %}Coach Certifications{% endblock %}
 
 {% block extra_css %}
-    <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_certifications/certifications.css' %}">
+    {% comment %} <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_certifications/certifications.css' %}"> {% endcomment %}
+    <style>
+        /* Card styling for uniformity */
+        .card {
+            height: 100%;
+        }
+        .card-body {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1>Your Coach Certifications</h1>
-    <button id="add-certification-button" class="btn btn-primary">Add Certification</button>
-    <div id="certifications-container" class="mt-4">
+    <h1 class="my-4">Your Coach Certifications</h1>
+
+    <!-- Success Message -->
+    <div id="success-message" class="alert alert-success" role="alert" style="display: none;"></div>
+
+    <!-- Add Certification Button -->
+    <button id="add-certification-button" class="btn btn-primary mb-4">Add Certification</button>
+
+    <!-- Certifications Container -->
+    <div id="certifications-container" class="row g-4">
         <!-- Coach Certifications will be loaded here via JavaScript -->
     </div>
 </div>
 
 <!-- Modal for Adding/Editing Certification -->
-<div id="certification-modal" class="modal">
-    <div class="modal-content">
-        <span class="close">&times;</span>
-        <form id="certification-form" enctype="multipart/form-data">
-            {% csrf_token %}
-            <label for="file">Upload Certification:</label>
-            <input type="file" name="file" id="file">
+<div id="certification-modal" class="modal fade" tabindex="-1" aria-labelledby="certificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="certificationModalLabel">Add/Edit Certification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="certification-form" enctype="multipart/form-data">
+                    {% csrf_token %}
 
-            <label for="description">Description:</label>
-            <input type="text" name="description" id="description">
+                    <!-- File Upload -->
+                    <div class="mb-3">
+                        <label for="file" class="form-label">Upload Certification:</label>
+                        <input type="file" class="form-control" name="file" id="file">
+                    </div>
 
-            <button type="submit" class="btn btn-success">Save</button>
-        </form>
+                    <!-- File Preview (if editing) -->
+                    <div id="current-file-container" class="mb-3" style="display:none;">
+                        <label>Current Certification:</label>
+                        <a id="current-file" href="#" target="_blank">View Current Certification</a>
+                    </div>
+
+                    <!-- Description -->
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description:</label>
+                        <input type="text" class="form-control" name="description" id="description" required>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <button type="submit" class="btn btn-success">Save</button>
+                </form>
+                <div id="form-errors" class="text-danger mt-2"></div>
+            </div>
+        </div>
     </div>
-    <div id="form-errors" class="text-danger"></div>
 </div>
 
 <!-- Modal for Confirming Delete -->
-<div id="confirm-delete-modal" class="modal">
-    <div class="modal-content">
-        <span class="close-delete">&times;</span>
-        <h3>Are you sure you want to delete this certification?</h3>
-        <div class="modal-actions">
-            <button id="confirm-delete-button" class="btn btn-danger">Yes</button>
-            <button id="cancel-delete-button" class="btn btn-secondary">Cancel</button>
+<div id="confirm-delete-modal" class="modal fade" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this certification?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button id="confirm-delete-button" type="button" class="btn btn-danger">Delete</button>
+            </div>
         </div>
     </div>
 </div>

@@ -155,16 +155,17 @@
 {% endblock %} {% endcomment %}
 
 
+
 {% load static %}
 {% block title %}Edit Coach Profile{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_edit.css' %}">
+{% comment %} <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_edit.css' %}"> {% endcomment %}
 {% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Edit Coach Profile</h1>
+<div class="container mt-5">
+    <h1 class="mb-4">Edit Coach Profile</h1>
 
     {% if messages %}
     <div id="messages">
@@ -178,96 +179,118 @@
 
     <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
         {% csrf_token %}
-
+        
         <!-- Avatar Section -->
-        <div class="form-group avatar-section">
-            <p><strong>Current Avatar:</strong></p>
-            {% if profile.avatar %}
-                <img src="{{ profile.avatar.url }}" alt="Current Avatar" class="current-avatar">
-            {% else %}
-                <span>No avatar uploaded yet.</span>
-            {% endif %}
+        <div class="form-group mb-4">
+            <label class="form-label"><strong>Current Avatar:</strong></label>
+            <div>
+                {% if profile.avatar %}
+                    <img src="{{ profile.avatar.url }}" alt="Current Avatar" class="rounded-circle img-thumbnail mb-2" style="width: 150px; height: 150px;">
+                {% else %}
+                    <span>No avatar uploaded yet.</span>
+                {% endif %}
+            </div>
             <label for="avatar" class="form-label">Upload New Avatar:</label>
             <input type="file" name="avatar" id="avatar" class="form-control-file">
             {% if form.avatar.errors %}
-                <span class="error-message">{{ form.avatar.errors }}</span>
+                <span class="error-message text-danger">{{ form.avatar.errors }}</span>
             {% endif %}
         </div>
 
         <!-- Bio Section -->
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="bio" class="form-label">Bio:</label>
-            <textarea id="bio" name="bio" class="form-control">{{ form.bio.value }}</textarea>
+            <textarea id="bio" name="bio" class="form-control" rows="4">{{ form.bio.value }}</textarea>
         </div>
 
         <!-- Years of Experience Section -->
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="years_of_experience" class="form-label">Years of Experience:</label>
             <input type="number" id="years_of_experience" name="years_of_experience" class="form-control" value="{{ form.years_of_experience.value }}">
         </div>
 
         <!-- Location Section -->
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="country" class="form-label">Country:</label>
-            {{ form.country }}
+            <select id="country" name="country" class="form-select">
+                {% for country in countries %}
+                    <option value="{{ country.id }}" {% if coach_profile.country.id == country.id %}selected{% endif %}>
+                        {{ country.name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="region" class="form-label">Region:</label>
-            {{ form.region }}
+            <select id="region" name="region" class="form-select">
+                {% for region in regions %}
+                    <option value="{{ region.id }}" {% if coach_profile.region.id == region.id %}selected{% endif %}>
+                        {{ region.name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="city" class="form-label">City:</label>
-            {{ form.city }}
+            <select id="city" name="city" class="form-select">
+                {% for city in cities %}
+                    <option value="{{ city.id }}" {% if coach_profile.city.id == city.id %}selected{% endif %}>
+                        {{ city.name }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
-        
-        
 
         <!-- Specialties Section -->
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="specialties" class="form-label">Specialties:</label>
-            {{ form.specialties }}
+            <input type="text" id="specialties" name="specialties" class="form-control" value="{{ form.specialties.value }}">
         </div>
 
+
         <!-- Hourly Rate Section -->
-        <div class="form-group">
+        <div class="form-group mb-3">
             <label for="hourly_rate" class="form-label">Hourly Rate:</label>
             <input type="number" id="hourly_rate" name="hourly_rate" class="form-control" value="{{ form.hourly_rate.value }}">
         </div>
 
         <!-- Social Media Fields -->
-        <div class="form-group">
-            <label for="facebook_profile_url" class="form-label">Facebook Profile:</label>
-            <input type="url" id="facebook_profile_url" name="facebook_profile_url" class="form-control" value="{{ profile.facebook_profile_url }}">
-        </div>
-        <div class="form-group">
-            <label for="instagram_profile_url" class="form-label">Instagram Profile:</label>
-            <input type="url" id="instagram_profile_url" name="instagram_profile_url" class="form-control" value="{{ profile.instagram_profile_url }}">
-        </div>
-        <div class="form-group">
-            <label for="twitter_profile_url" class="form-label">Twitter Profile:</label>
-            <input type="url" id="twitter_profile_url" name="twitter_profile_url" class="form-control" value="{{ profile.twitter_profile_url }}">
-        </div>
-        <div class="form-group">
-            <label for="youtube_profile_url" class="form-label">YouTube Profile:</label>
-            <input type="url" id="youtube_profile_url" name="youtube_profile_url" class="form-control" value="{{ profile.youtube_profile_url }}">
-        </div>
-        <div class="form-group">
-            <label for="tiktok_profilel_url" class="form-label">TikTok Profile:</label>
-            <input type="url" id="tiktok_profilel_url" name="tiktok_profilel_url" class="form-control" value="{{ profile.tiktok_profilel_url }}">
-        </div>
-        <div class="form-group">
-            <label for="linkedin_profile_url" class="form-label">LinkedIn Profile:</label>
-            <input type="url" id="linkedin_profile_url" name="linkedin_profile_url" class="form-control" value="{{ profile.linkedin_profile_url }}">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="facebook_profile_url" class="form-label">Facebook Profile:</label>
+                <input type="url" id="facebook_profile_url" name="facebook_profile_url" class="form-control" value="{{ profile.facebook_profile_url }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="instagram_profile_url" class="form-label">Instagram Profile:</label>
+                <input type="url" id="instagram_profile_url" name="instagram_profile_url" class="form-control" value="{{ profile.instagram_profile_url }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="twitter_profile_url" class="form-label">Twitter Profile:</label>
+                <input type="url" id="twitter_profile_url" name="twitter_profile_url" class="form-control" value="{{ profile.twitter_profile_url }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="youtube_profile_url" class="form-label">YouTube Profile:</label>
+                <input type="url" id="youtube_profile_url" name="youtube_profile_url" class="form-control" value="{{ profile.youtube_profile_url }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="tiktok_profilel_url" class="form-label">TikTok Profile:</label>
+                <input type="url" id="tiktok_profilel_url" name="tiktok_profilel_url" class="form-control" value="{{ profile.tiktok_profilel_url }}">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="linkedin_profile_url" class="form-label">LinkedIn Profile:</label>
+                <input type="url" id="linkedin_profile_url" name="linkedin_profile_url" class="form-control" value="{{ profile.linkedin_profile_url }}">
+            </div>
         </div>
 
         <!-- Submit Button -->
         <button type="submit" class="btn btn-primary">Save Changes</button>
     </form>
+
+    <div id="messages"></div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'profiles/js/coach/coach_profile_edit.js' %}"></script>
 <script src="{% static 'profiles/js/coach/coach_location_filtering.js' %}"></script>
-
 {% endblock %}

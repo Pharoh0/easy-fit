@@ -1,147 +1,132 @@
-<!--profile_edit.html-->
 {% extends 'base.html' %}
 {% load static %}
 
 {% block title %}Edit Profile{% endblock %}
 
-{% block extra_css %}
-    <link rel="stylesheet" href="{% static 'css/profile_edit.css' %}">
-{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Edit Profile</h1>
-<!--    {% comment %} <form id="profile-form" method="POST" enctype="multipart/form-data"> {% endcomment %}-->
-<!--        <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">-->
-<!--            {% csrf_token %}-->
+<div class="container py-5">
+    <h2 class="text-center mb-4">Edit Your Profile</h2>
 
+    <form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
+        {% csrf_token %}
 
-<!--            <p><strong>Current Avatar:</strong>-->
-<!--            {% if profile_instance.avatar %}-->
-<!--                <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px; display: block; margin-bottom: 10px;">-->
-<!--                <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>-->
-<!--            {% else %}-->
-<!--                <span>No avatar uploaded yet.</span>-->
-<!--            {% endif %}-->
-<!--        </p>-->
-
-<!--        <p><strong>Upload New Avatar:</strong>-->
-<!--            <input type="file" name="avatar">-->
-<!--        </p>-->
-
-<!--        <div class="form-group">-->
-<!--            <label for="gender">Gender:</label>-->
-<!--            <select id="gender" name="gender">-->
-<!--                <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>-->
-<!--                <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>-->
-<!--            </select>-->
-<!--        </div>-->
-
-    {% if messages %}
-    <div id="messages">
-        {% for message in messages %}
-            <div class="alert {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-                {{ message }}
+        <!-- Avatar Upload Section -->
+        <div class="row mb-4 justify-content-center">
+            <div class="col-md-6 text-center">
+                <p><strong>Current Avatar:</strong></p>
+                {% if profile_instance.avatar %}
+                    <img src="{{ profile_instance.avatar.url }}" class="rounded-circle img-fluid mb-3" alt="Current Avatar" style="max-width: 150px;">
+                {% else %}
+                    <img src="{% static 'img/default-avatar.png' %}" class="rounded-circle img-fluid mb-3" alt="Default Avatar" style="max-width: 150px;">
+                {% endif %}
+                <p>If you want to change the avatar, choose a new file below.</p>
+                <input type="file" name="avatar" class="form-control-file mb-3">
+                {% if form.avatar.errors %}
+                    <span class="text-danger">{{ form.avatar.errors }}</span>
+                {% endif %}
             </div>
-        {% endfor %}
-    </div>
-{% endif %}
-
-<form id="profile-form" method="POST" enctype="multipart/form-data" data-url="{{ api_url }}">
-    {% csrf_token %}
-
-    <!-- Avatar Upload -->
-    <p><strong>Current Avatar:</strong>
-        {% if profile_instance.avatar %}
-            <img src="{{ profile_instance.avatar.url }}" alt="Current Avatar" style="max-width: 150px;">
-            <span>If you want to change the avatar, choose a new file below. Otherwise, the current avatar will be retained.</span>
-        {% else %}
-            <span>No avatar uploaded yet.</span>
-        {% endif %}
-    </p>
-
-    <p><strong>Upload New Avatar:</strong>
-        <input type="file" name="avatar">
-        {% if form.avatar.errors %}
-            <span class="error-message">{{ form.avatar.errors }}</span>
-        {% endif %}
-    </p>
-
-    <!-- Other Form Fields -->
-    <div class="form-group">
-        <label for="gender">Gender:</label>
-        <select id="gender" name="gender">
-            <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>
-            <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>
-        </select>
-        {% if form.gender.errors %}
-            <span class="error-message">{{ form.gender.errors }}</span>
-        {% endif %}
-    </div>
-
-        <div class="form-group">
-            <label for="age">Age:</label>
-            <input type="number" id="age" name="age" value="{{ profile.age }}">
         </div>
 
-        <div class="form-group">
-            <label for="height">Height:</label>
-            <input type="number" step="0.01" id="height" name="height" value="{{ profile.height }}">
+        <!-- Personal Information Section -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="gender">Gender</label>
+                    <select id="gender" name="gender" class="form-select">
+                        <option value="Male" {% if profile.gender == "Male" %}selected{% endif %}>Male</option>
+                        <option value="Female" {% if profile.gender == "Female" %}selected{% endif %}>Female</option>
+                    </select>
+                    {% if form.gender.errors %}
+                        <span class="text-danger">{{ form.gender.errors }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="age">Age</label>
+                    <input type="number" id="age" name="age" class="form-control" value="{{ profile.age }}">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="height">Height (cm)</label>
+                    <input type="number" step="0.01" id="height" name="height" class="form-control" value="{{ profile.height }}">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="weight">Weight (kg)</label>
+                    <input type="number" step="0.01" id="weight" name="weight" class="form-control" value="{{ profile.weight }}">
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="bmi">BMI</label>
+                    <input type="number" step="0.01" id="bmi" name="bmi" class="form-control" value="{{ profile.bmi }}">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="body_fat_percentage">Body Fat Percentage (%)</label>
+                    <input type="number" step="0.01" id="body_fat_percentage" name="body_fat_percentage" class="form-control" value="{{ profile.body_fat_percentage }}">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="waist_size">Waist Size (cm)</label>
+                    <input type="number" step="0.01" id="waist_size" name="waist_size" class="form-control" value="{{ profile.waist_size }}">
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="chest_size">Chest Size (cm)</label>
+                    <input type="number" step="0.01" id="chest_size" name="chest_size" class="form-control" value="{{ profile.chest_size }}">
+                </div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="weight">Weight:</label>
-            <input type="number" step="0.01" id="weight" name="weight" value="{{ profile.weight }}">
+        <!-- Health Information Section -->
+        <div class="row mt-4">
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="health_conditions">Health Conditions</label>
+                    <textarea id="health_conditions" name="health_conditions" class="form-control" rows="4">{{ profile.health_conditions }}</textarea>
+                </div>
+            </div>
+
+            <div class="col-md-6">
+                <div class="form-group mb-3">
+                    <label for="dietary_preferences">Dietary Preferences</label>
+                    <textarea id="dietary_preferences" name="dietary_preferences" class="form-control" rows="4">{{ profile.dietary_preferences }}</textarea>
+                </div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="bmi">BMI:</label>
-            <input type="number" step="0.01" id="bmi" name="bmi" value="{{ profile.bmi }}">
+        <!-- Fitness Goals Section -->
+        <div class="row mt-4">
+            <div class="col-md-12">
+                <div class="form-group mb-3">
+                    <label for="fitness_goals">Fitness Goals</label>
+                    <textarea id="fitness_goals" name="fitness_goals" class="form-control" rows="4">{{ profile.fitness_goals }}</textarea>
+                </div>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="body_fat_percentage">Body Fat Percentage:</label>
-            <input type="number" step="0.01" id="body_fat_percentage" name="body_fat_percentage" value="{{ profile.body_fat_percentage }}">
+        <!-- Submit Button -->
+        <div class="row mt-4">
+            <div class="col-md-12 text-center">
+                <button type="submit" class="btn btn-primary btn-lg">Save Changes</button>
+            </div>
         </div>
 
-        <div class="form-group">
-            <label for="waist_size">Waist Size:</label>
-            <input type="number" step="0.01" id="waist_size" name="waist_size" value="{{ profile.waist_size }}">
+        <!-- Display messages at the bottom of the form -->
+        <div class="mt-4">
+            <div id="messages"></div>
         </div>
 
-        <div class="form-group">
-            <label for="chest_size">Chest Size:</label>
-            <input type="number" step="0.01" id="chest_size" name="chest_size" value="{{ profile.chest_size }}">
-        </div>
-
-        <div class="form-group">
-            <label for="health_conditions">Health Conditions:</label>
-            <textarea id="health_conditions" name="health_conditions">{{ profile.health_conditions }}</textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="fitness_goals">Fitness Goals:</label>
-            <textarea id="fitness_goals" name="fitness_goals">{{ profile.fitness_goals }}</textarea>
-        </div>
-
-        <div class="form-group">
-            <label for="dietary_preferences">Dietary Preferences:</label>
-            <textarea id="dietary_preferences" name="dietary_preferences">{{ profile.dietary_preferences }}</textarea>
-        </div>
-
-        {% comment %} <div class="form-group">
-            <label for="avatar">Avatar:</label>
-            <input type="file" id="avatar" name="avatar">
-        </div> {% endcomment %}
-
-
-        <button type="submit">Save Changes</button>
     </form>
 
     <div id="error-messages"></div>
 </div>
 {% endblock %}
 
+
 {% block extra_js %}
-    <script src="{% static 'js/profile_edit.js' %}"></script>
+<script src="{% static 'profiles/js/profile_edit.js' %}"></script>
 {% endblock %}

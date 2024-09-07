@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% comment %} {% extends 'base.html' %}
+
 {% block title %}Register{% endblock %}
 
 {% block content %}
@@ -179,5 +181,144 @@
 // });
 
 
+</script>
+{% endblock %} {% endcomment %}
+
+
+
+{% block title %}Register{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-center align-items-center vh-100">
+    <div class="card border-0 shadow-lg" style="width: 100%; max-width: 500px; border-radius: 15px;">
+        <!-- Card Header -->
+        <div class="card-header bg-primary text-white text-center py-4" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
+            <h3 class="mb-0">Create Your Account</h3>
+        </div>
+        <!-- Card Body -->
+        <div class="card-body p-4">
+            <form id="register-form" method="POST">
+                {% csrf_token %}
+                <!-- Username -->
+                <div class="mb-3">
+                    <label for="username" class="form-label">Username</label>
+                    <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required>
+                </div>
+                <!-- First Name -->
+                <div class="mb-3">
+                    <label for="first_name" class="form-label">First Name</label>
+                    <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Enter your first name" required>
+                </div>
+                <!-- Last Name -->
+                <div class="mb-3">
+                    <label for="last_name" class="form-label">Last Name</label>
+                    <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Enter your last name" required>
+                </div>
+                <!-- Email -->
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" id="email" name="email" class="form-control" placeholder="Enter your email" required>
+                </div>
+                <!-- Password -->
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+                <!-- Confirm Password -->
+                <div class="mb-3">
+                    <label for="password2" class="form-label">Confirm Password</label>
+                    <input type="password" id="password2" name="password2" class="form-control" placeholder="Confirm your password" required>
+                </div>
+                <!-- User Type -->
+                <div class="mb-3">
+                    <label for="user_type" class="form-label">User Type</label>
+                    <select id="user_type" name="user_type" class="form-select" required>
+                        <option value="client">Client</option>
+                        <option value="coach">Coach</option>
+                        <option value="staff">Staff</option>
+                    </select>
+                </div>
+                <!-- Error Messages -->
+                <div id="error-messages" class="text-danger mb-3"></div>
+                <!-- Register Button -->
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-primary btn-lg" style="border-radius: 8px;">Register</button>
+                </div>
+                <!-- Login Link -->
+                <p class="text-center mb-0">Already have an account? <a href="{% url 'auth_users:user-login' %}" class="text-primary">Login here</a></p>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Script for handling form submission -->
+<script>
+    document.getElementById('register-form').addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        const form = event.target;
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        const password = formData.get('password');
+        const confirmPassword = formData.get('password2');
+        const errorMessagesDiv = document.getElementById('error-messages');
+
+        errorMessagesDiv.innerHTML = ''; // Clear previous errors
+
+        // Check if passwords match
+        if (password !== confirmPassword) {
+            const confirmPasswordField = document.querySelector('[name=password2]');
+            const errorElement = document.createElement('div');
+            errorElement.className = 'error-message';
+            errorElement.style.color = 'red';
+            errorElement.textContent = "Passwords do not match.";
+            confirmPasswordField.parentNode.insertBefore(errorElement, confirmPasswordField.nextSibling);
+            return;  // Stop form submission if passwords do not match
+        }
+
+        fetch("{% url 'auth_users:api-user-register' %}", {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                return response.json();  // Parse JSON if response is OK
+            } else {
+                return response.json().then(data => {
+                    throw data;
+                });
+            }
+        })
+        .then(data => {
+            if (data.tokens) {
+                localStorage.setItem('access_token', data.tokens.access);
+                localStorage.setItem('refresh_token', data.tokens.refresh);
+                window.location.href = data.redirect_url;  // Redirect on success
+            }
+        })
+        .catch(errorData => {
+            if (errorData.errors) {
+                document.querySelectorAll('.error-message').forEach(el => el.remove());
+                errorData.errors.forEach(error => {
+                    const field = document.querySelector(`[name=${error.attr}]`);
+                    if (field) {
+                        const errorElement = document.createElement('div');
+                        errorElement.className = 'error-message';
+                        errorElement.style.color = 'red';
+                        errorElement.textContent = error.detail;
+                        field.parentNode.insertBefore(errorElement, field.nextSibling);
+                    }
+                });
+            } else {
+                console.error('Unexpected error:', errorData);
+                errorMessagesDiv.innerHTML = `<p>An unexpected error occurred. Please try again.</p>`;
+            }
+        });
+    });
 </script>
 {% endblock %}

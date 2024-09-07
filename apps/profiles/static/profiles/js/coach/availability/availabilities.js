@@ -2,11 +2,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const apiUrl = '/profiles/api/v1/coach-availabilities/';
     const container = document.getElementById('availabilities-container');
     const addButton = document.getElementById('add-availability-button');
-    const modal = document.getElementById('availability-modal');
+    const modalElement = document.getElementById('availability-modal');
+    const deleteModalElement = document.getElementById('delete-confirmation-modal');  // Delete modal
+    const modal = new bootstrap.Modal(modalElement);
+    const deleteModal = new bootstrap.Modal(deleteModalElement);  // Bootstrap delete modal instance
     const form = document.getElementById('availability-form');
     const formErrors = document.getElementById('form-errors');
     const loadingIndicator = document.getElementById('loading-indicator');
     const successMessage = document.getElementById('success-message');
+    let availabilityToDelete = null;  // Store availability to delete
 
     async function loadAvailabilities() {
         try {
@@ -36,9 +40,9 @@ document.addEventListener('DOMContentLoaded', function() {
             container.innerHTML = '';
             data.forEach(avail => {
                 const div = document.createElement('div');
-                div.className = 'availability-item';
+                div.className = 'availability-item border p-3 mb-2';  // Bootstrap styling
                 div.innerHTML = `
-                    <p>${avail.day_of_week}: ${avail.start_time} - ${avail.end_time}</p>
+                    <p><strong>${avail.day_of_week}</strong>: ${avail.start_time} - ${avail.end_time}</p>
                     <button data-id="${avail.id}" class="edit-button btn btn-sm btn-warning">Edit</button>
                     <button data-id="${avail.id}" class="delete-button btn btn-sm btn-danger">Delete</button>
                 `;
@@ -84,7 +88,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(form);
         const data = {};
         formData.forEach((value, key) => {
-            if (key !== 'coach_profile') {  // Exclude coach_profile from the data
+            if (key !== 'coach_profile') {
                 data[key] = value;
             }
         });
@@ -105,20 +109,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 body: JSON.stringify(data),
             });
 
-            if (response.status === 401) {
-                await refreshToken();
-                response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': getCSRFToken(),
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${getAccessToken()}`,
-                    },
-                    body: JSON.stringify(data),
-                });
-            }
-
             if (response.ok) {
                 closeModal();
                 loadAvailabilities();
@@ -132,14 +122,23 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    container.addEventListener('click', async function(event) {
+    container.addEventListener('click', function(event) {
         if (event.target.classList.contains('edit-button')) {
             const id = event.target.dataset.id;
             editAvailability(id);
         }
         if (event.target.classList.contains('delete-button')) {
             const id = event.target.dataset.id;
-            deleteAvailability(id);
+            availabilityToDelete = id;
+            deleteModal.show();  // Show delete confirmation modal
+        }
+    });
+
+    // Confirm deletion
+    document.getElementById('confirm-delete').addEventListener('click', function() {
+        if (availabilityToDelete) {
+            deleteAvailability(availabilityToDelete);
+            availabilityToDelete = null;  // Reset the deletion ID after deletion
         }
     });
 
@@ -152,16 +151,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            if (response.status === 401) {
-                await refreshToken();
-                response = await fetch(`${apiUrl}${id}/`, {
-                    headers: {
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${getAccessToken()}`,
-                    }
-                });
-            }
-
             const avail = await response.json();
             openModal(avail);
         } catch (error) {
@@ -170,8 +159,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     async function deleteAvailability(id) {
-        if (!confirm('Are you sure you want to delete this availability?')) return;
-
         try {
             let response = await fetch(`${apiUrl}${id}/`, {
                 method: 'DELETE',
@@ -182,20 +169,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
 
-            if (response.status === 401) {
-                await refreshToken();
-                response = await fetch(`${apiUrl}${id}/`, {
-                    method: 'DELETE',
-                    headers: {
-                        'X-CSRFToken': getCSRFToken(),
-                        'Accept': 'application/json',
-                        'Authorization': `Bearer ${getAccessToken()}`,
-                    }
-                });
-            }
-
             if (response.ok) {
                 loadAvailabilities();
+                deleteModal.hide();  // Close the delete confirmation modal after deletion
                 showSuccessMessage('Availability deleted successfully!');
             } else {
                 console.error('Failed to delete availability.');
@@ -206,7 +182,6 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function openModal(avail = null) {
-        modal.style.display = 'block';
         if (avail) {
             form.day_of_week.value = avail.day_of_week;
             form.start_time.value = avail.start_time;
@@ -218,10 +193,11 @@ document.addEventListener('DOMContentLoaded', function() {
             delete form.dataset.edit;
             delete form.dataset.id;
         }
+        modal.show();
     }
 
     function closeModal() {
-        modal.style.display = 'none';
+        modal.hide();
         form.reset();
         formErrors.innerHTML = '';
         delete form.dataset.edit;
@@ -234,22 +210,18 @@ document.addEventListener('DOMContentLoaded', function() {
             const errorMessages = errors[field];
             let errorMessageText;
 
-            // Check if errorMessages is an array and join the messages
             if (Array.isArray(errorMessages)) {
                 errorMessageText = errorMessages.join(', ');
             } else if (typeof errorMessages === 'string') {
-                // If it's a string, use it directly
                 errorMessageText = errorMessages;
             } else if (typeof errorMessages === 'object') {
-                // If it's an object, convert it to a string (useful if Django returns nested errors)
                 errorMessageText = JSON.stringify(errorMessages);
             } else {
-                // Fallback to handling as a string
                 errorMessageText = String(errorMessages);
             }
 
             const errorDiv = document.createElement('div');
-            errorDiv.className = 'error-message';
+            errorDiv.className = 'error-message text-danger';
             errorDiv.textContent = `${field}: ${errorMessageText}`;
             formErrors.appendChild(errorDiv);
         }

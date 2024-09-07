@@ -39,7 +39,9 @@ def edit_profile(request):
     profile = get_object_or_404(ClientProfile, user=request.user)
 
     if request.method == 'POST':
-        serializer = ClientProfileSerializer(profile, data=request.POST, files=request.FILES, partial=True)
+        # serializer = ClientProfileSerializer(profile, data=request.POST, files=request.FILES, partial=True)
+        serializer = ClientProfileSerializer(profile, data={**request.POST.dict(), **request.FILES.dict()}, partial=True)
+
         if serializer.is_valid():
             serializer.save()
             messages.success(request, 'Your profile has been updated successfully.')
