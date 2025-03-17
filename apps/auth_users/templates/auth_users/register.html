@@ -1,252 +1,88 @@
 {% extends 'base.html' %}
 
-{% comment %} {% extends 'base.html' %}
-
 {% block title %}Register{% endblock %}
 
-{% block content %}
-<h2>Register</h2>
-<!--<form method="post" id="register-form">-->
-<!--    {% csrf_token %}-->
-<!--    {{ form.as_p }}-->
-<!--    <button type="submit">Register</button>-->
-<!--</form>-->
+{% load static %}
 
-<form id="register-form" method="POST">
-    {% csrf_token %}
-
-    <div class="form-group">
-        <label for="username">Username:</label>
-        <input type="text" id="username" name="username" required>
-    </div>
-
-    <div class="form-group">
-        <label for="password">Password:</label>
-        <input type="password" id="password" name="password" required>
-    </div>
-
-    <div class="form-group">
-        <label for="password2">Confirm Password:</label>
-        <input type="password" id="password2" name="password2" required>
-    </div>
-
-    <div class="form-group">
-        <label for="first_name">First Name:</label>
-        <input type="text" id="first_name" name="first_name" required>
-    </div>
-
-    <div class="form-group">
-        <label for="last_name">Last Name:</label>
-        <input type="text" id="last_name" name="last_name" required>
-    </div>
-
-    <div class="form-group">
-        <label for="email">Email:</label>
-        <input type="email" id="email" name="email" required>
-    </div>
-
-    <div class="form-group">
-        <label for="user_type">User Type:</label>
-        <select id="user_type" name="user_type" required>
-            <option value="client">Client</option>
-            <option value="coach">Coach</option>
-            <option value="staff">Staff</option>
-        </select>
-    </div>
-
-    <button type="submit">Register</button>
-</form>
-
-
-
-<div id="error-messages"></div>
-
-<script>
-    document.getElementById('register-form').addEventListener('submit', function(event) {
-    event.preventDefault();
-
-    const form = event.target;
-    const formData = new FormData(form);
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-
-    // Get the password and confirm password values
-    const password = formData.get('password');
-    const confirmPassword = formData.get('password2');
-
-    // Clear any previous error messages
-    document.querySelectorAll('.error-message').forEach(el => el.remove());
-
-    // Check if passwords match
-    if (password !== confirmPassword) {
-        const confirmPasswordField = document.querySelector('[name=password2]');
-        const errorElement = document.createElement('div');
-        errorElement.className = 'error-message';
-        errorElement.style.color = 'red';
-        errorElement.textContent = "Passwords do not match.";
-        confirmPasswordField.parentNode.insertBefore(errorElement, confirmPasswordField.nextSibling);
-        return;  // Stop form submission if passwords do not match
-    } 
-
-    fetch("{% url 'auth_users:api-user-register' %}", {
-        method: 'POST',
-        body: formData,
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'Accept': 'application/json',
-        }
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();  // Parse JSON if response is OK
-        } else {
-            return response.json().then(data => {
-                // Here, we're dealing with validation errors
-                throw data;
-            });
-        }
-    })
-    .then(data => {
-        if (data.tokens) {
-            // Save the tokens to local storage
-            localStorage.setItem('access_token', data.tokens.access);
-            localStorage.setItem('refresh_token', data.tokens.refresh);
-
-            // Redirect on success
-            window.location.href = data.redirect_url;
-        }
-    })
-    .catch(errorData => {
-        if (errorData.errors) {
-            // Clear any previous error messages
-            document.querySelectorAll('.error-message').forEach(el => el.remove());
-
-            // Loop through each error and display it
-            errorData.errors.forEach(error => {
-                const field = document.querySelector(`[name=${error.attr}]`);
-                if (field) {
-                    const errorElement = document.createElement('div');
-                    errorElement.className = 'error-message';
-                    errorElement.style.color = 'red';
-                    errorElement.textContent = error.detail;
-                    field.parentNode.insertBefore(errorElement, field.nextSibling);
-                }
-            });
-        } else {
-            // Handle other errors (e.g., network issues)
-            console.error('Unexpected error:', errorData);
-            document.getElementById('error-messages').innerHTML = `<p>An unexpected error occurred. Please try again.</p>`;
-        }
-    });
-});
-
-// document.getElementById('register-form').addEventListener('submit', function(event) {
-//     event.preventDefault();
-//
-//     const form = event.target;
-//     const formData = new FormData(form);
-//     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-//
-//     fetch("{% url 'auth_users:api-user-register' %}", {
-//         method: 'POST',
-//         body: formData,
-//         headers: {
-//             'X-CSRFToken': csrfToken,
-//             'Accept': 'application/json',
-//         }
-//     })
-//     .then(response => {
-//         if (response.ok) {
-//             return response.json();  // Parse JSON if response is OK
-//         } else {
-//             throw new Error('Registration failed. Please check your input.');
-//         }
-//     })
-//     .then(data => {
-//         if (data.tokens) {
-//             console.log("dateeeurl")
-//             // Use the redirect_url from the server response
-//             window.location.href = data.redirect_url;   // This should be the correct URL to redirect the user
-//                 } else {
-//                     let errors = '';
-//                     data.errors.forEach(error => {
-//                         errors += `<p>${error.attr}: ${error.detail}</p>`;
-//                     });
-//                     document.getElementById('error-messages').innerHTML = errors;
-//                 }
-//     })
-//     .catch(error => {
-//         console.error('Error occurred:', error.message);
-//         document.getElementById('error-messages').innerHTML = `<p>${error.message}</p>`;
-//     });
-// });
-
-
-</script>
-{% endblock %} {% endcomment %}
-
-
-
-{% block title %}Register{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'auth_users/css/register.css' %}">
+{% endblock %}
 
 {% block content %}
-<div class="d-flex justify-content-center align-items-center vh-100">
-    <div class="card border-0 shadow-lg" style="width: 100%; max-width: 500px; border-radius: 15px;">
-        <!-- Card Header -->
-        <div class="card-header bg-primary text-white text-center py-4" style="border-top-left-radius: 15px; border-top-right-radius: 15px;">
-            <h3 class="mb-0">Create Your Account</h3>
+<div class="register-container">
+    <div class="row">
+        <!-- Left Section with Decorative Elements -->
+        <div class="col-md-6">
+            <div class="welcome-section text-white">
+                <div class="decorative-elements">
+                    <div class="circle"></div>
+                    <div class="circle"></div>
+                    <div class="wavy-line"></div>
+                    <div class="plus"></div>
+                </div>
+                <h1 class="display-4 fw-bold mb-4">Join Our Community!</h1>
+                <p class="lead">Create your account and start your fitness journey with us.</p>
+            </div>
         </div>
-        <!-- Card Body -->
-        <div class="card-body p-4">
-            <form id="register-form" method="POST">
-                {% csrf_token %}
-                <!-- Username -->
-                <div class="mb-3">
-                    <label for="username" class="form-label">Username</label>
-                    <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required>
+        <!-- Right Section with Registration Form -->
+        <div class="col-md-6 bg-white">
+            <div class="register-card">
+                <div class="card-header text-center">
+                    <h2 class="fw-bold mb-0">Create Account</h2>
                 </div>
-                <!-- First Name -->
-                <div class="mb-3">
-                    <label for="first_name" class="form-label">First Name</label>
-                    <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Enter your first name" required>
+                <div class="card-body">
+                    <form id="register-form" method="POST">
+                        {% csrf_token %}
+                        <!-- Username -->
+                        <div class="mb-3 form-floating">
+                            <input type="text" id="username" name="username" class="form-control" placeholder="Enter your username" required>
+                            <label for="username">Username</label>
+                        </div>
+                        <!-- First Name -->
+                        <div class="mb-3 form-floating">
+                            <input type="text" id="first_name" name="first_name" class="form-control" placeholder="Enter your first name" required>
+                            <label for="first_name">First Name</label>
+                        </div>
+                        <!-- Last Name -->
+                        <div class="mb-3 form-floating">
+                            <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Enter your last name" required>
+                            <label for="last_name">Last Name</label>
+                        </div>
+                        <!-- Email -->
+                        <div class="mb-3 form-floating">
+                            <input type="email" id="email" name="email" class="form-control" placeholder="Enter your email" required>
+                            <label for="email">Email</label>
+                        </div>
+                        <!-- Password -->
+                        <div class="mb-3 form-floating">
+                            <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
+                            <label for="password">Password</label>
+                        </div>
+                        <!-- Confirm Password -->
+                        <div class="mb-3 form-floating">
+                            <input type="password" id="password2" name="password2" class="form-control" placeholder="Confirm your password" required>
+                            <label for="password2">Confirm Password</label>
+                        </div>
+                        <!-- User Type -->
+                        <div class="mb-3 form-floating">
+                            <select id="user_type" name="user_type" class="form-select" required>
+                                <option value="client">Client</option>
+                                <option value="coach">Coach</option>
+                                <option value="staff">Staff</option>
+                            </select>
+                            <label for="user_type">User Type</label>
+                        </div>
+                        <!-- Error Messages -->
+                        <div id="error-messages" class="text-danger mb-3"></div>
+                        <!-- Register Button -->
+                        <div class="d-grid mb-3">
+                            <button type="submit" class="btn btn-primary btn-lg">Register</button>
+                        </div>
+                        <!-- Login Link -->
+                        <p class="text-center mb-0">Already have an account? <a href="{% url 'auth_users:user-login' %}" class="text-primary">Login here</a></p>
+                    </form>
                 </div>
-                <!-- Last Name -->
-                <div class="mb-3">
-                    <label for="last_name" class="form-label">Last Name</label>
-                    <input type="text" id="last_name" name="last_name" class="form-control" placeholder="Enter your last name" required>
-                </div>
-                <!-- Email -->
-                <div class="mb-3">
-                    <label for="email" class="form-label">Email</label>
-                    <input type="email" id="email" name="email" class="form-control" placeholder="Enter your email" required>
-                </div>
-                <!-- Password -->
-                <div class="mb-3">
-                    <label for="password" class="form-label">Password</label>
-                    <input type="password" id="password" name="password" class="form-control" placeholder="Enter your password" required>
-                </div>
-                <!-- Confirm Password -->
-                <div class="mb-3">
-                    <label for="password2" class="form-label">Confirm Password</label>
-                    <input type="password" id="password2" name="password2" class="form-control" placeholder="Confirm your password" required>
-                </div>
-                <!-- User Type -->
-                <div class="mb-3">
-                    <label for="user_type" class="form-label">User Type</label>
-                    <select id="user_type" name="user_type" class="form-select" required>
-                        <option value="client">Client</option>
-                        <option value="coach">Coach</option>
-                        <option value="staff">Staff</option>
-                    </select>
-                </div>
-                <!-- Error Messages -->
-                <div id="error-messages" class="text-danger mb-3"></div>
-                <!-- Register Button -->
-                <div class="d-grid mb-3">
-                    <button type="submit" class="btn btn-primary btn-lg" style="border-radius: 8px;">Register</button>
-                </div>
-                <!-- Login Link -->
-                <p class="text-center mb-0">Already have an account? <a href="{% url 'auth_users:user-login' %}" class="text-primary">Login here</a></p>
-            </form>
+            </div>
         </div>
     </div>
 </div>
