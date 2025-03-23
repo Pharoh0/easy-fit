@@ -2,67 +2,137 @@
 {% load static %}
 {% block title %}Coach Profile{% endblock %}
 {% block extra_css %}
-{% comment %} <link rel="stylesheet" href="{% static 'profiles/css/coach_profile_views.css' %}"> {% endcomment %}
+<link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_views.css' %}">
 {% endblock %}
+
+
 {% block content %}
 <div class="container mt-4">
     <!-- Profile Header -->
     <div class="row bg-white p-4 rounded shadow-sm mb-4">
-        <div class="col-lg-4 text-center">
-            <div class="avatar-section">
+        <div class="col-lg-3 text-center">
+            <div class="avatar-section mb-3">
                 {% if profile.avatar %}
-                    <img src="{{ profile.avatar.url }}" class="rounded-circle img-fluid avatar" alt="{{ profile.user.username }}">
+                    <img src="{{ profile.avatar.url }}" class="rounded-circle img-fluid avatar" style="width: 150px; height: 150px; object-fit: cover;" alt="{{ profile.user.username }}">
                 {% else %}
-                    <img src="{% static 'img/default-avatar.png' %}" class="rounded-circle img-fluid avatar" alt="Default Avatar">
+                    <img src="{% static 'img/default-avatar.png' %}" class="rounded-circle img-fluid avatar" style="width: 150px; height: 150px; object-fit: cover;" alt="Default Avatar">
                 {% endif %}
             </div>
+            <h4 class="mb-2">{{ profile.user.username }}</h4>
+            <p class="text-muted">{{ profile.city.name }}, {{ profile.country.name }}</p>
+            {% if request.user == profile.user %}
+                <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-outline-primary btn-sm">Edit Profile</a>
+            {% endif %}
         </div>
-        <div class="col-lg-8">
-            <h1 class="mb-3">{{ profile.user.username }}</h1>
-            <p><strong>Bio:</strong> {{ profile.bio }}</p>
-            <p><strong>Experience:</strong> {{ profile.years_of_experience }} years</p>
-            <p><strong>Location:</strong> {{ profile.city.name }}, {{ profile.country.name }}</p>
-            <p><strong>Specialties:</strong> {{ profile.specialties }}</p>
-            <p><strong>Hourly Rate:</strong> ${{ profile.hourly_rate }}</p>
-            <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-primary mt-3">Edit Profile</a>
+        <div class="col-lg-9">
+            <div class="row profile-stats mb-4">
+                <div class="col text-center">
+                    <h3>{{ profile.years_of_experience }}</h3>
+                    <p class="text-muted mb-0">Years Experience</p>
+                </div>
+                <div class="col text-center">
+                    <h3>${{ profile.hourly_rate }}</h3>
+                    <p class="text-muted mb-0">Hourly Rate</p>
+                </div>
+                <div class="col text-center">
+                    <h3>{{ profile.certifications.count }}</h3>
+                    <p class="text-muted mb-0">Certifications</p>
+                </div>
+            </div>
+            <p class="mb-3">{{ profile.bio }}</p>
+            <div class="specialties mb-3">
+                {% for specialty in profile.specialties.split %}
+                    <span class="profile-badge">{{ specialty }}</span>
+                {% endfor %}
+            </div>
         </div>
     </div>
 
-    <hr>
+    <div class="row mt-4">
+        <!-- Media Uploads Graph -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Media Uploads</h5>
+                    <div class="media-chart">
+                        <canvas id="mediaUploadsChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-    <!-- Social Media Links -->
-    <div class="social-media mt-4">
-        <h3>Connect with me</h3>
-        <ul class="list-inline">
-            {% if profile.facebook_profile_url %}
-                <li class="list-inline-item">
-                    <a href="{{ profile.facebook_profile_url }}" target="_blank" class="btn btn-primary">
-                        <i class="fab fa-facebook-f"></i> Facebook
-                    </a>
-                </li>
-            {% endif %}
-            {% if profile.instagram_profile_url %}
-                <li class="list-inline-item">
-                    <a href="{{ profile.instagram_profile_url }}" target="_blank" class="btn btn-danger">
-                        <i class="fab fa-instagram"></i> Instagram
-                    </a>
-                </li>
-            {% endif %}
-            {% if profile.twitter_profile_url %}
-                <li class="list-inline-item">
-                    <a href="{{ profile.twitter_profile_url }}" target="_blank" class="btn btn-info">
-                        <i class="fab fa-twitter"></i> Twitter
-                    </a>
-                </li>
-            {% endif %}
-            {% if profile.linkedin_profile_url %}
-                <li class="list-inline-item">
-                    <a href="{{ profile.linkedin_profile_url }}" target="_blank" class="btn btn-primary">
-                        <i class="fab fa-linkedin-in"></i> LinkedIn
-                    </a>
-                </li>
-            {% endif %}
-        </ul>
+        <!-- Contributors Section -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Contributors</h5>
+                    <div class="contributors-list">
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{% static 'img/contributor1.jpg' %}" alt="Tyler Hero" class="contributor-avatar me-2">
+                            <div>
+                                <h6 class="mb-0">Tyler Hero</h6>
+                                <small class="text-muted">8 contributors</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center mb-3">
+                            <img src="{% static 'img/contributor2.jpg' %}" alt="Esther Howard" class="contributor-avatar me-2">
+                            <div>
+                                <h6 class="mb-0">Esther Howard</h6>
+                                <small class="text-muted">28 contributors</small>
+                            </div>
+                        </div>
+                        <div class="d-flex align-items-center">
+                            <img src="{% static 'img/contributor3.jpg' %}" alt="Cody Fisher" class="contributor-avatar me-2">
+                            <div>
+                                <h6 class="mb-0">Cody Fisher</h6>
+                                <small class="text-muted">34 contributors</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Assistance Chart -->
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Assistance</h5>
+                    <canvas id="assistanceChart" class="assistance-chart mx-auto"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Social Media Links -->
+        <div class="col-md-8 mb-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h5 class="card-title">Connect with me</h5>
+                    <div class="social-links mt-3">
+                        {% if profile.facebook_profile_url %}
+                            <a href="{{ profile.facebook_profile_url }}" target="_blank" class="btn btn-outline-primary me-2 mb-2">
+                                <i class="fab fa-facebook-f"></i> Facebook
+                            </a>
+                        {% endif %}
+                        {% if profile.instagram_profile_url %}
+                            <a href="{{ profile.instagram_profile_url }}" target="_blank" class="btn btn-outline-danger me-2 mb-2">
+                                <i class="fab fa-instagram"></i> Instagram
+                            </a>
+                        {% endif %}
+                        {% if profile.twitter_profile_url %}
+                            <a href="{{ profile.twitter_profile_url }}" target="_blank" class="btn btn-outline-info me-2 mb-2">
+                                <i class="fab fa-twitter"></i> Twitter
+                            </a>
+                        {% endif %}
+                        {% if profile.linkedin_profile_url %}
+                            <a href="{{ profile.linkedin_profile_url }}" target="_blank" class="btn btn-outline-primary me-2 mb-2">
+                                <i class="fab fa-linkedin-in"></i> LinkedIn
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Certifications -->
@@ -109,8 +179,15 @@
         </div>
         <div class="row">
             {% for picture in profile.client_pictures.all %}
-                <div class="col-md-4 mb-3">
-                    <img src="{{ picture.image.url }}" alt="Client Progress" class="img-fluid rounded">
+                <div class="col-md-3 mb-3">
+                    <div class="card h-100 shadow-sm">
+                        <div class="card-body p-2">
+                            <img src="{{ picture.image.url }}" alt="Client Progress" class="img-fluid rounded cursor-pointer gallery-img" 
+                                 style="width: 100%; height: 200px; object-fit: cover;" 
+                                 data-bs-toggle="modal" data-bs-target="#imageModal" 
+                                 data-img-url="{{ picture.image.url }}">
+                        </div>
+                    </div>
                 </div>
             {% endfor %}
         </div>
@@ -125,11 +202,43 @@
             {% endif %}
         </div>
         <div class="row">
-            {% for picture in profile.coach_pictures.all %}
-                <div class="col-md-4 mb-3">
-                    <img src="{{ picture.image.url }}" alt="Coach Journey" class="img-fluid rounded">
+            {% if profile.coach_pictures.exists %}
+                {% for picture in profile.coach_pictures.all %}
+                    <div class="col-md-3 mb-3">
+                        <div class="card h-100 shadow-sm">
+                            <div class="card-body p-2">
+                                {% if picture.image %}
+                                    <img src="{{ picture.image.url }}" alt="Coach Journey" 
+                                         class="img-fluid rounded cursor-pointer gallery-img" 
+                                         style="width: 100%; height: 200px; object-fit: cover;"
+                                         data-bs-toggle="modal" data-bs-target="#imageModal" 
+                                         data-img-url="{{ picture.image.url }}">
+                                {% else %}
+                                    <div class="alert alert-warning">Image not available</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="col-12">
+                    <div class="alert alert-info">No journey pictures uploaded yet.</div>
                 </div>
-            {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img src="" class="img-fluid" id="modalImage" alt="Full size image">
+                </div>
+            </div>
         </div>
     </div>
 
@@ -150,6 +259,9 @@
         </ul>
     </div>
 </div>
+<script>
+    const profileId = "{{ profile.id }}";  // Make profileId available to the JavaScript
+</script>
 {% endblock %}
 
 {% block extra_js %}
