@@ -10,15 +10,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Add click event listener to each gallery image
     galleryImages.forEach(image => {
         image.addEventListener('click', function() {
-            const imageUrl = this.getAttribute('data-img-url') || this.src;
+            const imageUrl = this.getAttribute('data-img-url');
             console.log('Clicked image URL:', imageUrl);
-            if (modalImage) {
+            if (modalImage && imageUrl) {
                 modalImage.src = imageUrl;
                 console.log('Setting modal image src to:', imageUrl);
                 imageModal.show();
             } else {
-                console.error('Modal image element not found');
+                console.error('Modal image element not found or image URL is missing');
             }
         });
+    });
+
+    // Reset modal image when modal is hidden
+    document.getElementById('imageModal').addEventListener('hidden.bs.modal', function () {
+        if (modalImage) {
+            modalImage.src = '';
+        }
     });
 });
