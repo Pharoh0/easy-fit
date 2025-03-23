@@ -6,9 +6,13 @@ from ..forms import CoachProfileForm
 from django.contrib import messages
 from cities_light.models import Country, Region, City
 
-@login_required
-def view_coach_profile(request):
-    coach_profile = get_object_or_404(CoachProfile, user=request.user)
+# @login_required
+# def view_coach_profile(request):
+#     coach_profile = get_object_or_404(CoachProfile, user=request.user)
+#     return render(request, 'profiles/coach/coach_profile_view.html', {'profile': coach_profile})
+
+def view_coach_profile(request, pk):
+    coach_profile = get_object_or_404(CoachProfile, pk=pk)
     return render(request, 'profiles/coach/coach_profile_view.html', {'profile': coach_profile})
 
 # @login_required
