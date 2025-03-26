@@ -5,10 +5,15 @@ from .models import CoachProfile, Availability, Certification, ClientPicture, Co
 from .serializers import CoachProfileSerializer, AvailabilitySerializer, CertificationSerializer, ClientPictureSerializer, CoachPictureSerializer
 from cities_light.models import Country, Region, City
 from .serializers import CountrySerializer, RegionSerializer, CitySerializer
+from django_filters import rest_framework as filters
+from apps.search.apis.filters import CoachProfileFilter
+
 
 class CoachProfileViewSet(viewsets.ModelViewSet):
     queryset = CoachProfile.objects.all()
     serializer_class = CoachProfileSerializer
+    # filter_backends = (filters.DjangoFilterBackend,)
+    # filterset_class = CoachProfileFilter
 
     def get_queryset(self):
         return self.queryset.filter(user=self.request.user)
