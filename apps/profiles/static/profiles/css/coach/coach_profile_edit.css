@@ -1,195 +1,324 @@
-/* coach_profile_edit.css */
-/* Container */
-.container.profile-edit-container {
-    max-width: 900px;
+/* Variables */
+:root {
+    --primary: #009ef7;
+    --primary-hover: #0095e8;
+    --secondary: #7e8299;
+    --success: #50cd89;
+    --info: #7239ea;
+    --warning: #ffc700;
+    --danger: #f1416c;
+    --dark: #181c32;
+    --light: #f5f8fa;
+    --white: #ffffff;
+    --gray-100: #f9f9f9;
+    --gray-200: #f1f1f2;
+    --gray-300: #e1e3ea;
+    --gray-400: #b5b5c3;
+    --gray-500: #a1a5b7;
+    --gray-600: #7e8299;
+    --gray-700: #5e6278;
+    --gray-800: #3f4254;
+    --gray-900: #181c32;
+    
+    --shadow-sm: 0 0.1rem 0.7rem rgba(0, 0, 0, 0.03);
+    --shadow: 0 0.5rem 1.5rem rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 1rem 2rem rgba(0, 0, 0, 0.08);
+    
+    --border-radius-sm: 0.3rem;
+    --border-radius: 0.475rem;
+    --border-radius-lg: 0.625rem;
+    
+    --input-height: 38px;
+    --input-font-size: 0.875rem;
+    --input-padding: 0.5rem 0.75rem;
+}
+
+/* Main Layout */
+.edit-profile {
+    min-height: 100vh;
+    background-color: var(--gray-100);
+    padding: 1.5rem 1rem;
+}
+
+.edit-profile .edit-profile__container {
+    max-width: 800px;
     margin: 0 auto;
-    padding: 30px;
-    background-color: #f7f8fa;
-    border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
 }
 
-/* Heading */
-h1 {
+.edit-profile .edit-profile__header {
     text-align: center;
-    font-size: 2.2rem;
-    color: #333;
-    margin-bottom: 20px;
+    margin-bottom: 1.5rem;
 }
 
-/* Form Group */
-.form-group {
-    margin-bottom: 20px;
-}
-
-.form-group label {
+.edit-profile .edit-profile__header h1 {
+    font-size: 1.75rem;
+    color: var(--gray-900);
+    margin-bottom: 0.5rem;
     font-weight: 600;
-    display: block;
-    margin-bottom: 8px;
-    color: #555;
 }
 
-.form-group input[type="text"],
-.form-group input[type="number"],
-.form-group input[type="file"],
-.form-group textarea,
-.form-group select {
-    width: 100%;
-    padding: 10px;
-    box-sizing: border-box;
-    border-radius: 6px;
-    border: 1px solid #ddd;
+.edit-profile .edit-profile__header p {
+    color: var(--gray-600);
     font-size: 1rem;
-    color: #333;
-    background-color: #fff;
-    transition: border-color 0.3s ease;
 }
 
-.form-group input[type="file"] {
-    padding: 5px;
+/* Cards */
+.edit-profile .profile-card,
+.edit-profile .edit-card {
+    background-color: var(--white);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 1rem;
+    overflow: hidden;
 }
 
-.form-group input[type="text"]:focus,
-.form-group input[type="number"]:focus,
-.form-group textarea:focus,
-.form-group select:focus {
-    border-color: #007bff;
+.edit-profile .edit-card__header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--gray-200);
+}
+
+.edit-profile .edit-card__header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--gray-900);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.edit-profile .edit-card__header h2 i {
+    color: var(--gray-500);
+    font-size: 1rem;
+}
+
+.edit-profile .edit-card__body {
+    padding: 1.25rem;
+}
+
+/* Avatar Section */
+.edit-profile .profile-card__avatar {
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.edit-profile .profile-card__avatar img {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--white);
+    box-shadow: var(--shadow);
+    margin-bottom: 1rem;
+}
+
+.edit-profile .profile-card__avatar-upload {
+    display: inline-block;
+}
+
+.edit-profile .btn-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background-color: var(--gray-100);
+    border-radius: var(--border-radius);
+    color: var(--gray-700);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.edit-profile .btn-upload:hover {
+    background-color: var(--gray-200);
+}
+
+.edit-profile .hidden-input {
+    display: none;
+}
+
+/* Form Elements */
+.edit-profile .form-row {
+    display: flex;
+    flex-wrap: wrap;
+    margin: -0.5rem;
+}
+
+.edit-profile .form-group {
+    padding: 0.5rem;
+    margin-bottom: 0;
+}
+
+.edit-profile .col-md-6 {
+    flex: 0 0 50%;
+    max-width: 50%;
+    min-height: unset;
+    height: auto;
+}
+
+.edit-profile .col-md-4 {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+    min-height: unset;
+    height: auto;
+}
+
+.edit-profile label {
+    display: block;
+    margin-bottom: 0.375rem;
+    font-size: var(--input-font-size);
+    font-weight: 500;
+    color: var(--gray-700);
+}
+
+.edit-profile .input-group {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.edit-profile .input-icon {
+    position: absolute;
+    left: 1rem;
+    color: var(--gray-500);
+    font-size: 0.875rem;
+    pointer-events: none;
+}
+
+.edit-profile .form-control {
+    display: block;
+    width: 100%;
+    height: var(--input-height);
+    padding: var(--input-padding);
+    font-size: var(--input-font-size);
+    font-weight: 400;
+    line-height: 1.5;
+    color: var(--gray-700);
+    background-color: var(--white);
+    border: 1px solid var(--gray-300);
+    border-radius: var(--border-radius);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.edit-profile .input-group .form-control {
+    padding-left: 2.5rem;
+}
+
+.edit-profile .form-control:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 0.2rem rgba(0, 158, 247, 0.1);
     outline: none;
 }
 
-/* Current Avatar */
-.current-avatar {
+.edit-profile textarea.form-control {
+    height: auto;
+    min-height: 70px;
+    resize: vertical;
+}
+
+.edit-profile select.form-control {
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath fill='none' stroke='%237e8299' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M2 5l6 6 6-6'/%3e%3c/svg%3e");
+    background-repeat: no-repeat;
+    background-position: right 0.75rem center;
+    background-size: 16px 12px;
+    appearance: none;
+}
+
+.edit-profile small {
     display: block;
-    max-width: 120px;
-    border-radius: 50%;
-    margin-bottom: 10px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--gray-600);
 }
 
-/* Button */
-button[type="submit"] {
-    width: 100%;
-    padding: 12px;
-    background-color: #007bff;
-    color: #fff;
+/* Social Links */
+.edit-profile .social-links {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.edit-profile .social-links .input-icon {
+    font-size: 1rem;
+}
+
+.edit-profile .social-links .input-icon.facebook { color: #1877f2; }
+.edit-profile .social-links .input-icon.instagram { color: #e4405f; }
+.edit-profile .social-links .input-icon.twitter { color: #1da1f2; }
+.edit-profile .social-links .input-icon.youtube { color: #ff0000; }
+.edit-profile .social-links .input-icon.tiktok { color: #000000; }
+.edit-profile .social-links .input-icon.linkedin { color: #0077b5; }
+
+/* Form Actions */
+.edit-profile .form-actions {
+    text-align: center;
+    margin-top: 1.5rem;
+}
+
+.edit-profile .btn-submit {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.5rem;
+    font-size: 0.925rem;
+    font-weight: 500;
+    color: var(--white);
+    background-color: var(--primary);
     border: none;
-    border-radius: 6px;
-    font-size: 1.1rem;
-    font-weight: 600;
+    border-radius: var(--border-radius);
     cursor: pointer;
-    transition: background-color 0.3s ease;
-    margin-top: 10px;
+    transition: all 0.2s ease;
 }
 
-button[type="submit"]:hover {
-    background-color: #0056b3;
+.edit-profile .btn-submit:hover {
+    background-color: var(--primary-hover);
 }
 
-button[type="submit"]:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
-/* Messages */
-#messages {
-    margin-bottom: 20px;
-}
-
-.alert {
-    padding: 10px 15px;
-    border-radius: 6px;
-    margin-bottom: 10px;
-    font-size: 0.95rem;
-}
-
-.alert-success {
-    background-color: #d4edda;
-    color: #155724;
-    border: 1px solid #c3e6cb;
-}
-
-.alert-error {
-    background-color: #f8d7da;
-    color: #721c24;
-    border: 1px solid #f5c6cb;
-}
-
-/* Error Message */
-.error-message {
-    color: #e74c3c;
-    font-size: 0.9rem;
-    margin-top: 5px;
+.edit-profile .btn-submit i {
+    font-size: 1rem;
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-    .container.profile-edit-container {
-        padding: 20px;
+    .edit-profile {
+        padding: 1rem 0.5rem;
     }
 
-    .current-avatar {
-        max-width: 100px;
+    .edit-profile .edit-card__header,
+    .edit-profile .edit-card__body {
+        padding: 1rem;
     }
 
-    button[type="submit"] {
-        padding: 10px;
-        font-size: 1rem;
+    .edit-profile .profile-card__avatar {
+        padding: 1.5rem 1rem;
+    }
+
+    .edit-profile .profile-card__avatar img {
+        width: 100px;
+        height: 100px;
+    }
+
+    .edit-profile .col-md-6,
+    .edit-profile .col-md-4 {
+        flex: 0 0 100%;
+        max-width: 100%;
+    }
+
+    .edit-profile .form-group {
+        padding: 0.375rem;
+    }
+
+    .edit-profile .btn-submit {
+        width: 100%;
     }
 }
 
-
-.container {
-    max-width: 800px;
-    margin: 0 auto;
-    padding: 20px;
-    background-color: #f9f9f9;
-    border-radius: 8px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+/* Animations */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-.form-group {
-    margin-bottom: 15px;
-}
-
-.form-label {
-    font-weight: bold;
-}
-
-.form-control {
-    width: 100%;
-    padding: 8px;
-    margin-top: 5px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-}
-
-.btn-primary {
-    width: 100%;
-    padding: 10px;
-    background-color: #007bff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    color: white;
-    font-size: 16px;
-}
-
-.btn-primary:hover {
-    background-color: #0056b3;
-}
-
-.current-avatar {
-    max-width: 150px;
-    margin-bottom: 10px;
-}
-
-.error-message {
-    color: red;
-    font-size: 14px;
+.edit-profile .edit-card {
+    animation: fadeIn 0.3s ease-out;
 }
