@@ -1,26 +1,154 @@
-<header class="navbar navbar-expand-lg navbar-dark bg-dark">
+{% load static %}
+<nav class="navbar navbar-expand-lg modern-navbar">
     <div class="container">
-        <a class="navbar-brand" href="#">Eazy Fit</a>
-        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-            <span class="navbar-toggler-icon"></span>
+        <!-- Logo and Brand -->
+        <a class="navbar-brand d-flex align-items-center" href="{% url 'auth_users:dashboard' %}">
+            <img src="{% static 'images/logo.png' %}" alt="Eazy Fit" width="30" height="30" class="me-2 navbar-logo">
+            Eazy Fit
+        </a>
+
+        <!-- Hamburger Menu for Mobile -->
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarContent">
+            <i class="bi bi-list"></i>
         </button>
-        <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav ms-auto">
-                {% if request.user.is_authenticated %}
-                <li class="nav-item"><a class="nav-link" href="{% url 'auth_users:dashboard' %}">Dashboard</a></li>
+
+        <!-- Navbar Content -->
+        <div class="collapse navbar-collapse" id="navbarContent">
+            <!-- Search Bar -->
+            <div class="navbar-search mx-lg-4 my-2 my-lg-0">
+                <i class="bi bi-search search-icon"></i>
+                <input type="text" class="form-control" placeholder="Search...">
+            </div>
+
+            <!-- Main Navigation -->
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <!-- Apps Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" href="#" id="appsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-grid-3x3-gap-fill nav-icon"></i>
+                    </a>
+                    <div class="dropdown-menu app-dropdown-menu" aria-labelledby="appsDropdown">
+                        <div class="app-grid">
+                            <a href="{% url 'auth_users:dashboard' %}" class="app-item">
+                                <i class="bi bi-speedometer2 app-icon"></i>
+                                <span class="app-name">Dashboard</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-calendar-week app-icon"></i>
+                                <span class="app-name">Calendar</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-envelope app-icon"></i>
+                                <span class="app-name">Email</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-chat-dots app-icon"></i>
+                                <span class="app-name">Chat</span>
+                            </a>
+                            <a href="{% url 'search:view_search_coaches' %}" class="app-item">
+                                <i class="bi bi-search app-icon"></i>
+                                <span class="app-name">Search Coaches</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-clipboard-data app-icon"></i>
+                                <span class="app-name">Analytics</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-people app-icon"></i>
+                                <span class="app-name">Clients</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-person-bounding-box app-icon"></i>
+                                <span class="app-name">Coaches</span>
+                            </a>
+                            <a href="#" class="app-item">
+                                <i class="bi bi-gear app-icon"></i>
+                                <span class="app-name">Settings</span>
+                            </a>
+                        </div>
+                    </div>
+                </li>
+                <!-- Chat Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="bi bi-chat nav-icon"></i>
+                        <span class="d-lg-none ms-2">Chat</span>
+                    </a>
+                </li>
+                <!-- Calendar Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="bi bi-calendar nav-icon"></i>
+                        <span class="d-lg-none ms-2">Calendar</span>
+                    </a>
+                </li>
+                <!-- Email Link -->
+                <li class="nav-item">
+                    <a class="nav-link" href="#">
+                        <i class="bi bi-envelope nav-icon"></i>
+                        <span class="d-lg-none ms-2">Email</span>
+                    </a>
+                </li>
+            </ul>
+
+            <!-- Right Side Navigation -->
+            <ul class="navbar-nav profile-section">
+                <!-- Language Selector -->
+                <li class="nav-item d-none d-lg-block">
+                    <a class="nav-link" href="#">
+                        <i class="bi bi-globe2"></i>
+                    </a>
+                </li>
                 
-                    <li class="nav-item">
-                        {% if request.user.is_client %}
-                            <a class="nav-link" href="{% url 'profiles:view_profile' %}">View Client Profile</a>
-                        {% elif request.user.is_coach %}
-                            <a class="nav-link" href="{% url 'profiles:view_coach_profile' %}">View Coach Profile</a>
+                <!-- Shopping Cart -->
+                <li class="nav-item">
+                    <a class="nav-link position-relative" href="#">
+                        <i class="bi bi-cart nav-icon"></i>
+                        <span class="notification-badge">1</span>
+                    </a>
+                </li>
+                
+                <!-- Dark Mode Toggle -->
+                <li class="nav-item d-none d-lg-block">
+                    <button class="dark-mode-toggle" id="darkModeToggle">
+                        <i class="bi bi-moon"></i>
+                    </button>
+                </li>
+                
+                <!-- Notifications -->
+                <li class="nav-item">
+                    <a class="nav-link position-relative" href="#">
+                        <i class="bi bi-bell nav-icon"></i>
+                        <span class="notification-badge">3</span>
+                    </a>
+                </li>
+                
+                <!-- User Profile Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        {% if request.user.is_client and request.user.client_profile.avatar %}
+                            <img src="{{ request.user.client_profile.avatar.url }}" alt="Profile" class="profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
+                        {% elif request.user.is_coach and request.user.coach_profile.avatar %}
+                            <img src="{{ request.user.coach_profile.avatar.url }}" alt="Profile" class="profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
+                        {% else %}
+                            <img src="{% static 'images/default-avatar.svg' %}" alt="Profile" class="profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
                         {% endif %}
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'auth_users:api-user-logout' %}" id="logout-button">Logout</a>
-                    </li>
-                {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
+                        <li><h6 class="dropdown-header">{{ request.user.first_name }} {{ request.user.last_name }}</h6></li>
+                        <li><hr class="dropdown-divider"></li>
+                        {% if request.user.is_client %}
+                            <li><a class="dropdown-item" href="{% url 'profiles:view_profile' %}"><i class="bi bi-person"></i> My Profile</a></li>
+                        {% elif request.user.is_coach %}
+                            <li><a class="dropdown-item" href="{% url 'profiles:view_coach_profile' request.user.coach_profile.pk %}"><i class="bi bi-person"></i> My Profile</a></li>
+                        {% endif %}
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-question-circle"></i> Help Center</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{% url 'auth_users:api-user-logout' %}" id="logout-button"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                    </ul>
+                </li>
             </ul>
         </div>
     </div>
-</header>
+</nav>
