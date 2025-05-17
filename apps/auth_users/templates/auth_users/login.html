@@ -4,6 +4,7 @@
 
 {% block title %}Login{% endblock %}
 
+
 {% block content %}
 <h2>Login</h2>
 <form method="post" id="login-form">
@@ -153,38 +154,77 @@
         event.preventDefault();
         
         const form = event.target;
-        const formData = new FormData(form);
+        const username = form.querySelector('#id_username').value;
+        const password = form.querySelector('#id_password').value;
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
         const errorMessagesDiv = document.getElementById('error-messages');
-
+        const submitButton = form.querySelector('button[type="submit"]');
+        const originalButtonText = submitButton.innerHTML;
+        
+        // Show loading state
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Signing in...';
         errorMessagesDiv.innerHTML = ''; // Clear previous errors
 
+        // Create JSON payload
+        const loginData = {
+            username: username,
+            password: password
+        };
+        console.log('Login data:', loginData);
+        
         fetch("{% url 'auth_users:api-user-login' %}", {
             method: 'POST',
-            body: formData,
+            body: JSON.stringify(loginData),
             headers: {
                 'X-CSRFToken': csrfToken,
                 'Accept': 'application/json',
-            }
+                'Content-Type': 'application/json'
+            },
+            credentials: 'same-origin'
         })
         .then(response => {
-            if (response.ok) {
-                return response.json();  // Parse JSON if response is OK
-            } else {
+            console.log('Login response status:', response.status);
+            
+            // Always try to parse JSON first
+            return response.json().then(data => {
+                console.log('Login response data:', data);
+                if (response.ok) {
+                    return data;
+                } else {
+                    throw new Error(data.detail || 'Login failed. Please check your username and password.');
+                }
+            }).catch(e => {
+                console.log('JSON parsing error:', e);
+                // If JSON parsing fails, throw a generic error
                 throw new Error('Login failed. Please check your username and password.');
-            }
+            });
         })
         .then(data => {
-            if (data.tokens.access && data.tokens.refresh) {
+            console.log('Login response:', data);
+            if (data.tokens && data.tokens.access && data.tokens.refresh) {
+                // Store tokens in localStorage
                 localStorage.setItem('access_token', data.tokens.access);
                 localStorage.setItem('refresh_token', data.tokens.refresh);
-                window.location.href = data.redirect_url;  // Redirect to the provided URL
+                
+                // Redirect to the dashboard
+                window.location.href = data.redirect_url || "{% url 'auth_users:dashboard' %}";
             } else {
                 throw new Error('Invalid response from server. Please try again.');
             }
         })
         .catch(error => {
-            errorMessagesDiv.innerHTML = `<p>${error.message}</p>`;
+            console.error('Login error:', error);
+            // Display error in a more user-friendly way
+            errorMessagesDiv.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    ${error.message}
+                </div>`;
+            
+            // Reset button state
+            submitButton.disabled = false;
+            submitButton.innerHTML = originalButtonText;
         });
     });
 </script>
