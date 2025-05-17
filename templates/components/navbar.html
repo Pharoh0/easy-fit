@@ -3,7 +3,7 @@
     <div class="container">
         <!-- Logo and Brand -->
         <a class="navbar-brand d-flex align-items-center" href="{% url 'auth_users:dashboard' %}">
-            <img src="{% static 'images/logo.png' %}" alt="Eazy Fit" width="30" height="30" class="me-2 navbar-logo">
+            <img src="{% static 'images/default-logo.png' %}" alt="Eazy Fit" width="30" height="30" class="me-2 navbar-logo">
             Eazy Fit
         </a>
 
@@ -53,10 +53,17 @@
                                 <i class="bi bi-clipboard-data app-icon"></i>
                                 <span class="app-name">Analytics</span>
                             </a>
+                            {% if request.user.is_client %}
+                            <a href="{% url 'profiles:client_profile' %}" class="app-item">
+                                <i class="bi bi-person app-icon"></i>
+                                <span class="app-name">My Profile</span>
+                            </a>
+                            {% else %}
                             <a href="#" class="app-item">
                                 <i class="bi bi-people app-icon"></i>
                                 <span class="app-name">Clients</span>
                             </a>
+                            {% endif %}
                             <a href="#" class="app-item">
                                 <i class="bi bi-person-bounding-box app-icon"></i>
                                 <span class="app-name">Coaches</span>
@@ -138,14 +145,18 @@
                         <li><h6 class="dropdown-header">{{ request.user.first_name }} {{ request.user.last_name }}</h6></li>
                         <li><hr class="dropdown-divider"></li>
                         {% if request.user.is_client %}
-                            <li><a class="dropdown-item" href="{% url 'profiles:view_profile' %}"><i class="bi bi-person"></i> My Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:client_profile' %}"><i class="bi bi-person"></i> My Profile</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:client_measurements' %}"><i class="bi bi-rulers"></i> My Measurements</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:list_diet_requests' %}"><i class="bi bi-clipboard2-pulse"></i> Diet Requests</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:list_subscriptions' %}"><i class="bi bi-calendar-check"></i> My Subscriptions</a></li>
+                            <li><a class="dropdown-item" href="{% url 'profiles:list_progress_reports' subscription_id=0 %}"><i class="bi bi-graph-up"></i> Progress Reports</a></li>
                         {% elif request.user.is_coach %}
                             <li><a class="dropdown-item" href="{% url 'profiles:view_coach_profile' request.user.coach_profile.pk %}"><i class="bi bi-person"></i> My Profile</a></li>
                         {% endif %}
                         <li><a class="dropdown-item" href="#"><i class="bi bi-gear"></i> Settings</a></li>
                         <li><a class="dropdown-item" href="#"><i class="bi bi-question-circle"></i> Help Center</a></li>
                         <li><hr class="dropdown-divider"></li>
-                        <li><a class="dropdown-item" href="{% url 'auth_users:api-user-logout' %}" id="logout-button"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
+                        <li><a class="dropdown-item" href="#" id="logout-button"><i class="bi bi-box-arrow-right"></i> Logout</a></li>
                     </ul>
                 </li>
             </ul>
