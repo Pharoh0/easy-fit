@@ -27,6 +27,7 @@ urlpatterns = [
     
     path("plan-management/", include("apps.plan_management.urls", namespace="plan_management")),
     
+    path("search/", include("apps.search.urls", namespace="search")),
 
     path("user-friendship/", include("apps.user_friendship.urls", namespace="user_friendship")),
 

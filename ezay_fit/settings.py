@@ -54,12 +54,14 @@ LOCAL_INSTALLED_APPS = [
     "apps.auth_users.apps.AuthUsersConfig",
     "apps.profiles.apps.ProfilesConfig",
     "apps.plan_management.apps.PlanManagementConfig",
+    "apps.search.apps.SearchConfig",
     ]
 
 THIRD_PARTIES_INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
     'cities_light',
+    'django_filters',
 ]
 
 INSTALLED_APPS = BASE_INSTALLED_APPS + LOCAL_INSTALLED_APPS + THIRD_PARTIES_INSTALLED_APPS
