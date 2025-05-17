@@ -75,20 +75,28 @@ class UserLoginAPIView(APIView):
     serializer_class = UserLoginSerializer
 
     def post(self, request, *args, **kwargs):
-        # Initialize the middleware with the get_response argument
-        # ip_middleware = UpdateUserIpMiddleware(get_response=None)
-
-        serializer = self.serializer_class(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        user = serializer.validated_data["user"]
-
-        # Update user's IP address using middleware logic
-        # user.request_ip = ip_middleware.get_client_ip(request)
-        # user.save(update_fields=['request_ip'])
-
-        # Generate tokens and construct response
-        response_data = self.generate_tokens_response(user)
-        return self.add_authorization_header(response_data)
+        # Print received data for debugging
+        print(f"Login request data: {request.data}")
+        
+        # Store the request in self for use in generate_tokens_response
+        self.request = request
+        
+        try:
+            serializer = self.serializer_class(data=request.data)
+            serializer.is_valid(raise_exception=True)
+            user = serializer.validated_data["user"]
+            
+            # Generate tokens and construct response
+            response_data = self.generate_tokens_response(user)
+            return self.add_authorization_header(response_data)
+            
+        except Exception as e:
+            print(f"Login error: {str(e)}")
+            # Return a more detailed error response
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
     # def generate_tokens_response(self, user):
     #     # Use Django's login function
@@ -119,20 +127,22 @@ class UserLoginAPIView(APIView):
     #     return data
     
     def generate_tokens_response(self, user):
-        # Use Django's login function
-        login(self.request, user)
+        # Store request reference to use in login function
+        request = self.request
+        # Use Django's login function with the saved request
+        login(request, user)
 
         # Generate tokens
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
         # Debugging output
-        print(f"Access Token: {access_token}")
-        print(f"Refresh Token: {refresh}")
+        print(f"User authenticated: {user.username}")
+        print(f"Access Token: {str(access_token)[:20]}...")
+        print(f"Refresh Token: {str(refresh)[:20]}...")
 
         # Calculate expiration times
-        access_token_expiration = timezone.now() + refresh.lifetime - timedelta(
-            seconds=settings.SIMPLE_JWT["SLIDING_TOKEN_REFRESH_LIFETIME"].total_seconds())
+        access_token_expiration = timezone.now() + refresh.access_token.lifetime
         refresh_token_expiration = timezone.now() + refresh.lifetime
 
         response_data = {
@@ -143,11 +153,11 @@ class UserLoginAPIView(APIView):
                 "refresh": str(refresh),
                 "refresh_token_expiration": refresh_token_expiration,
             },
-             "redirect_url": reverse_lazy('auth_users:dashboard')  # Dynamically get the dashboard URL
+            "redirect_url": reverse_lazy('auth_users:dashboard')  # Dynamically get the dashboard URL
         }
 
         # Print the response data to ensure it's correct
-        print(f"Response Data: {response_data}")
+        print(f"Login successful. Redirect URL: {response_data['redirect_url']}")
 
         return response_data
 
