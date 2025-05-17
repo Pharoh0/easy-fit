@@ -41,15 +41,34 @@ class UserLoginSerializer(serializers.Serializer):
     def validate(self, data):
         username = data.get("username")
         password = data.get("password")
-        if username and password:
-            user = authenticate(username=username, password=password)
-            if not user:
-                raise serializers.ValidationError("Incorrect credentials.")
-
-        else:
-            raise serializers.ValidationError(
-                "Must include 'username' and 'password' fields."
-            )
+        
+        # Print received credentials for debugging (not for production)
+        print(f"Login attempt for username: {username}")
+        
+        if not username:
+            raise serializers.ValidationError({"username": "Username is required."})
+            
+        if not password:
+            raise serializers.ValidationError({"password": "Password is required."})
+            
+        # Try to authenticate the user
+        user = authenticate(username=username, password=password)
+        
+        if not user:
+            # Check if the user exists
+            User = get_user_model()
+            try:
+                existing_user = User.objects.get(username=username)
+                # User exists but password is wrong
+                raise serializers.ValidationError({"detail": "Invalid password. Please try again."})
+            except User.DoesNotExist:
+                # User doesn't exist
+                raise serializers.ValidationError({"detail": "User not found. Please check your username."})
+        
+        if not user.is_active:
+            raise serializers.ValidationError({"detail": "This account is inactive. Please contact an administrator."})
+            
+        print(f"User authenticated successfully: {user.username}")
         data["user"] = user
         return data
     
