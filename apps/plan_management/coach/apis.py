@@ -4,15 +4,36 @@ from rest_framework.response import Response
 from .models import ProductPlan, PlanItem
 from .serializers import ProductPlanSerializer, PlanItemSerializer
 from rest_framework.exceptions import PermissionDenied
-
+from rest_framework.exceptions import NotFound
 
 class ProductPlanViewSet(viewsets.ModelViewSet):
     queryset = ProductPlan.objects.all()
     serializer_class = ProductPlanSerializer
     
+    # def get_queryset(self):
+    #     coach = self.request.user.coach_profile
+    #     return ProductPlan.objects.filter(coach=coach)
+    
     def get_queryset(self):
-        coach = self.request.user.coach_profile
-        return ProductPlan.objects.filter(coach=coach)
+        # Fetch plans based on the query parameter for another coach
+        coach_profile_id = self.request.query_params.get('coach_profile_id')
+        
+        if coach_profile_id:
+            try:
+                coach = CoachProfile.objects.get(id=coach_profile_id)
+            except CoachProfile.DoesNotExist:
+                raise NotFound("Coach profile not found.")
+            
+            return ProductPlan.objects.filter(coach=coach)
+        
+        # Otherwise, fetch plans for the logged-in coach
+        if hasattr(self.request.user, 'coach_profile'):
+            coach = self.request.user.coach_profile
+            return ProductPlan.objects.filter(coach=coach)
+        
+        raise PermissionDenied("You are not authorized to view these plans.")
+
+
 
     def perform_create(self, serializer):
         # Automatically set the coach field to the authenticated user's coach profile
