@@ -35,73 +35,53 @@ function refreshToken() {
     });
 }
 
-// function logout() {
-//     const refreshToken = localStorage.getItem('refresh_token');
-//     const accessToken = localStorage.getItem('access_token');
-
-//     if (!refreshToken || !accessToken) {
-//         alert("Session has already expired. Please log in again.");
-//         window.location.href = "/auth-users/login/";  // Redirect to login page
-//         return;
-//     }
-
-//     fetch("/auth-users/api/v1/logout/", {
-//         method: 'POST',
-//         headers: {
-//             'Content-Type': 'application/json',
-//             'Accept': 'application/json',
-//             'Authorization': `Bearer ${accessToken}`
-//         },
-//         body: JSON.stringify({ refresh: refreshToken })
-//     })
-//     .then(response => {
-//         if (response.ok) {
-//             localStorage.removeItem('access_token');
-//             localStorage.removeItem('refresh_token');
-//             window.location.href = "/auth-users/login/";  // Redirect to login page
-//         } else {
-//             console.error('Failed to logout.');
-//         }
-//     })
-//     .catch(error => {
-//         console.error('Error occurred during logout:', error.message);
-//     });
-// }
-
 function logout() {
+    console.log('Logout function called');
     const refreshToken = localStorage.getItem('refresh_token');
     const accessToken = localStorage.getItem('access_token');
 
     if (!refreshToken || !accessToken) {
+        console.log('No tokens found, redirecting to login page');
         alert("Session has already expired. Please log in again.");
         window.location.href = "/auth-users/login/";  // Redirect to login page
         return;
     }
 
+    console.log('Attempting to logout with tokens');
     // JWT Logout
     fetch("/auth-users/api/v1/logout/", {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': `Bearer ${accessToken}`  // Use the access token here
+            'Authorization': `Bearer ${accessToken}`
         },
         body: JSON.stringify({ refresh: refreshToken })
     })
     .then(response => {
+        console.log('Logout response status:', response.status);
+        // Always remove tokens regardless of response
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        
         if (response.ok) {
-            localStorage.removeItem('access_token');
-            localStorage.removeItem('refresh_token');
+            console.log('Successful logout, redirecting to login page');
             window.location.href = "/auth-users/login/";  // Redirect to login page
         } else if (response.status === 401) {
             console.error('Unauthorized request. Possibly due to expired token.');
-            handleTokenExpiry();  // Handle token expiry by logging the user out of the session
+            // Still redirect to login page
+            window.location.href = "/auth-users/login/";
         } else {
-            console.error('Failed to logout.');
+            console.error('Failed to logout but tokens removed, redirecting to login page.');
+            window.location.href = "/auth-users/login/";
         }
     })
     .catch(error => {
         console.error('Error occurred during logout:', error.message);
+        // Still remove tokens and redirect on error
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        window.location.href = "/auth-users/login/";
     });
 }
 
@@ -114,7 +94,6 @@ function handleTokenExpiry() {
     alert("Your session has expired. Please log in again.");
     window.location.href = "/auth-users/login/";
 }
-
 
 // Automatically refresh the token before it expires
 function scheduleTokenRefresh() {
@@ -134,4 +113,20 @@ function scheduleTokenRefresh() {
 }
 
 // Schedule the first token refresh after the page loads
-scheduleTokenRefresh();
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('Document loaded, scheduling token refresh');
+    scheduleTokenRefresh();
+    
+    // Ensure logout button is properly bound
+    const logoutButton = document.getElementById('logout-button');
+    if (logoutButton) {
+        console.log('Logout button found, adding event listener');
+        logoutButton.addEventListener('click', function(event) {
+            console.log('Logout button clicked');
+            event.preventDefault();
+            logout();
+        });
+    } else {
+        console.log('Logout button not found in the DOM');
+    }
+});
