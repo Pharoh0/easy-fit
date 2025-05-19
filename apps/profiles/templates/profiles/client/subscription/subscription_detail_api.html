@@ -1,0 +1,164 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subscription Details | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/subscriptions.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container subscription-container">
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Error Container -->
+    <div id="error-container" class="alert alert-danger my-3" style="display: none;"></div>
+
+    <!-- Subscription Detail Container -->
+    <div id="subscription-detail" class="mt-4" data-subscription-id="{{ subscription.id }}" style="display: none;">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="page-header">
+                    <h1><i class="fas fa-dumbbell"></i> <span id="subscription-name">Subscription</span></h1>
+                    <p>
+                        <span class="badge" id="subscription-status">Status</span>
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="action-buttons">
+                    <a href="{% url 'profiles:client_profile' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Profile
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-user-shield"></i> Your Coach</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="coach-profile">
+                            <img src="" alt="Coach profile picture" class="coach-img" id="coach-img">
+                            <h5 id="coach-name">Coach Name</h5>
+                            <div class="coach-actions mt-3">
+                                <a href="#" class="btn btn-primary btn-sm view-profile-btn">
+                                    <i class="fas fa-eye"></i> View Profile
+                                </a>
+                                <a href="#" class="btn btn-outline-primary btn-sm message-btn">
+                                    <i class="fas fa-envelope"></i> Message
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-info-circle"></i> Subscription Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fas fa-calendar-plus"></i> Start Date:</span>
+                            <span class="detail-value" id="start-date">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fas fa-calendar-times"></i> End Date:</span>
+                            <span class="detail-value" id="end-date">-</span>
+                        </div>
+                        <div class="detail-item">
+                            <span class="detail-label"><i class="fas fa-hourglass-half"></i> Days Remaining:</span>
+                            <span class="detail-value" id="days-remaining">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-cogs"></i> Subscription Actions</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="subscription-actions">
+                            <!-- Action buttons will be added here dynamically -->
+                        </div>
+                        
+                        <a href="{% url 'profiles:list_progress_reports' subscription.id %}" class="btn btn-primary btn-lg w-100 mt-2">
+                            <i class="fas fa-chart-line"></i> View Progress Reports
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-8">
+                <ul class="nav nav-tabs mb-3" id="planTabs" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="dietPlan-tab" data-bs-toggle="tab" data-bs-target="#dietPlan" type="button" role="tab" aria-controls="dietPlan" aria-selected="true">
+                            <i class="fas fa-utensils"></i> Diet Plan
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="workoutPlan-tab" data-bs-toggle="tab" data-bs-target="#workoutPlan" type="button" role="tab" aria-controls="workoutPlan" aria-selected="false">
+                            <i class="fas fa-dumbbell"></i> Workout Plan
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="consultations-tab" data-bs-toggle="tab" data-bs-target="#consultations" type="button" role="tab" aria-controls="consultations" aria-selected="false">
+                            <i class="fas fa-calendar-check"></i> Consultations
+                        </button>
+                    </li>
+                </ul>
+                
+                <div class="tab-content" id="planTabsContent">
+                    <div class="tab-pane fade show active" id="dietPlan" role="tabpanel" aria-labelledby="dietPlan-tab">
+                        <!-- Diet Plan Content will be loaded here -->
+                        {{ subscription.plan_details.diet_plan|safe }}
+                    </div>
+                    <div class="tab-pane fade" id="workoutPlan" role="tabpanel" aria-labelledby="workoutPlan-tab">
+                        <!-- Workout Plan Content will be loaded here -->
+                        {{ subscription.plan_details.workout_plan|safe }}
+                    </div>
+                    <div class="tab-pane fade" id="consultations" role="tabpanel" aria-labelledby="consultations-tab">
+                        <!-- Consultations Content will be loaded here -->
+                        {{ subscription.plan_details.consultations|safe }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Modal content will be set dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" id="confirmActionBtn" data-action="" data-subscription-id="">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/api.js' %}"></script>
+    <script src="{% static 'profiles/js/client/subscriptions_api.js' %}"></script>
+{% endblock %}
