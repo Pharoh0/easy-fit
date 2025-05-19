@@ -1,0 +1,249 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Diet Request Details | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/diet_requests.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container request-detail-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-clipboard-list"></i> Diet Request Details</h1>
+                <div class="request-status">
+                    <span class="status-badge status-{{ diet_request.status }}">{{ diet_request.get_status_display }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:diet_requests' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Requests
+                </a>
+                {% if is_owner and diet_request.status == 'open' %}
+                <button type="button" class="btn btn-danger" id="cancelRequestBtn" data-bs-toggle="modal" data-bs-target="#cancelRequestModal">
+                    <i class="fas fa-times-circle"></i> Cancel Request
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Request Details -->
+        <div class="col-lg-5">
+            <div class="card request-details-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-info-circle"></i> Request Information</h4>
+                </div>
+                <div class="card-body">
+                    <h3 class="request-title">{{ diet_request.title }}</h3>
+                    
+                    <div class="request-meta">
+                        <p><strong><i class="fas fa-calendar-alt"></i> Created:</strong> {{ diet_request.created_at|date }}</p>
+                        <p><strong><i class="fas fa-clock"></i> Duration:</strong> {{ diet_request.duration_weeks }} weeks</p>
+                        {% if diet_request.budget %}
+                        <p><strong><i class="fas fa-dollar-sign"></i> Budget:</strong> ${{ diet_request.budget }}</p>
+                        {% endif %}
+                        <p><strong><i class="fas fa-chart-pie"></i> Share Measurements:</strong> 
+                            {% if diet_request.share_measurements %}
+                                <span class="text-success"><i class="fas fa-check-circle"></i> Yes</span>
+                            {% else %}
+                                <span class="text-danger"><i class="fas fa-times-circle"></i> No</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                    
+                    <div class="request-section">
+                        <h5>Description</h5>
+                        <p>{{ diet_request.description }}</p>
+                    </div>
+                    
+                    <div class="request-section">
+                        <h5>Goals</h5>
+                        <p>{{ diet_request.goals }}</p>
+                    </div>
+                    
+                    {% if diet_request.dietary_restrictions %}
+                    <div class="request-section">
+                        <h5>Dietary Restrictions</h5>
+                        <p>{{ diet_request.dietary_restrictions }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Coach Offers -->
+        <div class="col-lg-7">
+            <div class="card offers-card">
+                <div class="card-header">
+                    <h4>
+                        <i class="fas fa-comment-dollar"></i> Coach Offers 
+                        <span class="offer-count-badge">{{ offers|length }}</span>
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if offers %}
+                        <div class="offers-container">
+                            {% for offer in offers %}
+                            <div class="offer-item">
+                                <div class="offer-header">
+                                    <div class="coach-info">
+                                        {% if offer.coach.avatar %}
+                                            <img src="{{ offer.coach.avatar.url }}" alt="{{ offer.coach.user.username }}" class="coach-avatar">
+                                        {% else %}
+                                            <div class="default-avatar">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div class="coach-details">
+                                            <h5>{{ offer.coach.user.username }}</h5>
+                                            <p class="offer-date">{{ offer.created_at|date }}</p>
+                                        </div>
+                                    </div>
+                                    <div class="offer-status">
+                                        <span class="status-badge status-{{ offer.status }}">{{ offer.get_status_display }}</span>
+                                    </div>
+                                </div>
+                                
+                                <div class="offer-content">
+                                    <h4 class="offer-title">{{ offer.title }}</h4>
+                                    <p class="offer-description">{{ offer.description }}</p>
+                                    
+                                    <div class="offer-features">
+                                        <div class="features-grid">
+                                            <div class="feature-item">
+                                                <div class="feature-icon {% if offer.includes_meal_plan %}feature-included{% else %}feature-excluded{% endif %}">
+                                                    <i class="fas fa-apple-alt"></i>
+                                                </div>
+                                                <div class="feature-text">Meal Plan</div>
+                                            </div>
+                                            <div class="feature-item">
+                                                <div class="feature-icon {% if offer.includes_workout_plan %}feature-included{% else %}feature-excluded{% endif %}">
+                                                    <i class="fas fa-dumbbell"></i>
+                                                </div>
+                                                <div class="feature-text">Workout Plan</div>
+                                            </div>
+                                            <div class="feature-item">
+                                                <div class="feature-icon {% if offer.includes_video_consultations %}feature-included{% else %}feature-excluded{% endif %}">
+                                                    <i class="fas fa-video"></i>
+                                                </div>
+                                                <div class="feature-text">Video Consultations</div>
+                                            </div>
+                                        </div>
+                                        
+                                        {% if offer.includes_video_consultations and offer.num_consultations > 0 %}
+                                        <div class="consultation-count">
+                                            <i class="fas fa-video"></i> {{ offer.num_consultations }} Consultation{{ offer.num_consultations|pluralize }}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div class="offer-footer">
+                                    <div class="offer-price">
+                                        <span class="price-value">${{ offer.price }}</span>
+                                        <span class="duration-weeks">for {{ offer.duration_weeks }} weeks</span>
+                                    </div>
+                                    
+                                    {% if is_owner and diet_request.status == 'open' and offer.status == 'pending' %}
+                                    <div class="offer-actions">
+                                        <form method="post" action="{% url 'profiles:accept_offer' offer.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-success accept-offer-btn">
+                                                <i class="fas fa-check"></i> Accept Offer
+                                            </button>
+                                        </form>
+                                        <form method="post" action="{% url 'profiles:reject_offer' offer.id %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger reject-offer-btn">
+                                                <i class="fas fa-times"></i> Decline
+                                            </button>
+                                        </form>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if offer.status == 'accepted' %}
+                                    <div class="offer-actions">
+                                        <a href="{% url 'profiles:view_coach_profile' offer.coach.id %}" class="btn btn-primary">
+                                            <i class="fas fa-user"></i> View Coach Profile
+                                        </a>
+                                        {% if offer.subscription %}
+                                        <a href="{% url 'profiles:subscription_detail' offer.subscription.id %}" class="btn btn-info">
+                                            <i class="fas fa-clipboard-check"></i> View Subscription
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-comment-dollar"></i>
+                            </div>
+                            <h5>No Offers Yet</h5>
+                            {% if diet_request.status == 'open' %}
+                                <p>Your request is active. Coaches will send their offers soon!</p>
+                            {% else %}
+                                <p>No offers were received for this request.</p>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Request Modal -->
+{% if is_owner and diet_request.status == 'open' %}
+<div class="modal fade" id="cancelRequestModal" tabindex="-1" aria-labelledby="cancelRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelRequestModalLabel">Cancel Diet Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel this diet request?</p>
+                <p><strong>Note:</strong> Once cancelled, coaches will no longer be able to send offers.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep It</button>
+                <form method="post" action="{% url 'profiles:cancel_diet_request' diet_request.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Yes, Cancel Request</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/client/diet_requests.js' %}"></script>
+{% endblock %}
