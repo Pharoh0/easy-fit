@@ -1,0 +1,1083 @@
+/* Subscriptions Styles */
+.subscription-detail-container,
+.subscriptions-list-container {
+    padding: 40px 0;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.page-header h1 {
+    color: #333;
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.page-header h1 i {
+    color: #3a8ffe;
+    margin-right: 10px;
+}
+
+.page-header .subscription-status {
+    margin-top: 10px;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.btn {
+    border-radius: 8px;
+    font-weight: 500;
+    padding: 10px 20px;
+    transition: all 0.3s ease;
+}
+
+.btn i {
+    margin-right: 8px;
+}
+
+.btn-success {
+    background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-success:hover {
+    background: linear-gradient(135deg, #218838 0%, #1cb386 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #3a8ffe 0%, #9658fe 100%);
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, #3a8ffe 0%, #7e49e5 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-outline-primary {
+    border: 1px solid #3a8ffe;
+    color: #3a8ffe;
+}
+
+.btn-outline-primary:hover {
+    background-color: rgba(58, 143, 254, 0.1);
+    color: #3a8ffe;
+}
+
+.btn-outline-secondary {
+    border: 1px solid #ced4da;
+    color: #6c757d;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #f8f9fa;
+    color: #495057;
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #ffc107 0%, #ffb700 100%);
+    border: none;
+    color: #212529;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-warning:hover {
+    background: linear-gradient(135deg, #e0a800 0%, #e0b800 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.btn-danger {
+    background: linear-gradient(135deg, #dc3545 0%, #fd7e14 100%);
+    border: none;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.btn-danger:hover {
+    background: linear-gradient(135deg, #c82333 0%, #e8590c 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Cards */
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    border: none;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 15px 20px;
+    font-weight: 600;
+}
+
+.card-header h4 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+    display: flex;
+    align-items: center;
+}
+
+.card-header h4 i {
+    margin-right: 10px;
+    color: #3a8ffe;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Status Badges */
+.status-badge {
+    display: inline-block;
+    padding: 5px 12px;
+    border-radius: 50px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.status-active {
+    background-color: #e6f7e9;
+    color: #28a745;
+}
+
+.status-paused {
+    background-color: #fff8e1;
+    color: #ffc107;
+}
+
+.status-completed {
+    background-color: #e3f2fd;
+    color: #17a2b8;
+}
+
+.status-cancelled {
+    background-color: #f8d7da;
+    color: #dc3545;
+}
+
+/* Subscription Overview */
+.subscription-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+}
+
+.subscription-header h3 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.subscription-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+    color: #6c757d;
+}
+
+.meta-item {
+    display: flex;
+    align-items: center;
+    font-size: 0.95rem;
+}
+
+.meta-item i {
+    margin-right: 8px;
+    color: #3a8ffe;
+}
+
+.subscription-section {
+    margin-top: 25px;
+}
+
+.subscription-section h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+/* Subscription Features */
+.subscription-features {
+    margin-top: 25px;
+}
+
+.features-grid {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    flex: 1;
+}
+
+.feature-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    font-size: 24px;
+    transition: all 0.3s ease;
+}
+
+.feature-included {
+    background-color: #e6f7e9;
+    color: #28a745;
+}
+
+.feature-excluded {
+    background-color: #f8f9fa;
+    color: #adb5bd;
+}
+
+.feature-text {
+    font-size: 1rem;
+    color: #6c757d;
+    text-align: center;
+}
+
+/* Consultation Tracker */
+.consultation-tracker {
+    margin-top: 25px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.consultation-tracker h6 {
+    font-size: 1rem;
+    color: #495057;
+    margin-bottom: 10px;
+}
+
+.progress {
+    height: 10px;
+    border-radius: 10px;
+    background-color: #dee2e6;
+    margin-bottom: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+    transition: width 0.6s ease;
+}
+
+/* Coach Profile Section */
+.coach-profile {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.coach-info {
+    display: flex;
+    align-items: center;
+}
+
+.coach-avatar, .default-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    margin-right: 20px;
+    object-fit: cover;
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    font-size: 30px;
+}
+
+.coach-details h4 {
+    margin: 0;
+    font-size: 1.3rem;
+    color: #333;
+}
+
+.coach-specialization {
+    color: #6c757d;
+    margin: 5px 0 0;
+}
+
+.coach-actions {
+    display: flex;
+    gap: 10px;
+}
+
+/* Progress Card */
+.progress-card .card-body {
+    padding: 15px;
+}
+
+.subscription-timeline {
+    margin-bottom: 25px;
+}
+
+.timeline-progress {
+    margin-top: 10px;
+}
+
+.timeline-dates {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+/* Latest Measurements */
+.latest-measurements {
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.latest-measurements h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+.measurement-date {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 10px;
+}
+
+.measurement-date i {
+    margin-right: 5px;
+    color: #3a8ffe;
+}
+
+.measurement-stats {
+    display: flex;
+    gap: 15px;
+    margin-top: 15px;
+}
+
+.stat-item {
+    flex: 1;
+    text-align: center;
+    background-color: #f8f9fa;
+    padding: 10px;
+    border-radius: 8px;
+}
+
+.stat-label {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #3a8ffe;
+}
+
+/* Progress Reports */
+.progress-reports {
+    margin-top: 25px;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.progress-reports h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+}
+
+.progress-reports h5 i {
+    margin-right: 8px;
+    color: #3a8ffe;
+}
+
+.reports-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: #3a8ffe;
+    color: white;
+    font-size: 0.8rem;
+    border-radius: 50%;
+    margin-left: 10px;
+}
+
+.reports-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.report-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #495057;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.report-item:hover {
+    background-color: #e9ecef;
+    transform: translateX(5px);
+}
+
+.report-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e3f2fd;
+    color: #3a8ffe;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+}
+
+.report-details {
+    flex: 1;
+}
+
+.report-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #333;
+}
+
+.report-date {
+    font-size: 0.8rem;
+    color: #6c757d;
+}
+
+.report-arrow {
+    color: #adb5bd;
+    font-size: 0.9rem;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.empty-state-icon {
+    font-size: 60px;
+    color: #dee2e6;
+    margin-bottom: 20px;
+}
+
+.empty-state h5 {
+    font-size: 24px;
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state p {
+    color: #6c757d;
+    margin-bottom: 20px;
+    font-size: 16px;
+}
+
+.empty-state-mini {
+    text-align: center;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    color: #6c757d;
+}
+
+.empty-state-mini i {
+    font-size: 30px;
+    margin-bottom: 10px;
+    color: #adb5bd;
+}
+
+.empty-state-mini p {
+    margin-bottom: 15px;
+}
+
+/* Plans Tab Content */
+.plans-card .nav-tabs {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 20px;
+}
+
+.plans-card .nav-link {
+    color: #6c757d;
+    border: none;
+    padding: 10px 20px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.plans-card .nav-link i {
+    margin-right: 8px;
+}
+
+.plans-card .nav-link.active {
+    color: #3a8ffe;
+    border-bottom: 3px solid #3a8ffe;
+    background-color: transparent;
+}
+
+.plans-card .tab-content {
+    padding: 10px;
+}
+
+.plan-content {
+    padding: 10px;
+}
+
+.plan-content h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #333;
+    margin-bottom: 15px;
+}
+
+.plan-description {
+    color: #6c757d;
+    margin-bottom: 25px;
+}
+
+/* Meal Days / Workout Days */
+.meal-days, .workout-days {
+    margin-top: 20px;
+}
+
+.day-selector {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+}
+
+.day-btn {
+    padding: 8px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 50px;
+    background-color: #fff;
+    color: #6c757d;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.day-btn.active {
+    background-color: #3a8ffe;
+    color: white;
+    border-color: #3a8ffe;
+}
+
+.day-content {
+    display: none;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 10px;
+}
+
+.day-content.active {
+    display: block;
+}
+
+.day-content h4 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 20px;
+    text-align: center;
+}
+
+/* Meals Container */
+.meals-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.meal-item {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.meal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.meal-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.meal-time {
+    font-size: 0.9rem;
+    color: #6c757d;
+    background-color: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 50px;
+}
+
+.meal-foods {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.food-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 8px;
+    border-bottom: 1px solid #f8f9fa;
+}
+
+.food-name {
+    color: #495057;
+}
+
+.food-amount {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.meal-notes {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #e3f2fd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #3a8ffe;
+}
+
+.meal-notes i {
+    margin-right: 5px;
+}
+
+/* Exercises Container */
+.exercises-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.exercise-item {
+    background-color: #fff;
+    border-radius: 10px;
+    padding: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.exercise-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.exercise-header h5 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #333;
+}
+
+.target-muscles {
+    font-size: 0.9rem;
+    color: #6c757d;
+    background-color: #f8f9fa;
+    padding: 5px 10px;
+    border-radius: 50px;
+}
+
+.exercise-details {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.sets-reps {
+    display: flex;
+    gap: 15px;
+    color: #495057;
+}
+
+.sets, .reps, .weight {
+    padding: 5px 10px;
+    background-color: #f8f9fa;
+    border-radius: 5px;
+    font-size: 0.9rem;
+}
+
+.rest-time {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+
+.exercise-notes {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #e3f2fd;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #3a8ffe;
+}
+
+.exercise-notes i {
+    margin-right: 5px;
+}
+
+.exercise-video {
+    display: inline-block;
+    margin-top: 15px;
+    padding: 8px 16px;
+    background-color: #e3f2fd;
+    color: #3a8ffe;
+    border-radius: 50px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.exercise-video:hover {
+    background-color: #3a8ffe;
+    color: white;
+}
+
+.exercise-video i {
+    margin-right: 5px;
+}
+
+/* Rest Day */
+.rest-day {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 30px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+}
+
+.rest-day i {
+    font-size: 40px;
+    color: #3a8ffe;
+    margin-bottom: 15px;
+}
+
+.rest-day h5 {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 10px;
+}
+
+.rest-day p {
+    text-align: center;
+    color: #6c757d;
+}
+
+/* Plan Attachments */
+.plan-attachments {
+    margin-top: 30px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.plan-attachments h5 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+.attachments-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.attachment-item {
+    display: flex;
+    align-items: center;
+    padding: 10px 15px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    color: #495057;
+    text-decoration: none;
+    transition: all 0.3s ease;
+}
+
+.attachment-item:hover {
+    background-color: #e9ecef;
+}
+
+.attachment-item i {
+    margin-right: 10px;
+    color: #dc3545;
+}
+
+/* Modal */
+.modal-content {
+    border-radius: 10px;
+    border: none;
+}
+
+.modal-header {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    background-color: #f8f9fa;
+}
+
+.modal-footer {
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.consultation-remaining {
+    background-color: #e6f7e9;
+    color: #28a745;
+    padding: 10px 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    text-align: center;
+    font-weight: 500;
+}
+
+.form-text {
+    color: #6c757d;
+    font-size: 0.9rem;
+    margin-top: 15px;
+}
+
+.form-text i {
+    margin-right: 5px;
+    color: #3a8ffe;
+}
+
+/* Subscriptions List */
+.subscription-card {
+    transition: all 0.3s ease;
+    margin-bottom: 20px;
+}
+
+.subscription-card:hover {
+    transform: translateY(-5px);
+}
+
+.subscription-card .card {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+.subscription-card .card-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.subscription-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 15px;
+}
+
+.subscription-title {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.subscription-period {
+    font-size: 0.9rem;
+    color: #6c757d;
+}
+
+.subscription-coach {
+    font-size: 0.95rem;
+    color: #6c757d;
+    margin-bottom: 20px;
+}
+
+.subscription-coach i {
+    margin-right: 5px;
+    color: #3a8ffe;
+}
+
+.subscription-progress {
+    margin-top: auto;
+    padding-top: 15px;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.progress-label {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+}
+
+.progress-label span {
+    color: #6c757d;
+}
+
+.progress-label .percentage {
+    font-weight: 600;
+    color: #3a8ffe;
+}
+
+/* Filter Section */
+.filter-section {
+    margin-bottom: 30px;
+}
+
+.filter-heading {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 15px;
+}
+
+.filter-options {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.filter-option {
+    padding: 8px 16px;
+    border: 1px solid #ced4da;
+    border-radius: 50px;
+    color: #6c757d;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.filter-option.active {
+    background-color: #3a8ffe;
+    color: white;
+    border-color: #3a8ffe;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .action-buttons {
+        flex-direction: column;
+    }
+    
+    .action-buttons .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .subscription-meta, .features-grid {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .coach-profile {
+        flex-direction: column;
+    }
+    
+    .coach-info {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .coach-avatar, .default-avatar {
+        margin-right: 0;
+        margin-bottom: 15px;
+    }
+    
+    .coach-actions {
+        flex-direction: column;
+        width: 100%;
+    }
+    
+    .coach-actions .btn {
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .measurement-stats {
+        flex-direction: column;
+    }
+    
+    .stat-item {
+        margin-bottom: 10px;
+    }
+    
+    .day-selector {
+        overflow-x: auto;
+        padding-bottom: 10px;
+        flex-wrap: nowrap;
+    }
+    
+    .day-btn {
+        flex-shrink: 0;
+    }
+    
+    .meal-header, .exercise-header, .exercise-details {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .meal-time, .target-muscles {
+        margin-top: 10px;
+    }
+}
