@@ -1,0 +1,116 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Progress Reports | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/progress.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container reports-list-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Progress Reports</h1>
+                <p>{{ subscription.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:subscription_detail' subscription.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Subscription
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header">
+                    <h4><i class="fas fa-clipboard-check"></i> All Progress Reports</h4>
+                </div>
+                <div class="card-body">
+                    {% if progress_reports %}
+                        <div class="reports-list">
+                            {% for report in progress_reports %}
+                                <a href="{% url 'profiles:view_progress_report' report.id %}" class="report-item">
+                                    <div class="report-icon">
+                                        <i class="fas fa-file-alt"></i>
+                                    </div>
+                                    <div class="report-details">
+                                        <div class="report-title">Week {{ report.week_number }} Progress Report</div>
+                                        <div class="report-meta-info">
+                                            <span class="meta-item"><i class="fas fa-calendar-alt"></i> {{ report.report_date|date }}</span>
+                                            
+                                            {% if report.measurement %}
+                                                <span class="meta-item"><i class="fas fa-weight"></i> {{ report.measurement.weight }} kg</span>
+                                            {% endif %}
+                                            
+                                            {% if report.client_comment %}
+                                                <span class="meta-item"><i class="fas fa-comment"></i> With your response</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="report-rating">
+                                        {% for i in '12345'|make_list %}
+                                            {% if forloop.counter <= report.overall_progress %}
+                                                <i class="fas fa-star"></i>
+                                            {% else %}
+                                                <i class="far fa-star"></i>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </div>
+                                    <div class="report-arrow">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </div>
+                                </a>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-chart-line"></i>
+                            </div>
+                            <h5>No Progress Reports</h5>
+                            <p>Your coach hasn't added any progress reports for this subscription yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Auto dismiss alerts after 5 seconds
+    document.addEventListener('DOMContentLoaded', function() {
+        const alertElements = document.querySelectorAll('.alert');
+        alertElements.forEach(alert => {
+            setTimeout(() => {
+                const bsAlert = new bootstrap.Alert(alert);
+                bsAlert.close();
+            }, 5000);
+        });
+    });
+</script>
+{% endblock %}

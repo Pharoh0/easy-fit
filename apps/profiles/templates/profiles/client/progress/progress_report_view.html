@@ -1,0 +1,421 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Progress Report | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/progress.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container progress-report-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Progress Report</h1>
+                <div class="report-meta">
+                    <span class="report-week">Week {{ report.week_number }}</span>
+                    <span class="report-date">{{ report.date|date }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:subscription_detail' report.subscription.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Subscription
+                </a>
+                {% if previous_report %}
+                <a href="{% url 'profiles:view_progress_report' previous_report.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-chevron-left"></i> Previous Report
+                </a>
+                {% endif %}
+                {% if next_report %}
+                <a href="{% url 'profiles:view_progress_report' next_report.id %}" class="btn btn-outline-primary">
+                    <i class="fas fa-chevron-right"></i> Next Report
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Report Overview -->
+        <div class="col-lg-8">
+            <div class="card report-overview-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-clipboard-check"></i> Progress Report</h4>
+                </div>
+                <div class="card-body">
+                    <!-- Coach's Comment Section -->
+                    <div class="coach-comment-section">
+                        <div class="comment-header">
+                            <div class="coach-info">
+                                {% if report.subscription.coach.avatar %}
+                                    <img src="{{ report.subscription.coach.avatar.url }}" alt="{{ report.subscription.coach.user.username }}" class="coach-avatar">
+                                {% else %}
+                                    <div class="default-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="coach-details">
+                                    <h5>{{ report.subscription.coach.user.get_full_name }}</h5>
+                                    <p class="comment-date">{{ report.date|date }}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="comment-body">
+                            <h4>{{ report.title }}</h4>
+                            <div class="comment-content">
+                                {{ report.coach_comments|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Assessment Section -->
+                    <div class="assessment-section">
+                        <h5>Weekly Assessment</h5>
+                        
+                        <div class="assessment-categories">
+                            <div class="category-item">
+                                <div class="category-label">Diet Adherence</div>
+                                <div class="rating-stars">
+                                    {% for i in '12345'|make_list %}
+                                        {% if forloop.counter <= report.diet_adherence %}
+                                            <i class="fas fa-star filled"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="category-item">
+                                <div class="category-label">Workout Adherence</div>
+                                <div class="rating-stars">
+                                    {% for i in '12345'|make_list %}
+                                        {% if forloop.counter <= report.workout_adherence %}
+                                            <i class="fas fa-star filled"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div class="category-item">
+                                <div class="category-label">Overall Progress</div>
+                                <div class="rating-stars">
+                                    {% for i in '12345'|make_list %}
+                                        {% if forloop.counter <= report.overall_progress %}
+                                            <i class="fas fa-star filled"></i>
+                                        {% else %}
+                                            <i class="far fa-star"></i>
+                                        {% endif %}
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Achievements and Goals -->
+                    <div class="row mt-4">
+                        <!-- Achievements -->
+                        <div class="col-md-6">
+                            <div class="achievements-section">
+                                <h5><i class="fas fa-trophy"></i> Achievements</h5>
+                                {% if report.achievements %}
+                                    <ul class="achievements-list">
+                                        {% for achievement in report.achievements_list %}
+                                            <li>
+                                                <i class="fas fa-check-circle"></i>
+                                                <span>{{ achievement }}</span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="text-muted">No achievements recorded for this week.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Goals for Next Week -->
+                        <div class="col-md-6">
+                            <div class="goals-section">
+                                <h5><i class="fas fa-bullseye"></i> Goals for Next Week</h5>
+                                {% if report.goals_for_next_week %}
+                                    <ul class="goals-list">
+                                        {% for goal in report.goals_list %}
+                                            <li>
+                                                <i class="fas fa-arrow-circle-right"></i>
+                                                <span>{{ goal }}</span>
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% else %}
+                                    <p class="text-muted">No goals set for next week.</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    {% if report.recommendations %}
+                    <div class="recommendations-section">
+                        <h5><i class="fas fa-lightbulb"></i> Recommendations</h5>
+                        <div class="recommendations-content">
+                            {{ report.recommendations|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Notes Section -->
+                    {% if report.notes %}
+                    <div class="notes-section">
+                        <h5><i class="fas fa-sticky-note"></i> Additional Notes</h5>
+                        <div class="notes-content">
+                            {{ report.notes|linebreaks }}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Measurements and Progress -->
+        <div class="col-lg-4">
+            <!-- Measurement Card -->
+            {% if report.measurement %}
+            <div class="card measurement-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-weight"></i> Measurements</h4>
+                </div>
+                <div class="card-body">
+                    <div class="measurement-date">
+                        <i class="fas fa-calendar-day"></i> {{ report.measurement.date|date }}
+                    </div>
+                    
+                    <div class="measurement-overview">
+                        <div class="overview-item">
+                            <div class="item-value">{{ report.measurement.weight }} kg</div>
+                            <div class="item-label">Weight</div>
+                        </div>
+                        <div class="overview-item">
+                            <div class="item-value">{{ report.measurement.bmi|floatformat:1 }}</div>
+                            <div class="item-label">BMI</div>
+                        </div>
+                        <div class="overview-item">
+                            <div class="item-value">{{ report.measurement.body_fat_percentage|default_if_none:"-" }}%</div>
+                            <div class="item-label">Body Fat</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Weight Change -->
+                    {% if previous_measurement %}
+                    <div class="weight-change">
+                        {% with weight_change=report.measurement.weight|subtract:previous_measurement.weight %}
+                        <div class="change-label">
+                            <span>Change from previous</span>
+                            <span class="change-date">({{ previous_measurement.date|date }})</span>
+                        </div>
+                        <div class="change-value {% if weight_change < 0 %}text-success{% elif weight_change > 0 %}text-danger{% else %}text-muted{% endif %}">
+                            {% if weight_change < 0 %}
+                                <i class="fas fa-arrow-down"></i> {{ weight_change|abs }} kg
+                            {% elif weight_change > 0 %}
+                                <i class="fas fa-arrow-up"></i> {{ weight_change }} kg
+                            {% else %}
+                                <i class="fas fa-equals"></i> 0 kg
+                            {% endif %}
+                        </div>
+                        {% endwith %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="detailed-measurements">
+                        <h6>Body Measurements</h6>
+                        
+                        <div class="measurement-grid">
+                            {% if report.measurement.chest %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Chest</div>
+                                <div class="measurement-value">{{ report.measurement.chest }} cm</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if report.measurement.waist %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Waist</div>
+                                <div class="measurement-value">{{ report.measurement.waist }} cm</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if report.measurement.hips %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Hips</div>
+                                <div class="measurement-value">{{ report.measurement.hips }} cm</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if report.measurement.arms %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Arms</div>
+                                <div class="measurement-value">{{ report.measurement.arms }} cm</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if report.measurement.thighs %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Thighs</div>
+                                <div class="measurement-value">{{ report.measurement.thighs }} cm</div>
+                            </div>
+                            {% endif %}
+                            
+                            {% if report.measurement.calves %}
+                            <div class="grid-item">
+                                <div class="measurement-type">Calves</div>
+                                <div class="measurement-value">{{ report.measurement.calves }} cm</div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        
+                        <a href="{% url 'profiles:measurements' %}" class="btn btn-outline-primary btn-sm mt-3 w-100">
+                            <i class="fas fa-chart-bar"></i> View All Measurements
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Progress Chart -->
+            <div class="card progress-chart-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-line"></i> Progress Chart</h4>
+                </div>
+                <div class="card-body">
+                    <div class="chart-container">
+                        <canvas id="weightProgressChart"></canvas>
+                    </div>
+                    
+                    <div class="chart-selector mt-3">
+                        <div class="btn-group" role="group">
+                            <button type="button" class="btn btn-sm btn-outline-primary active" data-chart-type="weight">Weight</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-chart-type="bmi">BMI</button>
+                            <button type="button" class="btn btn-sm btn-outline-primary" data-chart-type="body_fat">Body Fat %</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Client Response -->
+            <div class="card client-response-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-comment-dots"></i> Your Response</h4>
+                </div>
+                <div class="card-body">
+                    {% if report.client_comment %}
+                        <div class="client-comment">
+                            {{ report.client_comment|linebreaks }}
+                        </div>
+                        <div class="comment-timestamp">
+                            <small>Submitted on {{ report.client_comment_date|date }}</small>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-3" data-bs-toggle="modal" data-bs-target="#editResponseModal">
+                            <i class="fas fa-edit"></i> Edit Response
+                        </button>
+                    {% else %}
+                        <div class="empty-response">
+                            <p>You haven't responded to this progress report yet.</p>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addResponseModal">
+                                <i class="fas fa-comment"></i> Add Response
+                            </button>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Response Modal -->
+<div class="modal fade" id="addResponseModal" tabindex="-1" aria-labelledby="addResponseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addResponseModalLabel">Add Your Response</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'profiles:add_report_response' report.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="clientComment" class="form-label">Your thoughts on this progress report</label>
+                        <textarea name="client_comment" id="clientComment" class="form-control" rows="5" required></textarea>
+                        <div class="form-text">
+                            Share your thoughts, concerns, or questions about your progress with your coach.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Submit Response</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Response Modal -->
+{% if report.client_comment %}
+<div class="modal fade" id="editResponseModal" tabindex="-1" aria-labelledby="editResponseModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editResponseModalLabel">Edit Your Response</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'profiles:edit_report_response' report.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editClientComment" class="form-label">Your thoughts on this progress report</label>
+                        <textarea name="client_comment" id="editClientComment" class="form-control" rows="5" required>{{ report.client_comment }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Response</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Progress data from the backend
+        /* eslint-disable */
+        // @ts-nocheck
+        const progressData = {{ progress_data|default:'{"dates": [], "weights": [], "bmis": [], "body_fats": []}' | safe }};
+        /* eslint-enable */
+    </script>
+    <script src="{% static 'profiles/js/client/progress.js' %}"></script>
+{% endblock %}
