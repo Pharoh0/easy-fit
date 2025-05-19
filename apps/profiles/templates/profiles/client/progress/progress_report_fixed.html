@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Progress Report | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/progress.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container progress-detail-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Progress Report</h1>
+                <p id="report-week">Week {{ report.week_number }}</p>
+                <p id="report-date" class="text-muted">{{ report.report_date|date }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:list_progress_reports' report.subscription.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Reports
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Progress Report Detail Container -->
+    <div id="progress-report-detail" class="mt-4" data-report-id="{{ report.id }}">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-clipboard-check"></i> Coach Feedback</h5>
+                        <div id="report-overall-progress" class="report-rating">
+                            {% for i in '12345'|make_list %}
+                                {% if forloop.counter <= report.overall_progress %}
+                                    <i class="fas fa-star"></i>
+                                {% else %}
+                                    <i class="far fa-star"></i>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-metrics">
+                            <div class="metric-item">
+                                <span class="metric-label">Workout Adherence:</span>
+                                <span id="report-workout-adherence" class="metric-value">{{ report.workout_adherence }}/5</span>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" role="progressbar" 
+                                        style="width: {{ report.workout_adherence|floatformat:0|default:0|multiply:20 }}%" 
+                                        aria-valuenow="{{ report.workout_adherence }}" 
+                                        aria-valuemin="0" aria-valuemax="5"></div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Diet Adherence:</span>
+                                <span id="report-diet-adherence" class="metric-value">{{ report.diet_adherence }}/5</span>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" role="progressbar" 
+                                        style="width: {{ report.diet_adherence|floatformat:0|default:0|multiply:20 }}%" 
+                                        aria-valuenow="{{ report.diet_adherence }}" 
+                                        aria-valuemin="0" aria-valuemax="5"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h6><i class="fas fa-comment"></i> Coach Comments:</h6>
+                            <div class="coach-comment p-3 bg-light rounded">
+                                <p id="coach-comment">{{ report.coach_comment|default:"No comments provided." }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-reply"></i> Your Response</h5>
+                    </div>
+                    <div class="card-body">
+                        {% if report.client_comment %}
+                            <div id="comment-status" class="mb-3">
+                                <h6>Your comment:</h6>
+                                <div class="client-comment p-3 bg-light rounded">
+                                    <p id="current-comment">{{ report.client_comment }}</p>
+                                </div>
+                                <a href="{% url 'profiles:edit_report_response' report.id %}" class="btn btn-sm btn-outline-primary mt-2">
+                                    <i class="fas fa-edit"></i> Edit Response
+                                </a>
+                            </div>
+                        {% else %}
+                            <form id="comment-form" action="{% url 'profiles:add_report_response' report.id %}" method="post">
+                                {% csrf_token %}
+                                <div class="mb-3">
+                                    <label for="client-comment" class="form-label">Your thoughts on this progress report:</label>
+                                    <textarea id="client-comment" name="client_comment" class="form-control" rows="4" 
+                                        placeholder="Share your thoughts, questions, or feedback about this progress report..."></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane"></i> Submit Response
+                                </button>
+                            </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                {% if report.measurement %}
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5><i class="fas fa-weight"></i> Measurements</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="measurement-data">
+                                <div class="measurement-item">
+                                    <i class="fas fa-weight"></i>
+                                    <span>Weight: {{ report.measurement.weight }} kg</span>
+                                </div>
+                                {% if report.measurement.height %}
+                                    <div class="measurement-item">
+                                        <i class="fas fa-ruler-vertical"></i>
+                                        <span>Height: {{ report.measurement.height }} cm</span>
+                                    </div>
+                                {% endif %}
+                                {% if report.measurement.bmi %}
+                                    <div class="measurement-item">
+                                        <i class="fas fa-calculator"></i>
+                                        <span>BMI: {{ report.measurement.bmi }}</span>
+                                    </div>
+                                {% endif %}
+                                {% if report.measurement.body_fat_percentage %}
+                                    <div class="measurement-item">
+                                        <i class="fas fa-percentage"></i>
+                                        <span>Body Fat: {{ report.measurement.body_fat_percentage }}%</span>
+                                    </div>
+                                {% endif %}
+                                {% if report.measurement.muscle_mass %}
+                                    <div class="measurement-item">
+                                        <i class="fas fa-dumbbell"></i>
+                                        <span>Muscle Mass: {{ report.measurement.muscle_mass }} kg</span>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Progress Charts</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container mb-3">
+                            <h6>Weight Progress</h6>
+                            <canvas id="weight-chart"></canvas>
+                        </div>
+                        <div class="chart-container mb-3">
+                            <h6>BMI Progress</h6>
+                            <canvas id="bmi-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h6>Body Fat Progress</h6>
+                            <canvas id="body-fat-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Progress data from the backend
+        // Using a safer way to pass JSON data from Django to JavaScript
+        var progressData = JSON.parse('{{ progress_data|default:"{\"dates\": [], \"weights\": [], \"bmis\": [], \"body_fats\": []}" | escapejs }}');
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize charts
+            if (progressData && progressData.dates.length > 0) {
+                // Weight chart
+                const weightChartCanvas = document.getElementById('weight-chart');
+                if (weightChartCanvas && progressData.weights.length > 0) {
+                    new Chart(weightChartCanvas, {
+                        type: 'line',
+                        data: {
+                            labels: progressData.dates,
+                            datasets: [{
+                                label: 'Weight (kg)',
+                                data: progressData.weights,
+                                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                                borderColor: 'rgba(75, 192, 192, 1)',
+                                borderWidth: 2,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: false
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // BMI chart
+                const bmiChartCanvas = document.getElementById('bmi-chart');
+                if (bmiChartCanvas && progressData.bmis.length > 0) {
+                    new Chart(bmiChartCanvas, {
+                        type: 'line',
+                        data: {
+                            labels: progressData.dates,
+                            datasets: [{
+                                label: 'BMI',
+                                data: progressData.bmis,
+                                backgroundColor: 'rgba(153, 102, 255, 0.2)',
+                                borderColor: 'rgba(153, 102, 255, 1)',
+                                borderWidth: 2,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: false
+                                }
+                            }
+                        }
+                    });
+                }
+                
+                // Body fat chart
+                const bodyFatChartCanvas = document.getElementById('body-fat-chart');
+                if (bodyFatChartCanvas && progressData.body_fats.length > 0) {
+                    new Chart(bodyFatChartCanvas, {
+                        type: 'line',
+                        data: {
+                            labels: progressData.dates,
+                            datasets: [{
+                                label: 'Body Fat (%)',
+                                data: progressData.body_fats,
+                                backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                                borderColor: 'rgba(255, 159, 64, 1)',
+                                borderWidth: 2,
+                                tension: 0.1
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: false
+                                }
+                            }
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+{% endblock %}
