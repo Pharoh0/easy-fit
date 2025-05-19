@@ -1,0 +1,1195 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Search Coaches{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-10">
+            <div class="card shadow-lg border-0 rounded-lg mb-5">
+                <div class="card-header bg-gradient-primary-to-secondary text-white">
+                    <h2 class="text-center my-3"><i class="fas fa-search me-2"></i>Find Your Perfect Coach</h2>
+                </div>
+                <div class="card-body p-4">
+                    <!-- Search Form -->
+                    <form id="search-form" method="GET" action="">
+                        <div class="row g-4 mb-4">
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <select name="country" id="country" class="form-select">
+                                        <option value="">Select Country</option>
+                                        {% for country in countries %}
+                                            <option value="{{ country.id }}">{{ country.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="country">Country</label>
+                                </div>
+                                <div id="country-loading" class="spinner-border spinner-border-sm text-primary mt-2 d-none" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <select name="region" id="region" class="form-select" disabled>
+                                        <option value="">Select Region</option>
+                                        {% for region in regions %}
+                                            <option value="{{ region.id }}">{{ region.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="region">Region</label>
+                                </div>
+                                <div id="region-loading" class="spinner-border spinner-border-sm text-primary mt-2 d-none" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-floating">
+                                    <select name="city" id="city" class="form-select" disabled>
+                                        <option value="">Select City</option>
+                                        {% for city in cities %}
+                                            <option value="{{ city.id }}">{{ city.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <label for="city">City</label>
+                                </div>
+                                <div id="city-loading" class="spinner-border spinner-border-sm text-primary mt-2 d-none" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button type="submit" id="search-button" class="btn btn-primary btn-lg px-5">
+                                <i class="fas fa-search me-2"></i>Find Coaches
+                            </button>
+                            <div id="search-loading" class="spinner-border text-primary mt-3 d-none mx-auto" role="status">
+                                <span class="visually-hidden">Searching...</span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+    <div class="row mt-5" id="results-container" style="display: none;">
+        <div class="col-12 mb-4">
+            <div class="d-flex justify-content-between align-items-center">
+                <h3 class="m-0"><span id="results-count">0</span> Coaches Found</h3>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" id="toggle-filters-btn">
+                        <i class="fas fa-filter me-1"></i> Filters
+                    </button>
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-sort me-1"></i> Sort By
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                            <li><a class="dropdown-item sort-option" data-sort="rating" href="#">Rating (High to Low)</a></li>
+                            <li><a class="dropdown-item sort-option" data-sort="hourly_rate_asc" href="#">Price (Low to High)</a></li>
+                            <li><a class="dropdown-item sort-option" data-sort="hourly_rate_desc" href="#">Price (High to Low)</a></li>
+                            <li><a class="dropdown-item sort-option" data-sort="experience" href="#">Experience (Most First)</a></li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filters Section (Initially Hidden, shows when results appear) -->
+        <div id="filters-section" class="col-md-3 mb-4" style="display: none;">
+            <div class="card shadow-sm border-0 rounded-lg filter-card">
+                <div class="card-header bg-light">
+                    <h5 class="card-title mb-0 d-flex align-items-center">
+                        <i class="fas fa-filter me-2 text-primary"></i>
+                        <span>Filters</span>
+                        <span class="ms-auto badge bg-primary rounded-pill" id="active-filters-count">0</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Specialty Filter -->
+                    <div class="filter-group mb-3">
+                        <label for="specialty" class="form-label fw-medium">Specialty</label>
+                        <select name="specialty" id="specialty" class="form-select form-select-sm">
+                            <option value="">All Specialties</option>
+                            {% for specialty in specialties %}
+                                <option value="{{ specialty }}">{{ specialty }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Price Range Filter -->
+                    <div class="filter-group mb-3">
+                        <label class="form-label fw-medium">Price Range</label>
+                        <div class="row g-2">
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="min_rate" name="min_rate" placeholder="Min">
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text">$</span>
+                                    <input type="number" class="form-control" id="max_rate" name="max_rate" placeholder="Max">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Experience Filter -->
+                    <div class="filter-group mb-3">
+                        <label class="form-label fw-medium">Experience</label>
+                        <div class="experience-buttons d-flex flex-wrap gap-1">
+                            <button type="button" class="btn btn-sm btn-outline-secondary experience-btn active" data-value="">Any</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary experience-btn" data-value="1">1+</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary experience-btn" data-value="3">3+</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary experience-btn" data-value="5">5+</button>
+                            <button type="button" class="btn btn-sm btn-outline-secondary experience-btn" data-value="10">10+</button>
+                        </div>
+                        <input type="hidden" id="years_of_experience" name="years_of_experience" value="">
+                    </div>
+                    
+                    <!-- Rating Filter -->
+                    <div class="filter-group mb-4">
+                        <label class="form-label fw-medium">Rating</label>
+                        <div class="rating-options">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_all" value="" checked>
+                                <label class="form-check-label" for="rating_all">All Ratings</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_4plus" value="4">
+                                <label class="form-check-label" for="rating_4plus">
+                                    <span class="rating-stars">★★★★☆</span> & up
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_3plus" value="3">
+                                <label class="form-check-label" for="rating_3plus">
+                                    <span class="rating-stars">★★★☆☆</span> & up
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Filter Actions -->
+                    <div class="d-flex justify-content-between align-items-center">
+                        <small class="text-muted">Found: <span id="filtered-count" class="fw-medium">0</span></small>
+                        <button id="clear-filters" class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-undo-alt me-1"></i>Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-column" class="col-md-9">
+            <div id="search-results" class="row row-cols-1 row-cols-md-2 g-4">
+                <!-- Coaches search results will be dynamically loaded here -->
+            </div>
+            <div id="no-results" class="alert alert-warning text-center mt-4" style="display: none;">
+                <i class="fas fa-exclamation-circle me-2"></i> No coaches found matching your criteria.
+                <p class="mt-2 mb-0">Try adjusting your filters or search in a different location.</p>
+            </div>
+            <!-- Pagination Container -->
+            <div id="pagination-container" class="mt-4 mb-5"></div>
+            <div id="loading-results" class="text-center my-5" style="display: none;">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2">Finding the best coaches for you...</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Main data storage
+    let originalData = [];
+    let currentSort = '';
+    let debounceTimer;
+    const DEBOUNCE_DELAY = 300; // ms
+    
+    // DOM elements
+    const countrySelect = document.getElementById('country');
+    const regionSelect = document.getElementById('region');
+    const citySelect = document.getElementById('city');
+    const searchForm = document.getElementById('search-form');
+    const searchButton = document.getElementById('search-button');
+    const searchLoading = document.getElementById('search-loading');
+    const countryLoading = document.getElementById('country-loading');
+    const regionLoading = document.getElementById('region-loading');
+    const cityLoading = document.getElementById('city-loading');
+    const resultsContainer = document.getElementById('results-container');
+    const searchResults = document.getElementById('search-results');
+    const filtersSection = document.getElementById('filters-section');
+    const resultsCount = document.getElementById('results-count');
+    const noResults = document.getElementById('no-results');
+    const loadingResults = document.getElementById('loading-results');
+    const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
+    const clearFiltersBtn = document.getElementById('clear-filters');
+    
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', function() {
+        // Set up event listeners
+        setupEventListeners();
+        
+        // Check URL parameters for pre-filled search
+        checkUrlParameters();
+    });
+    
+    // Set up all event listeners
+    function setupEventListeners() {
+        // Country selection
+        countrySelect.addEventListener('change', function() {
+            loadRegions(this.value);
+        });
+        
+        // Region selection
+        regionSelect.addEventListener('change', function() {
+            loadCities(this.value);
+        });
+        
+        // Search form submission
+        searchForm.addEventListener('submit', function(event) {
+            event.preventDefault();
+            performSearch(1); // Start at page 1
+        });
+        
+        // Set up filter event listeners for backend filtering
+        setupFilterEventListeners();
+        
+        // Sort options
+        document.querySelectorAll('.sort-option').forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.preventDefault();
+                currentSort = this.dataset.sort;
+                performSearch(1); // Reset to page 1 when sort changes
+            });
+        });
+        
+        // Toggle filters on mobile
+        toggleFiltersBtn.addEventListener('click', function() {
+            filtersSection.style.display = filtersSection.style.display === 'none' ? 'block' : 'none';
+            this.innerHTML = filtersSection.style.display === 'none' ? 
+                '<i class="fas fa-filter me-1"></i> Filters' : 
+                '<i class="fas fa-times me-1"></i> Hide Filters';
+        });
+        
+        // Clear filters
+        clearFiltersBtn.addEventListener('click', clearFilters);
+    }
+    
+    // Check URL parameters for pre-filled search
+    function checkUrlParameters() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const countryId = urlParams.get('country');
+        const regionId = urlParams.get('region');
+        const cityId = urlParams.get('city');
+        
+        if (countryId) {
+            countrySelect.value = countryId;
+            loadRegions(countryId, regionId, cityId);
+        }
+    }
+    
+    // Load regions based on country selection
+    function loadRegions(countryId, preSelectedRegion = null, preSelectedCity = null) {
+        // Reset and disable region and city dropdowns
+        regionSelect.innerHTML = '<option value="">Select Region</option>';
+        regionSelect.disabled = true;
+        citySelect.innerHTML = '<option value="">Select City</option>';
+        citySelect.disabled = true;
+        
+        if (!countryId) return;
+        
+        // Show loading indicator
+        countryLoading.classList.remove('d-none');
+        
+        // Fetch regions for the selected country
+        fetch(`/profiles/api/v1/regions/?country_id=${countryId}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Enable region dropdown if we have data
+            regionSelect.disabled = data.length === 0;
+            
+            // Populate region dropdown
+            data.forEach(region => {
+                const option = document.createElement('option');
+                option.value = region.id;
+                option.textContent = region.name;
+                regionSelect.appendChild(option);
+            });
+            
+            // If we have a pre-selected region, select it and load cities
+            if (preSelectedRegion && data.some(r => r.id == preSelectedRegion)) {
+                regionSelect.value = preSelectedRegion;
+                loadCities(preSelectedRegion, preSelectedCity);
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching regions:', error);
+            showToast('Error loading regions. Please try again.', 'error');
+        })
+        .finally(() => {
+            // Hide loading indicator
+            countryLoading.classList.add('d-none');
+        });
+    }
+    
+    // Load cities based on region selection
+    function loadCities(regionId, preSelectedCity = null) {
+        // Reset and disable city dropdown
+        citySelect.innerHTML = '<option value="">Select City</option>';
+        citySelect.disabled = true;
+        
+        if (!regionId) return;
+        
+        // Show loading indicator
+        regionLoading.classList.remove('d-none');
+        
+        // Fetch cities for the selected region
+        fetch(`/profiles/api/v1/cities/?region_id=${regionId}`, {
+            headers: { 'Accept': 'application/json' }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Enable city dropdown if we have data
+            citySelect.disabled = data.length === 0;
+            
+            // Populate city dropdown
+            data.forEach(city => {
+                const option = document.createElement('option');
+                option.value = city.id;
+                option.textContent = city.name;
+                citySelect.appendChild(option);
+            });
+            
+            // If we have a pre-selected city, select it
+            if (preSelectedCity && data.some(c => c.id == preSelectedCity)) {
+                citySelect.value = preSelectedCity;
+            }
+        })
+        .catch(error => {
+            console.error('Error fetching cities:', error);
+            showToast('Error loading cities. Please try again.', 'error');
+        })
+        .finally(() => {
+            // Hide loading indicator
+            regionLoading.classList.add('d-none');
+        });
+    }
+    
+    // Perform the search with pagination
+    function performSearch(page = 1) {
+        // Show loading indicators
+        searchButton.disabled = true;
+        searchLoading.classList.remove('d-none');
+        loadingResults.style.display = 'block';
+        searchResults.innerHTML = '';
+        noResults.style.display = 'none';
+        
+        // Create a new FormData object
+        const formData = new FormData();
+        
+        // Add location filters from the form
+        const country = document.getElementById('country').value;
+        const region = document.getElementById('region').value;
+        const city = document.getElementById('city').value;
+        
+        if (country) formData.append('country', country);
+        if (region) formData.append('region', region);
+        if (city) formData.append('city', city);
+        
+        // Add specialty filter
+        const specialty = document.getElementById('specialty').value;
+        if (specialty) formData.append('specialty', specialty);
+        
+        // Add price range filters
+        const minRate = document.getElementById('min_rate').value;
+        const maxRate = document.getElementById('max_rate').value;
+        if (minRate) formData.append('min_rate', minRate);
+        if (maxRate) formData.append('max_rate', maxRate);
+        
+        // Add experience filter
+        const yearsOfExperience = document.getElementById('years_of_experience').value;
+        if (yearsOfExperience) formData.append('years_of_experience', yearsOfExperience);
+        
+        // Add rating filter
+        const ratingFilter = document.querySelector('input[name="rating_filter"]:checked')?.value;
+        if (ratingFilter) formData.append('min_rating', ratingFilter);
+        
+        // Add pagination parameters
+        formData.append('page', page);
+        
+        // Add sorting if available
+        if (currentSort) {
+            let sortParam = '';
+            switch(currentSort) {
+                case 'rating':
+                    sortParam = 'rating_high';
+                    break;
+                case 'hourly_rate_asc':
+                    sortParam = 'price_low';
+                    break;
+                case 'hourly_rate_desc':
+                    sortParam = 'price_high';
+                    break;
+                case 'experience':
+                    sortParam = 'experience_high';
+                    break;
+            }
+            if (sortParam) {
+                formData.append('sort_by', sortParam);
+            }
+        }
+        
+        // Convert FormData to URL parameters
+        const queryString = new URLSearchParams(formData).toString();
+        console.log('Search query string:', queryString);
+        
+        // Update URL with search parameters (without reloading)
+        const newUrl = `${window.location.pathname}?${queryString}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
+        
+        // Fetch search results from backend
+        const apiUrl = `/search/api/v1/search-coaches/?${queryString}`;
+        console.log('Fetching from API URL:', apiUrl);
+        
+        // Get CSRF token from cookie
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+        
+        // Get access token if available (from localStorage or wherever it's stored)
+        const accessToken = localStorage.getItem('access_token') || '';
+        
+        fetch(apiUrl, {
+            headers: {
+                'X-CSRFToken': csrfToken,
+                'Accept': 'application/json',
+                'Authorization': accessToken ? `Bearer ${accessToken}` : ''
+            }
+        })
+        .then(response => {
+            if (!response.ok) throw new Error('Network response was not ok');
+            return response.json();
+        })
+        .then(data => {
+            // Debug: Log the data received from the API
+            console.log('API Response Data:', data);
+            
+            // Store original data for reference
+            originalData = data.results || [];
+            
+            // Debug: Log the coaches data
+            console.log('Coaches data:', originalData);
+            console.log('Number of coaches:', originalData.length);
+            
+            // Show results container
+            resultsContainer.style.display = 'flex';
+            
+            // Update results count
+            resultsCount.textContent = data.count || 0;
+            
+            // Update filtered count display
+            document.getElementById('filtered-count').textContent = data.count || 0;
+            
+            // Always show filters regardless of results
+            filtersSection.style.display = window.innerWidth >= 768 ? 'block' : 'none';
+            
+            // IMPORTANT: Clear everything first
+            noResults.style.display = 'none';
+            searchResults.innerHTML = '';
+            document.getElementById('pagination-container').innerHTML = '';
+            
+            // Display results or no results message
+            if (originalData && originalData.length > 0) {
+                console.log('Displaying coaches...');
+                // Display coaches
+                displayResults(originalData);
+                
+                // Display pagination
+                renderPagination(data);
+            } else {
+                console.log('No coaches to display');
+                // Show no results message only if there are truly no results
+                noResults.style.display = 'block';
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error searching for coaches. Please try again.', 'error');
+            noResults.style.display = 'block';
+            searchResults.innerHTML = '';
+            document.getElementById('pagination-container').innerHTML = '';
+            
+            // Keep filters visible so user can adjust them
+            filtersSection.style.display = window.innerWidth >= 768 ? 'block' : 'none';
+            
+            // Log the error for debugging
+            console.log('Search error details:', error.message);
+        })
+        .finally(() => {
+            // Hide loading indicators
+            searchButton.disabled = false;
+            searchLoading.classList.add('d-none');
+            loadingResults.style.display = 'none';
+            
+            // Scroll to results
+            resultsContainer.scrollIntoView({ behavior: 'smooth' });
+        });
+    }
+    
+    // Display search results
+    function displayResults(coaches) {
+        console.log('Displaying coaches:', coaches);
+        searchResults.innerHTML = '';
+        
+        if (!coaches || coaches.length === 0) {
+            console.log('No coaches to display');
+            return;
+        }
+        
+        try {
+            coaches.forEach(coach => {
+                displayCoach(coach, searchResults);
+            });
+        } catch (error) {
+            console.error('Error displaying coaches:', error);
+            // Fallback display if there's an error
+            searchResults.innerHTML = `
+                <div class="col-12 text-center">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        There was an error displaying the coaches. Please try refreshing the page.
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // Debounce filter function to improve performance
+    function debounceFilter() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(filterResults, DEBOUNCE_DELAY);
+    }
+    
+    // Render pagination controls with enhanced UI and information
+    function renderPagination(data) {
+        const paginationContainer = document.getElementById('pagination-container');
+        paginationContainer.innerHTML = '';
+        
+        // Check if we need pagination
+        if (!data.count || data.count <= 0) {
+            return; // No results, no pagination needed
+        }
+        
+        // Extract pagination information from the API response
+        const currentPage = data.current_page || 1;
+        const totalPages = data.total_pages || 1;
+        const totalItems = data.count || 0;
+        const itemsPerPage = data.results ? data.results.length : 0;
+        
+        // Create pagination info text
+        const paginationInfo = document.createElement('div');
+        paginationInfo.className = 'text-center text-muted mb-3';
+        
+        // Calculate the range of items being displayed
+        const startItem = (currentPage - 1) * itemsPerPage + 1;
+        const endItem = Math.min(startItem + itemsPerPage - 1, totalItems);
+        
+        paginationInfo.innerHTML = `
+            <small>Showing ${startItem}-${endItem} of ${totalItems} coaches</small>
+        `;
+        paginationContainer.appendChild(paginationInfo);
+        
+        // If only one page, don't show pagination controls
+        if (totalPages <= 1) {
+            return;
+        }
+        
+        // Create pagination controls
+        const pagination = document.createElement('nav');
+        pagination.setAttribute('aria-label', 'Search results pagination');
+        pagination.className = 'mt-3';
+        
+        const pageList = document.createElement('ul');
+        pageList.className = 'pagination pagination-sm justify-content-center';
+        
+        // First page button
+        if (totalPages > 3) {
+            const firstItem = document.createElement('li');
+            firstItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+            
+            const firstLink = document.createElement('a');
+            firstLink.className = 'page-link';
+            firstLink.href = '#';
+            firstLink.innerHTML = '<i class="fas fa-angle-double-left"></i>';
+            firstLink.setAttribute('aria-label', 'First Page');
+            
+            if (currentPage > 1) {
+                firstLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    performSearch(1);
+                });
+            }
+            
+            firstItem.appendChild(firstLink);
+            pageList.appendChild(firstItem);
+        }
+        
+        // Previous button
+        const prevItem = document.createElement('li');
+        prevItem.className = `page-item ${currentPage === 1 ? 'disabled' : ''}`;
+        
+        const prevLink = document.createElement('a');
+        prevLink.className = 'page-link';
+        prevLink.href = '#';
+        prevLink.innerHTML = '<i class="fas fa-angle-left"></i>';
+        prevLink.setAttribute('aria-label', 'Previous');
+        
+        if (currentPage > 1) {
+            prevLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                performSearch(currentPage - 1);
+            });
+        }
+        
+        prevItem.appendChild(prevLink);
+        pageList.appendChild(prevItem);
+        
+        // Page numbers - with adaptive display based on total pages
+        let startPage, endPage;
+        
+        if (totalPages <= 5) {
+            // If 5 or fewer pages, show all
+            startPage = 1;
+            endPage = totalPages;
+        } else {
+            // More than 5 pages, calculate range
+            if (currentPage <= 3) {
+                startPage = 1;
+                endPage = 5;
+            } else if (currentPage + 2 >= totalPages) {
+                startPage = totalPages - 4;
+                endPage = totalPages;
+            } else {
+                startPage = currentPage - 2;
+                endPage = currentPage + 2;
+            }
+        }
+        
+        for (let i = startPage; i <= endPage; i++) {
+            const pageItem = document.createElement('li');
+            pageItem.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            
+            const pageLink = document.createElement('a');
+            pageLink.className = 'page-link';
+            pageLink.href = '#';
+            pageLink.textContent = i;
+            
+            if (i !== currentPage) {
+                pageLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    performSearch(i);
+                });
+            }
+            
+            pageItem.appendChild(pageLink);
+            pageList.appendChild(pageItem);
+        }
+        
+        // Next button
+        const nextItem = document.createElement('li');
+        nextItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+        
+        const nextLink = document.createElement('a');
+        nextLink.className = 'page-link';
+        nextLink.href = '#';
+        nextLink.innerHTML = '<i class="fas fa-angle-right"></i>';
+        nextLink.setAttribute('aria-label', 'Next');
+        
+        if (currentPage < totalPages) {
+            nextLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                performSearch(currentPage + 1);
+            });
+        }
+        
+        nextItem.appendChild(nextLink);
+        pageList.appendChild(nextItem);
+        
+        // Last page button
+        if (totalPages > 3) {
+            const lastItem = document.createElement('li');
+            lastItem.className = `page-item ${currentPage === totalPages ? 'disabled' : ''}`;
+            
+            const lastLink = document.createElement('a');
+            lastLink.className = 'page-link';
+            lastLink.href = '#';
+            lastLink.innerHTML = '<i class="fas fa-angle-double-right"></i>';
+            lastLink.setAttribute('aria-label', 'Last Page');
+            
+            if (currentPage < totalPages) {
+                lastLink.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    performSearch(totalPages);
+                });
+            }
+            
+            lastItem.appendChild(lastLink);
+            pageList.appendChild(lastItem);
+        }
+        
+        pagination.appendChild(pageList);
+        paginationContainer.appendChild(pagination);
+        
+        // Add quick jump to page for large result sets
+        if (totalPages > 5) {
+            const jumpContainer = document.createElement('div');
+            jumpContainer.className = 'text-center mt-3';
+            
+            jumpContainer.innerHTML = `
+                <div class="input-group input-group-sm justify-content-center">
+                    <span class="input-group-text">Go to page</span>
+                    <input type="number" id="jump-to-page" class="form-control" style="max-width: 70px;" min="1" max="${totalPages}" value="${currentPage}">
+                    <button class="btn btn-primary btn-sm" id="jump-button">Go</button>
+                </div>
+            `;
+            
+            paginationContainer.appendChild(jumpContainer);
+            
+            // Add event listener for the jump button
+            setTimeout(() => {
+                const jumpButton = document.getElementById('jump-button');
+                const jumpInput = document.getElementById('jump-to-page');
+                
+                if (jumpButton && jumpInput) {
+                    jumpButton.addEventListener('click', () => {
+                        const pageNum = parseInt(jumpInput.value);
+                        if (pageNum && pageNum >= 1 && pageNum <= totalPages && pageNum !== currentPage) {
+                            performSearch(pageNum);
+                        }
+                    });
+                    
+                    jumpInput.addEventListener('keypress', (e) => {
+                        if (e.key === 'Enter') {
+                            const pageNum = parseInt(jumpInput.value);
+                            if (pageNum && pageNum >= 1 && pageNum <= totalPages && pageNum !== currentPage) {
+                                performSearch(pageNum);
+                            }
+                        }
+                    });
+                }
+            }, 100);
+        }
+    }
+    
+    // Filter results based on user selections - now triggers a new search with backend filtering
+    function filterResults() {
+        // Instead of filtering client-side, we'll trigger a new search with the filter parameters
+        performSearch(1); // Reset to page 1 when filters change
+    }
+    
+    // Update the event listeners for filters to trigger backend search
+    function setupFilterEventListeners() {
+        // Filter inputs should now trigger a new search with debounce
+        const filterInputs = document.querySelectorAll('#specialty, #min_rate, #max_rate, input[name="rating_filter"]');
+        filterInputs.forEach(input => {
+            if (input.type === 'radio') {
+                input.addEventListener('change', () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        updateActiveFiltersCount();
+                        performSearch(1); // Reset to page 1 when filters change
+                    }, DEBOUNCE_DELAY);
+                });
+            } else {
+                input.addEventListener('input', () => {
+                    clearTimeout(debounceTimer);
+                    debounceTimer = setTimeout(() => {
+                        updateActiveFiltersCount();
+                        performSearch(1); // Reset to page 1 when filters change
+                    }, DEBOUNCE_DELAY);
+                });
+            }
+        });
+        
+        // Experience buttons
+        const experienceButtons = document.querySelectorAll('.experience-btn');
+        experienceButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                // Remove active class from all buttons
+                experienceButtons.forEach(btn => btn.classList.remove('active'));
+                button.classList.add('active');
+                
+                // Update hidden input with selected value
+                document.getElementById('years_of_experience').value = button.dataset.value;
+                
+                // Trigger search
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    updateActiveFiltersCount();
+                    performSearch(1); // Reset to page 1 when filters change
+                }, DEBOUNCE_DELAY);
+            });
+        });
+        
+        // Initialize the active filters count
+        updateActiveFiltersCount();
+    }
+    
+    // Count and update the active filters badge
+    function updateActiveFiltersCount() {
+        let activeCount = 0;
+        
+        // Check specialty
+        if (document.getElementById('specialty').value) activeCount++;
+        
+        // Check price range
+        if (document.getElementById('min_rate').value) activeCount++;
+        if (document.getElementById('max_rate').value) activeCount++;
+        
+        // Check experience
+        if (document.getElementById('years_of_experience').value) activeCount++;
+        
+        // Check rating
+        if (document.querySelector('input[name="rating_filter"]:checked').value) activeCount++;
+        
+        // Update the badge
+        const badge = document.getElementById('active-filters-count');
+        badge.textContent = activeCount;
+        
+        // Show/hide badge based on count
+        if (activeCount > 0) {
+            badge.style.display = 'inline-block';
+        } else {
+            badge.style.display = 'none';
+        }
+    }
+    
+    // Sort results - now handled by backend
+    function sortResults(sortBy) {
+        // Update current sort
+        currentSort = sortBy;
+        
+        // Trigger a new search with the sort parameter
+        performSearch(1);
+    }
+    
+    // Clear all filters
+    function clearFilters() {
+        console.log('Clearing all filters');
+        
+        // Reset location filters
+        document.getElementById('country').value = '';
+        document.getElementById('region').value = '';
+        document.getElementById('city').value = '';
+        document.getElementById('region').disabled = true;
+        document.getElementById('city').disabled = true;
+        
+        // Reset other form inputs
+        document.getElementById('specialty').value = '';
+        document.getElementById('min_rate').value = '';
+        document.getElementById('max_rate').value = '';
+        document.getElementById('years_of_experience').value = '';
+        document.getElementById('rating_all').checked = true;
+        
+        // Reset experience buttons
+        const experienceButtons = document.querySelectorAll('.experience-btn');
+        experienceButtons.forEach(btn => btn.classList.remove('active'));
+        if (experienceButtons.length > 0) {
+            experienceButtons[0].classList.add('active'); // Select 'Any' button
+        }
+        
+        // Reset current sort
+        currentSort = '';
+        
+        // Update active filters count
+        updateActiveFiltersCount();
+        
+        // Trigger a new search with cleared filters
+        performSearch(1);
+        
+        // Show toast notification
+        showToast('Filters have been reset', 'info');
+    }
+    
+    // Display a coach card
+    function displayCoach(coach, container) {
+        console.log('Displaying coach:', coach);
+        
+        // Safely extract data with fallbacks
+        const coachName = coach.user?.username || coach.user?.first_name || coach.user?.email || 'No name available';
+        const specialties = coach.specialties || 'No specialties available';
+        const hourlyRate = coach.hourly_rate ? `$${coach.hourly_rate}` : 'No hourly rate available';
+        const city = coach.city?.name || 'No city';
+        const country = coach.country?.name || 'No country';
+        const experience = coach.years_of_experience || 'No experience';
+        const rating = coach.rating || 0;
+        
+        // Get initials for avatar fallback
+        const nameParts = coachName.split(' ');
+        const initials = nameParts.length > 1 
+            ? `${nameParts[0][0]}${nameParts[1][0]}`.toUpperCase() 
+            : coachName.substring(0, 2).toUpperCase();
+        
+        // Handle different possible image field names and add fallback
+        let profileImage = null;
+        
+        // Try to find the profile image from various possible fields
+        if (coach.profile_image) {
+            profileImage = coach.profile_image;
+        } else if (coach.profile_picture) {
+            profileImage = coach.profile_picture;
+        } else if (coach.avatar) {
+            profileImage = coach.avatar;
+        } else if (coach.image) {
+            profileImage = coach.image;
+        } else if (coach.user?.profile_image) {
+            profileImage = coach.user.profile_image;
+        }
+        
+        // If no image is found, use initials for the avatar
+        const hasImage = profileImage && profileImage !== null && !String(profileImage).includes('null') && !String(profileImage).includes('undefined');
+        
+        // Create card column
+        const col = document.createElement('div');
+        col.className = 'col';
+        col.dataset.coach = JSON.stringify(coach); // Store coach data for sorting
+        
+        // Generate star rating HTML
+        let starsHtml = '';
+        for (let i = 1; i <= 5; i++) {
+            if (i <= rating) {
+                starsHtml += '<i class="fas fa-star text-warning"></i>';
+            } else if (i - 0.5 <= rating) {
+                starsHtml += '<i class="fas fa-star-half-alt text-warning"></i>';
+            } else {
+                starsHtml += '<i class="far fa-star text-warning"></i>';
+            }
+        }
+        
+        // Format specialties as badges
+        let specialtiesBadges = '';
+        if (typeof specialties === 'string' && specialties !== 'No specialties available') {
+            const specialtiesList = specialties.split(',').map(s => s.trim()).filter(s => s);
+            specialtiesBadges = specialtiesList.map(s => `<span class="badge bg-light text-dark me-1 mb-1">${s}</span>`).join('');
+        } else {
+            specialtiesBadges = '<span class="text-muted small">No specialties listed</span>';
+        }
+        
+        // Generate random background color based on name
+        const getAvatarColor = (name) => {
+            const colors = [
+                '#3498db', '#e74c3c', '#2ecc71', '#f39c12', '#9b59b6', // Flat UI colors
+                '#1abc9c', '#d35400', '#c0392b', '#16a085', '#8e44ad'
+            ];
+            
+            // Simple hash function to get consistent color for same name
+            let hash = 0;
+            for (let i = 0; i < name.length; i++) {
+                hash = name.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            
+            const index = Math.abs(hash) % colors.length;
+            return colors[index];
+        };
+        
+        const avatarColor = getAvatarColor(coachName);
+        
+        try {
+            // Create coach card
+            col.innerHTML = `
+                <div class="card h-100 shadow-sm border-0 hover-shadow transition">
+                    <div class="card-body p-0">
+                        <div class="d-flex align-items-center p-3 border-bottom">
+                            <div class="coach-avatar me-3">
+                                ${hasImage ? 
+                                    `<img src="${profileImage}" alt="${coachName}" class="rounded-circle" width="60" height="60" onerror="this.onerror=null; this.src=''; this.parentNode.innerHTML='<div class=\'avatar-initials rounded-circle d-flex align-items-center justify-content-center\' style=\'width: 60px; height: 60px; background-color: ${avatarColor}; color: white; font-weight: bold;\'>${initials}</div>';">` : 
+                                    `<div class="avatar-initials rounded-circle d-flex align-items-center justify-content-center" 
+                                          style="width: 60px; height: 60px; background-color: ${avatarColor}; color: white; font-weight: bold;">
+                                        ${initials}
+                                     </div>`
+                                }
+                            </div>
+                            <div>
+                                <h5 class="card-title mb-1">${coachName}</h5>
+                                <div class="coach-rating mb-1">
+                                    ${starsHtml} <small class="text-muted ms-1">(${rating}/5)</small>
+                                </div>
+                                <div class="coach-location small text-muted">
+                                    <i class="fas fa-map-marker-alt me-1"></i> ${city}, ${country}
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="p-3">
+                            <div class="coach-specialties mb-3">
+                                <p class="text-muted small mb-1">Specialties:</p>
+                                <div>${specialtiesBadges}</div>
+                            </div>
+                            
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <div class="coach-rate">
+                                    <span class="fw-bold fs-5 text-primary">${hourlyRate}</span>
+                                    <small class="text-muted">/ hour</small>
+                                </div>
+                                <div class="coach-experience small text-muted">
+                                    <i class="fas fa-briefcase me-1"></i> ${experience} years
+                                </div>
+                            </div>
+                            
+                            <a href="/profiles/coach-profile/${coach.id}/" class="btn btn-primary w-100">
+                                <i class="fas fa-user me-1"></i> View Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error creating coach card:', error, coach);
+            // Create a simplified fallback card if there's an error
+            col.innerHTML = `
+                <div class="card h-100 shadow-sm border-0">
+                    <div class="card-body">
+                        <h5 class="card-title">${coachName || 'Coach'}</h5>
+                        <p class="card-text">ID: ${coach.id}</p>
+                        <a href="/profiles/coach-profile/${coach.id}/" class="btn btn-primary">View Profile</a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        container.appendChild(col);
+    }
+    
+    // Show toast notification
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.querySelector('.toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast
+        const toastId = 'toast-' + Date.now();
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type === 'error' ? 'danger' : 'primary'} border-0`;
+        toast.id = toastId;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        `;
+        
+        toastContainer.appendChild(toast);
+        
+        // Initialize and show toast
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        
+        // Remove toast after it's hidden
+        toast.addEventListener('hidden.bs.toast', function() {
+            toast.remove();
+        });
+    }
+</script>
+
+<!-- Add custom CSS for enhanced UI -->
+<style>
+    .bg-gradient-primary-to-secondary {
+        background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-secondary) 100%);
+    }
+    
+    .transition {
+        transition: all 0.3s ease;
+    }
+    
+    .hover-shadow:hover {
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        transform: translateY(-3px);
+    }
+    
+    @keyframes pulse {
+        0% { opacity: 0.6; }
+        50% { opacity: 1; }
+        100% { opacity: 0.6; }
+    }
+    
+    .loading-pulse {
+        animation: pulse 1.5s infinite ease-in-out;
+    }
+    
+    /* Enhanced Filter UI Styles */
+    .filter-card {
+        position: sticky;
+        top: 20px;
+    }
+    
+    .filter-group label {
+        color: #495057;
+        font-size: 0.9rem;
+    }
+    
+    .form-select:focus, .form-control:focus {
+        border-color: rgba(var(--bs-primary-rgb), 0.4);
+        box-shadow: 0 0 0 0.15rem rgba(var(--bs-primary-rgb), 0.15);
+    }
+    
+    .experience-buttons {
+        margin-top: 0.25rem;
+    }
+    
+    .experience-btn {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.75rem;
+        border-radius: 50rem;
+    }
+    
+    .experience-btn.active {
+        background-color: var(--bs-primary);
+        color: white;
+        border-color: var(--bs-primary);
+    }
+    
+    .rating-stars {
+        color: #ffc107;
+        letter-spacing: -1px;
+    }
+    
+    /* Badge styling */
+    #active-filters-count {
+        font-size: 0.7rem;
+        font-weight: normal;
+    }
+    
+    /* Form controls */
+    .form-check-input:checked {
+        background-color: var(--bs-primary);
+        border-color: var(--bs-primary);
+    }
+    
+    .form-check-label {
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}
