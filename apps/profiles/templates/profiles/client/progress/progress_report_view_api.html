@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Progress Report | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/progress.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container progress-detail-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-chart-line"></i> Progress Report</h1>
+                <p id="report-week">Week</p>
+                <p id="report-date" class="text-muted">Date</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:list_progress_reports' report.subscription.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Reports
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Error Container -->
+    <div id="error-container" class="alert alert-danger my-3" style="display: none;"></div>
+
+    <!-- Progress Report Detail Container -->
+    <div id="progress-report-detail" class="mt-4" data-report-id="{{ report.id }}" style="display: none;">
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5><i class="fas fa-clipboard-check"></i> Coach Feedback</h5>
+                        <div id="report-overall-progress" class="report-rating">
+                            <!-- Star rating will be added here via JavaScript -->
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="progress-metrics">
+                            <div class="metric-item">
+                                <span class="metric-label">Workout Adherence:</span>
+                                <span id="report-workout-adherence" class="metric-value">0/5</span>
+                                <div class="progress">
+                                    <div class="progress-bar bg-success" id="workout-progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label">Diet Adherence:</span>
+                                <span id="report-diet-adherence" class="metric-value">0/5</span>
+                                <div class="progress">
+                                    <div class="progress-bar bg-info" id="diet-progress-bar" role="progressbar" style="width: 0%"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-4">
+                            <h6><i class="fas fa-comment"></i> Coach Comments:</h6>
+                            <div class="coach-comment p-3 bg-light rounded">
+                                <p id="coach-comment">Loading...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-reply"></i> Your Response</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="comment-status" class="d-none mb-3">
+                            <h6>Your comment:</h6>
+                            <div class="client-comment p-3 bg-light rounded">
+                                <p id="current-comment"></p>
+                            </div>
+                            <button id="edit-comment-btn" class="btn btn-sm btn-outline-primary mt-2 d-none">
+                                <i class="fas fa-edit"></i> Edit Response
+                            </button>
+                        </div>
+
+                        <form id="comment-form" class="d-none">
+                            <div class="mb-3">
+                                <label for="client-comment" class="form-label">Your thoughts on this progress report:</label>
+                                <textarea id="client-comment" class="form-control" rows="4" placeholder="Share your thoughts, questions, or feedback about this progress report..."></textarea>
+                            </div>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-paper-plane"></i> Submit Response
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5><i class="fas fa-weight"></i> Measurements</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="measurement-data" class="d-none">
+                            <!-- Measurement data will be loaded here -->
+                        </div>
+                        <div id="no-measurement-data" class="text-center py-3">
+                            <p class="text-muted">No measurements recorded for this report.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="fas fa-chart-line"></i> Progress Charts</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container mb-3">
+                            <h6>Weight Progress</h6>
+                            <canvas id="weight-chart"></canvas>
+                        </div>
+                        <div class="chart-container mb-3">
+                            <h6>BMI Progress</h6>
+                            <canvas id="bmi-chart"></canvas>
+                        </div>
+                        <div class="chart-container">
+                            <h6>Body Fat Progress</h6>
+                            <canvas id="body-fat-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Progress data from the backend - this will be used for initial charts
+        // and will be complemented by API data
+        const progressData = {{ progress_data|default:'{"dates": [], "weights": [], "bmis": [], "body_fats": []}' | safe }};
+    </script>
+    <script src="{% static 'profiles/js/api.js' %}"></script>
+    <script src="{% static 'profiles/js/client/progress_reports.js' %}"></script>
+{% endblock %}
