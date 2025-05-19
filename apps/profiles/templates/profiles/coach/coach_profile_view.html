@@ -1,78 +1,129 @@
 {% extends 'base.html' %}
 {% load static %}
-{% block title %}Coach Profile{% endblock %}
+{% block title %}{{ profile.user.get_full_name|default:profile.user.username }} - Professional Coach{% endblock %}
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_views.css' %}">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<style>
+    /* Targeted overrides to match navigation bar width */
+    body, html {
+        background-color: #f5f8fa;
+    }
+    
+    .coach-profile-section {
+        background-color: #f5f8fa;
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 0 15px;
+    }
+    
+    .card {
+        margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+        .card {
+            margin-bottom: 0.75rem;
+        }
+    }
+</style>
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container coach-profile-section">
     <div class="row">
         <!-- Left Sidebar -->
         <div class="col-lg-3">
             <!-- Profile Card -->
             <div class="card profile-card mb-4">
                 <div class="card-body p-0">
-                    <div class="text-center p-4">
-                        <div class="avatar-wrapper mb-3">
-                            {% if profile.avatar %}
-                                <img src="{{ profile.avatar.url }}" class="avatar" alt="{{ profile.user.username }}">
-                            {% else %}
-                                <img src="{% static 'img/default-avatar.png' %}" class="avatar" alt="Default Avatar">
-                            {% endif %}
-                        </div>
-                        <h2 class="profile-name">
-                            {{ profile.user.username }}
-                            <i class="fas fa-check-circle text-primary verified-badge"></i>
-                        </h2>
-                        <div class="profile-meta">
-                            <span class="location d-block mb-2">
-                                <i class="fas fa-map-marker-alt text-muted me-1"></i>
-                                {{ profile.city.name }}, {{ profile.country.name }}
-                            </span>
-                            <span class="username d-block mb-3">
-                                <i class="fas fa-at text-muted me-1"></i>
-                                {{ profile.user.username|lower }}
-                            </span>
-                            {% if request.user == profile.user %}
-                                <div class="mt-3">
-                                    <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-sm btn-light-primary">
-                                        <i class="fas fa-edit me-1"></i> Edit Profile
-                                    </a>
-                                </div>
-                            {% endif %}
+                    <div class="profile-cover-wrapper">
+                        <div class="profile-cover"></div>
+                        <div class="profile-avatar-container text-center">
+                            <div class="avatar-wrapper">
+                                {% if profile.avatar %}
+                                    <img src="{{ profile.avatar.url }}" class="avatar" alt="{{ profile.user.get_full_name|default:profile.user.username }}">
+                                {% else %}
+                                    <img src="{% static 'img/default-avatar.png' %}" class="avatar" alt="Default Avatar">
+                                {% endif %}
+                            </div>
+                            <h2 class="profile-name">
+                                {{ profile.user.get_full_name|default:profile.user.username }}
+                                <i class="fas fa-check-circle verified-badge" data-bs-toggle="tooltip" title="Verified Coach"></i>
+                            </h2>
+                            <div class="profile-tagline">Professional Fitness Coach</div>
+                            <div class="profile-meta">
+                                <span class="location d-block mb-2">
+                                    <i class="fas fa-map-marker-alt text-muted me-1"></i>
+                                    {{ profile.city.name }}, {{ profile.country.name }}
+                                </span>
+                                <span class="username d-block mb-3">
+                                    <i class="fas fa-at text-muted me-1"></i>
+                                    {{ profile.user.username|lower }}
+                                </span>
+                                {% if request.user == profile.user %}
+                                    <div class="mt-3">
+                                        <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-sm btn-light-primary">
+                                            <i class="fas fa-edit me-1"></i> Edit Profile
+                                        </a>
+                                    </div>
+                                {% else %}
+                                    <div class="mt-3">
+                                        <a href="#" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-envelope me-1"></i> Contact
+                                        </a>
+                                        <a href="#" class="btn btn-sm btn-light ms-2">
+                                            <i class="fas fa-bookmark me-1"></i> Save
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
                     </div>
 
-                    <!-- Quick Stats -->
-                    <div class="border-top border-bottom p-4">
-                        <div class="quick-stats">
-                            <div class="row g-3">
-                                <div class="col-6">
-                                    <div class="quick-stat-item">
-                                        <div class="stat-value">{{ profile.years_of_experience }}</div>
-                                        <div class="stat-label">Years Exp.</div>
-                                    </div>
+                    <!-- Coach Statistics Section -->
+                    <div class="coach-stats-wrapper p-4">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="stats-section-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>Coach Performance
+                            </h6>
+                            <div class="stats-badge" data-bs-toggle="tooltip" title="Updated statistics">
+                                <i class="fas fa-sync-alt me-1"></i>Live
+                            </div>
+                        </div>
+                        <div class="stats-grid">
+                            <div class="stat-card" data-bs-toggle="tooltip" title="Years of professional experience">
+                                <div class="stat-icon">
+                                    <i class="fas fa-briefcase"></i>
                                 </div>
-                                <div class="col-6">
-                                    <div class="quick-stat-item">
-                                        <div class="stat-value">${{ profile.hourly_rate }}</div>
-                                        <div class="stat-label">Rate/Hr</div>
-                                    </div>
+                                <div class="stat-value">{{ profile.years_of_experience }}</div>
+                                <div class="stat-label">Experience</div>
+                            </div>
+                            
+                            <div class="stat-card" data-bs-toggle="tooltip" title="Average hourly coaching rate">
+                                <div class="stat-icon">
+                                    <i class="fas fa-dollar-sign"></i>
                                 </div>
-                                <div class="col-6">
-                                    <div class="quick-stat-item">
-                                        <div class="stat-value">{{ profile.certifications.count }}</div>
-                                        <div class="stat-label">Certs</div>
-                                    </div>
+                                <div class="stat-value">
+                                    <span class="currency"></span>{{ profile.hourly_rate }}
                                 </div>
-                                <div class="col-6">
-                                    <div class="quick-stat-item">
-                                        <div class="stat-value">{{ profile.client_count|default:"0" }}</div>
-                                        <div class="stat-label">Clients</div>
-                                    </div>
+                                <div class="stat-label">Rate/Hour</div>
+                            </div>
+                            
+                            <div class="stat-card" data-bs-toggle="tooltip" title="Professional certifications earned">
+                                <div class="stat-icon">
+                                    <i class="fas fa-certificate"></i>
                                 </div>
+                                <div class="stat-value">{{ profile.certifications.count }}</div>
+                                <div class="stat-label">Certs</div>
+                            </div>
+                            
+                            <div class="stat-card" data-bs-toggle="tooltip" title="Currently active clients">
+                                <div class="stat-icon">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                                <div class="stat-value">{{ profile.client_count|default:"0" }}</div>
+                                <div class="stat-label">Clients</div>
                             </div>
                         </div>
                     </div>
@@ -82,41 +133,73 @@
                         <h6 class="section-title">Connect</h6>
                         <div class="social-links">
                             {% if profile.facebook_profile_url %}
-                                <a href="{{ profile.facebook_profile_url }}" target="_blank" class="btn btn-icon btn-light-primary">
+                                <a href="{{ profile.facebook_profile_url }}" target="_blank" class="btn btn-icon btn-light-primary" data-bs-toggle="tooltip" title="Facebook">
                                     <i class="fab fa-facebook-f"></i>
                                 </a>
                             {% endif %}
                             {% if profile.instagram_profile_url %}
-                                <a href="{{ profile.instagram_profile_url }}" target="_blank" class="btn btn-icon btn-light-danger">
+                                <a href="{{ profile.instagram_profile_url }}" target="_blank" class="btn btn-icon btn-light-danger" data-bs-toggle="tooltip" title="Instagram">
                                     <i class="fab fa-instagram"></i>
                                 </a>
                             {% endif %}
                             {% if profile.twitter_profile_url %}
-                                <a href="{{ profile.twitter_profile_url }}" target="_blank" class="btn btn-icon btn-light-info">
+                                <a href="{{ profile.twitter_profile_url }}" target="_blank" class="btn btn-icon btn-light-info" data-bs-toggle="tooltip" title="Twitter">
                                     <i class="fab fa-twitter"></i>
                                 </a>
                             {% endif %}
                             {% if profile.linkedin_profile_url %}
-                                <a href="{{ profile.linkedin_profile_url }}" target="_blank" class="btn btn-icon btn-light-primary">
+                                <a href="{{ profile.linkedin_profile_url }}" target="_blank" class="btn btn-icon btn-light-primary" data-bs-toggle="tooltip" title="LinkedIn">
                                     <i class="fab fa-linkedin-in"></i>
+                                </a>
+                            {% endif %}
+                            {% if profile.youtube_profile_url %}
+                                <a href="{{ profile.youtube_profile_url }}" target="_blank" class="btn btn-icon btn-light-danger" data-bs-toggle="tooltip" title="YouTube">
+                                    <i class="fab fa-youtube"></i>
+                                </a>
+                            {% endif %}
+                            {% if profile.tiktok_profile_url %}
+                                <a href="{{ profile.tiktok_profile_url }}" target="_blank" class="btn btn-icon btn-light-dark" data-bs-toggle="tooltip" title="TikTok">
+                                    <i class="fab fa-tiktok"></i>
                                 </a>
                             {% endif %}
                         </div>
                     </div>
-                </div>
-            </div>
 
-            <!-- Availability Card -->
-            <div class="card">
-                <div class="card-body">
-                    <h6 class="section-title">Availability</h6>
-                    <div class="availability-list">
-                        {% for availability in profile.availabilities.all %}
-                            <div class="availability-item">
-                                <span class="day">{{ availability.day_of_week }}</span>
-                                <span class="time">{{ availability.start_time|date:"g:i A" }} - {{ availability.end_time|date:"g:i A" }}</span>
+                    <!-- Availability Card -->
+                    <div class="p-4 border-top">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="stats-section-title mb-0">
+                                <i class="fas fa-calendar-check me-2"></i>Availability Schedule
+                            </h6>
+                            <div class="stats-badge" data-bs-toggle="tooltip" title="Coach's current schedule">
+                                <i class="fas fa-clock me-1"></i>Active
                             </div>
-                        {% endfor %}
+                        </div>
+                        <div class="availability-list">
+                            {% for availability in profile.availabilities.all %}
+                                <div class="availability-item">
+                                    <div class="availability-day">
+                                        <i class="fas fa-calendar-day"></i>
+                                        <span>{{ availability.day_of_week }}</span>
+                                    </div>
+                                    <div class="availability-time">
+                                        <span>{{ availability.start_time|date:"g:i A" }} - {{ availability.end_time|date:"g:i A" }}</span>
+                                    </div>
+                                </div>
+                            {% empty %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-calendar-xmark"></i>
+                                    </div>
+                                    <p class="empty-state-text">No availability schedule set</p>
+                                    {% if request.user == profile.user %}
+                                        <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-sm btn-light-primary">
+                                            <i class="fas fa-plus me-1"></i> Add Availability
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            {% endfor %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -125,24 +208,39 @@
         <!-- Main Content -->
         <div class="col-lg-9">
             <!-- Navigation Menu -->
-            <div class="card mb-4">
+            <div class="card sticky-nav mb-4">
                 <div class="card-body p-0">
                     <div class="profile-nav">
                         <ul class="nav nav-pills nav-fill">
                             <li class="nav-item">
-                                <a class="nav-link active" href="#profile">Overview</a>
+                                <a class="nav-link active" href="#profile" data-section="profile">
+                                    <i class="fas fa-user me-md-2"></i>
+                                    <span>Overview</span>
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#certifications">Certifications</a>
+                                <a class="nav-link" href="#certifications" data-section="certifications">
+                                    <i class="fas fa-certificate me-md-2"></i>
+                                    <span>Certifications</span>
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#plans">Plans</a>
+                                <a class="nav-link" href="#plans" data-section="plans">
+                                    <i class="fas fa-dumbbell me-md-2"></i>
+                                    <span>Plans</span>
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#progress">Progress</a>
+                                <a class="nav-link" href="#testimonials" data-section="testimonials">
+                                    <i class="fas fa-comment me-md-2"></i>
+                                    <span>Testimonials</span>
+                                </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="#journey">Journey</a>
+                                <a class="nav-link" href="#gallery" data-section="gallery">
+                                    <i class="fas fa-image me-md-2"></i>
+                                    <span>Gallery</span>
+                                </a>
                             </li>
                         </ul>
                     </div>
@@ -150,25 +248,30 @@
             </div>
 
             <!-- About Section -->
-            <div class="card mb-4">
+            <div class="card mb-4" id="profile">
                 <div class="card-body">
-                    <h6 class="section-title">About</h6>
-                    <p class="text-muted mb-4">{{ profile.bio }}</p>
-                    <h6 class="section-title">Specialties</h6>
-                    <div class="specialties">
-                        {% for specialty in profile.specialties.split %}
-                            <span class="badge badge-light-primary">{{ specialty }}</span>
-                        {% endfor %}
+                    <div class="section-header">
+                        <h6 class="section-title"><i class="fas fa-info-circle me-2"></i>About</h6>
                     </div>
-                </div>
-            </div>
-
-            <!-- Media Stats -->
-            <div class="card mb-4">
-                <div class="card-body">
-                    <h6 class="section-title">Media Activity</h6>
-                    <div class="media-chart">
-                        <canvas id="mediaUploadsChart"></canvas>
+                    {% if profile.bio %}
+                        <p class="coach-bio mb-4">{{ profile.bio }}</p>
+                    {% else %}
+                        <p class="text-muted mb-4">This coach hasn't added a bio yet.</p>
+                    {% endif %}
+                    
+                    <div class="section-header mt-4">
+                        <h6 class="section-title"><i class="fas fa-star me-2"></i>Specialties</h6>
+                    </div>
+                    <div class="specialties-wrapper">
+                        {% if profile.specialties %}
+                            <div class="specialties">
+                                {% for specialty in profile.specialties.split %}
+                                    <span class="specialty-badge">{{ specialty }}</span>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No specialties listed</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -177,7 +280,7 @@
             <div class="card mb-4" id="certifications">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h6 class="section-title mb-0">Certifications</h6>
+                        <h6 class="section-title mb-0"><i class="fas fa-certificate me-2"></i>Certifications</h6>
                         {% if request.user == profile.user %}
                             <a href="{% url 'profiles:view_coach_certifications' %}" class="btn btn-sm btn-light-primary">
                                 <i class="fas fa-plus me-1"></i> Add Certificate
@@ -189,15 +292,216 @@
                             <div class="col-md-4">
                                 <div class="certification-card">
                                     <div class="cert-icon">
-                                        <i class="fas fa-certificate"></i>
+                                        <i class="fas fa-award"></i>
                                     </div>
                                     <div class="cert-info">
                                         <h6>{{ certification.description }}</h6>
-                                        <a href="{{ certification.file.url }}" target="_blank" class="btn btn-sm btn-light">View</a>
+                                        <div class="cert-actions">
+                                            <a href="{{ certification.file.url }}" target="_blank" class="btn btn-sm btn-light">
+                                                <i class="fas fa-eye me-1"></i> View
+                                            </a>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
+                        {% empty %}
+                            <div class="col-12">
+                                <div class="alert alert-light text-center">
+                                    <i class="fas fa-info-circle me-2"></i> No certifications added yet
+                                </div>
+                            </div>
                         {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Testimonials Section -->
+            <div class="card mb-4" id="testimonials">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="section-title mb-0"><i class="fas fa-comment me-2"></i>Client Testimonials</h6>
+                    </div>
+                    <div class="testimonials-wrapper">
+                        <!-- Placeholder for testimonials -->
+                        <div class="row g-3">
+                            {% if testimonials %}
+                                {% for testimonial in testimonials %}
+                                    <div class="col-md-6">
+                                        <div class="testimonial-card">
+                                            <div class="testimonial-content">
+                                                <i class="fas fa-quote-left quote-icon"></i>
+                                                <p>{{ testimonial.content }}</p>
+                                            </div>
+                                            <div class="testimonial-author">
+                                                <div class="author-avatar">
+                                                    {% if testimonial.author.avatar %}
+                                                        <img src="{{ testimonial.author.avatar.url }}" alt="{{ testimonial.author.name }}">
+                                                    {% else %}
+                                                        <div class="avatar-placeholder">{{ testimonial.author.name|first }}</div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="author-info">
+                                                    <h6>{{ testimonial.author.name }}</h6>
+                                                    <div class="rating">
+                                                        {% for i in "12345" %}
+                                                            {% if forloop.counter <= testimonial.rating %}
+                                                                <i class="fas fa-star"></i>
+                                                            {% else %}
+                                                                <i class="far fa-star"></i>
+                                                            {% endif %}
+                                                        {% endfor %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            {% else %}
+                                <div class="col-12">
+                                    <div class="alert alert-light text-center">
+                                        <i class="fas fa-info-circle me-2"></i> No testimonials available yet.
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Media Gallery -->
+            <div class="card mb-4" id="gallery">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h6 class="stats-section-title mb-0">
+                            <i class="fas fa-image me-2"></i>Gallery & Progress
+                        </h6>
+                        {% if request.user == profile.user %}
+                            <a href="#" class="btn btn-sm btn-light-primary gallery-add-btn">
+                                <i class="fas fa-plus me-1"></i> Add Media
+                            </a>
+                        {% endif %}
+                    </div>
+
+                    <!-- Gallery Tabs -->
+                    <ul class="nav nav-tabs gallery-tabs mb-4" id="galleryTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-gallery" type="button" role="tab">
+                                <i class="fas fa-images me-1"></i> General
+                                <span class="gallery-count">{% if gallery_items %}{{ gallery_items|length }}{% else %}0{% endif %}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#client-progress" type="button" role="tab">
+                                <i class="fas fa-chart-line me-1"></i> Client Progress
+                                <span class="gallery-count">{% if profile.client_pictures.exists %}{{ profile.client_pictures.count }}{% else %}0{% endif %}</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="journey-tab" data-bs-toggle="tab" data-bs-target="#coach-journey" type="button" role="tab">
+                                <i class="fas fa-hiking me-1"></i> My Journey
+                                <span class="gallery-count">{% if profile.coach_pictures.exists %}{{ profile.coach_pictures.count }}{% else %}0{% endif %}</span>
+                            </button>
+                        </li>
+                    </ul>
+
+                    <!-- Gallery Tab Content -->
+                    <div class="tab-content" id="galleryTabContent">
+                        <!-- General Gallery -->
+                        <div class="tab-pane fade show active" id="general-gallery" role="tabpanel">
+                            <div class="gallery-grid">
+                                {% if gallery_items %}
+                                    {% for item in gallery_items %}
+                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ item.image.url }}">
+                                            <img src="{{ item.image.url }}" alt="Gallery Image">
+                                            <div class="gallery-item-overlay">
+                                                <i class="fas fa-search-plus"></i>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="alert alert-light text-center">
+                                        <i class="fas fa-info-circle me-2"></i> No gallery images available yet.
+                                        {% if request.user == profile.user %}
+                                            <div class="mt-2">
+                                                <a href="#" class="btn btn-sm btn-light-primary">
+                                                    <i class="fas fa-plus me-1"></i> Add Your First Photo
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Client Progress Gallery -->
+                        <div class="tab-pane fade" id="client-progress" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <p class="text-muted mb-0"><small>Showcase your clients' transformation journeys</small></p>
+                                {% if request.user == profile.user %}
+                                    <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                        <i class="fas fa-plus me-1"></i> Add Client Photos
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <div class="gallery-grid">
+                                {% if profile.client_pictures.exists %}
+                                    {% for picture in profile.client_pictures.all %}
+                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
+                                            <img src="{{ picture.image.url }}" alt="Client Progress">
+                                            <div class="gallery-item-overlay">
+                                                <i class="fas fa-search-plus"></i>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="alert alert-light text-center">
+                                        <i class="fas fa-info-circle me-2"></i> No client progress images available yet.
+                                        {% if request.user == profile.user %}
+                                            <div class="mt-2">
+                                                <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                                    <i class="fas fa-plus me-1"></i> Add Client Progress Photos
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Coach Journey Gallery -->
+                        <div class="tab-pane fade" id="coach-journey" role="tabpanel">
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <p class="text-muted mb-0"><small>Share your personal fitness journey and milestones</small></p>
+                                {% if request.user == profile.user %}
+                                    <a href="{% url 'profiles:view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                        <i class="fas fa-plus me-1"></i> Add Journey Photos
+                                    </a>
+                                {% endif %}
+                            </div>
+                            <div class="gallery-grid">
+                                {% if profile.coach_pictures.exists %}
+                                    {% for picture in profile.coach_pictures.all %}
+                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
+                                            <img src="{{ picture.image.url }}" alt="Coach Journey">
+                                            <div class="gallery-item-overlay">
+                                                <i class="fas fa-search-plus"></i>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                {% else %}
+                                    <div class="alert alert-light text-center">
+                                        <i class="fas fa-info-circle me-2"></i> No journey photos available yet.
+                                        {% if request.user == profile.user %}
+                                            <div class="mt-2">
+                                                <a href="{% url 'profiles:view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                                    <i class="fas fa-plus me-1"></i> Add Your Journey Photos
+                                                </a>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -206,7 +510,7 @@
             <div class="card mb-4" id="plans">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-center mb-4">
-                        <h6 class="section-title mb-0">Training Plans</h6>
+                        <h6 class="section-title mb-0"><i class="fas fa-dumbbell me-2"></i>Training Plans</h6>
                         {% if request.user == profile.user %}
                             <a href="{% url 'plan_management:manage_product_plans' %}" class="btn btn-sm btn-light-primary">
                                 <i class="fas fa-plus me-1"></i> Add Plan
@@ -218,82 +522,253 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Progress Gallery -->
-            <div class="row g-4">
-                <!-- Client Progress -->
-                <div class="col-md-6">
-                    <div class="card h-100" id="progress">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h6 class="section-title mb-0">Client Progress</h6>
-                                {% if request.user == profile.user %}
-                                    <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-sm btn-light-primary">
-                                        <i class="fas fa-plus me-1"></i> Add Photos
-                                    </a>
-                                {% endif %}
-                            </div>
-                            <div class="gallery-grid">
-                                {% for picture in profile.client_pictures.all %}
-                                    <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-url="{{ picture.image.url }}">
-                                        <img src="{{ picture.image.url }}" alt="Client Progress">
-                                        <div class="gallery-overlay">
-                                            <i class="fas fa-expand"></i>
-                                        </div>
-                                    </div>
-                                {% endfor %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Coach Journey -->
-                <div class="col-md-6">
-                    <div class="card h-100" id="journey">
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-center mb-4">
-                                <h6 class="section-title mb-0">My Journey</h6>
-                                {% if request.user == profile.user %}
-                                    <a href="{% url 'profiles:view_pictures' %}" class="btn btn-sm btn-light-primary">
-                                        <i class="fas fa-plus me-1"></i> Add Photos
-                                    </a>
-                                {% endif %}
-                            </div>
-                            <div class="gallery-grid">
-                                {% if profile.coach_pictures.exists %}
-                                    {% for picture in profile.coach_pictures.all %}
-                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-img-url="{{ picture.image.url }}">
-                                            <img src="{{ picture.image.url }}" alt="Coach Journey">
-                                            <div class="gallery-overlay">
-                                                <i class="fas fa-expand"></i>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="alert alert-light">No journey pictures uploaded yet.</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 </div>
 
-<!-- Image Modal -->
+<!-- Enhanced Image Modal -->
 <div class="modal fade" id="imageModal" tabindex="-1" aria-labelledby="imageModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-            <div class="modal-header border-0">
+            <div class="modal-header border-0 p-2">
+                <span class="modal-title" id="imageModalLabel">Image Preview</span>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body text-center p-0">
-                <img src="" class="img-fluid" id="modalImage" alt="Full size image">
+            <div class="modal-body text-center p-0 position-relative">
+                <div class="image-loading-spinner">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+                <img src="" class="img-fluid" id="modalImage" alt="Full size image" loading="lazy">
+                <div class="image-navigation">
+                    <button class="btn btn-nav prev-image" title="Previous Image">
+                        <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button class="btn btn-nav next-image" title="Next Image">
+                        <i class="fas fa-chevron-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <div class="image-counter"><span id="currentImageIndex">1</span> / <span id="totalImages">1</span></div>
+                <div class="modal-controls">
+                    <button class="btn btn-light btn-sm modal-zoom-in" title="Zoom In">
+                        <i class="fas fa-search-plus"></i>
+                    </button>
+                    <button class="btn btn-light btn-sm modal-zoom-out" title="Zoom Out">
+                        <i class="fas fa-search-minus"></i>
+                    </button>
+                    <button class="btn btn-light btn-sm modal-rotate" title="Rotate Image">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                    <button class="btn btn-light btn-sm modal-download" title="Download Image">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button class="btn btn-light btn-sm modal-fullscreen" title="Toggle Fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Enhanced Gallery and Modal Functionality
+    const galleryItems = document.querySelectorAll('.gallery-item');
+    const modalImage = document.getElementById('modalImage');
+    const imageModal = document.getElementById('imageModal');
+    const currentIndexEl = document.getElementById('currentImageIndex');
+    const totalImagesEl = document.getElementById('totalImages');
+    const prevButton = document.querySelector('.prev-image');
+    const nextButton = document.querySelector('.next-image');
+    const zoomInButton = document.querySelector('.modal-zoom-in');
+    const zoomOutButton = document.querySelector('.modal-zoom-out');
+    const rotateButton = document.querySelector('.modal-rotate');
+    const downloadButton = document.querySelector('.modal-download');
+    const fullscreenButton = document.querySelector('.modal-fullscreen');
+    const loadingSpinner = document.querySelector('.image-loading-spinner');
+    
+    let currentGallery = [];
+    let currentIndex = 0;
+    let zoomLevel = 1;
+    let rotationDegree = 0;
+    
+    // Initialize gallery items
+    function initializeGallery() {
+        // Set up click handlers for gallery items
+        galleryItems.forEach((item, index) => {
+            item.addEventListener('click', function() {
+                const activeTabId = document.querySelector('.gallery-tabs .nav-link.active').getAttribute('data-bs-target');
+                const activeTab = document.querySelector(activeTabId);
+                const galleryItemsInTab = activeTab.querySelectorAll('.gallery-item');
+                
+                // Build the current gallery array
+                currentGallery = [];
+                galleryItemsInTab.forEach(galleryItem => {
+                    const imgSrc = galleryItem.getAttribute('data-src') || 
+                                  galleryItem.getAttribute('data-img-url') || 
+                                  (galleryItem.querySelector('img')?.src);
+                    if (imgSrc) {
+                        currentGallery.push(imgSrc);
+                    }
+                });
+                
+                // Find the index of the clicked item
+                const imgSrc = item.getAttribute('data-src') || 
+                              item.getAttribute('data-img-url') || 
+                              (item.querySelector('img')?.src);
+                currentIndex = currentGallery.indexOf(imgSrc);
+                
+                // Update the modal
+                updateModal();
+            });
+        });
+    }
+    
+    // Update modal content based on current index
+    function updateModal() {
+        if (currentGallery.length === 0) return;
+        
+        // Reset zoom and rotation
+        zoomLevel = 1;
+        rotationDegree = 0;
+        modalImage.style.transform = `scale(${zoomLevel}) rotate(${rotationDegree}deg)`;
+        
+        // Show loading spinner
+        loadingSpinner.style.display = 'block';
+        
+        // Update image source
+        modalImage.src = currentGallery[currentIndex];
+        
+        // Update counter
+        currentIndexEl.textContent = currentIndex + 1;
+        totalImagesEl.textContent = currentGallery.length;
+        
+        // Hide spinner when image loads
+        modalImage.onload = function() {
+            loadingSpinner.style.display = 'none';
+        };
+    }
+    
+    // Navigation handlers
+    prevButton.addEventListener('click', function() {
+        currentIndex = (currentIndex - 1 + currentGallery.length) % currentGallery.length;
+        updateModal();
+    });
+    
+    nextButton.addEventListener('click', function() {
+        currentIndex = (currentIndex + 1) % currentGallery.length;
+        updateModal();
+    });
+    
+    // Image manipulation handlers
+    zoomInButton.addEventListener('click', function() {
+        zoomLevel = Math.min(zoomLevel + 0.25, 3);
+        modalImage.style.transform = `scale(${zoomLevel}) rotate(${rotationDegree}deg)`;
+    });
+    
+    zoomOutButton.addEventListener('click', function() {
+        zoomLevel = Math.max(zoomLevel - 0.25, 0.5);
+        modalImage.style.transform = `scale(${zoomLevel}) rotate(${rotationDegree}deg)`;
+    });
+    
+    rotateButton.addEventListener('click', function() {
+        rotationDegree = (rotationDegree + 90) % 360;
+        modalImage.style.transform = `scale(${zoomLevel}) rotate(${rotationDegree}deg)`;
+    });
+    
+    downloadButton.addEventListener('click', function() {
+        const link = document.createElement('a');
+        link.href = modalImage.src;
+        link.download = 'eazy-fit-image-' + (currentIndex + 1) + '.jpg';
+        link.click();
+    });
+    
+    fullscreenButton.addEventListener('click', function() {
+        if (!document.fullscreenElement) {
+            imageModal.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable fullscreen: ${err.message}`);
+            });
+        } else {
+            document.exitFullscreen();
+        }
+    });
+    
+    // Reset modal when it's closed
+    imageModal.addEventListener('hidden.bs.modal', function() {
+        modalImage.src = '';
+        zoomLevel = 1;
+        rotationDegree = 0;
+        modalImage.style.transform = 'scale(1) rotate(0deg)';
+    });
+    
+    // Keyboard navigation
+    document.addEventListener('keydown', function(e) {
+        if (!imageModal.classList.contains('show')) return;
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+                prevButton.click();
+                break;
+            case 'ArrowRight':
+                nextButton.click();
+                break;
+            case 'Escape':
+                const closeButton = imageModal.querySelector('.btn-close');
+                closeButton.click();
+                break;
+        }
+    });
+    
+    // Smooth scroll for navigation links
+    document.querySelectorAll('.profile-nav .nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href');
+            const targetElement = document.querySelector(targetId);
+            
+            if (targetElement) {
+                window.scrollTo({
+                    top: targetElement.offsetTop - 20,
+                    behavior: 'smooth'
+                });
+                
+                // Update active class
+                document.querySelectorAll('.profile-nav .nav-link').forEach(navLink => {
+                    navLink.classList.remove('active');
+                });
+                this.classList.add('active');
+            }
+        });
+    });
+    
+    // Initialize gallery
+    initializeGallery();
+    
+    // Highlight active section on scroll
+    window.addEventListener('scroll', function() {
+        const scrollPosition = window.scrollY;
+        
+        document.querySelectorAll('.card[id]').forEach(section => {
+            const sectionTop = section.offsetTop - 100;
+            const sectionBottom = sectionTop + section.offsetHeight;
+            
+            if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                const id = section.getAttribute('id');
+                document.querySelectorAll('.profile-nav .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + id) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    });
+});
+</script>
 
 <script>
     const profileId = "{{ profile.id }}";
