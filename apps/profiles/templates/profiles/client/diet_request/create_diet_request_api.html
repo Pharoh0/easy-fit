@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Diet Request | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="{% static 'profiles/css/client/diet_request.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box">
+                <div class="page-title-right">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb m-0">
+                            <li class="breadcrumb-item"><a href="{% url 'auth_users:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'profiles:list_diet_requests' %}">Diet Requests</a></li>
+                            <li class="breadcrumb-item active">Create</li>
+                        </ol>
+                    </nav>
+                </div>
+                <h4 class="page-title">Create Diet Request</h4>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <!-- Diet Request Form -->
+                    <form id="diet-request-form" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="goal" class="form-label">Goal <span class="text-danger">*</span></label>
+                                <select id="goal" class="form-select" required>
+                                    <option value="" selected disabled>Select a goal</option>
+                                    <option value="weight_loss">Weight Loss</option>
+                                    <option value="muscle_gain">Muscle Gain</option>
+                                    <option value="maintenance">Maintenance</option>
+                                    <option value="sports_performance">Sports Performance</option>
+                                    <option value="general_health">General Health</option>
+                                </select>
+                                <div class="invalid-feedback">Please select a goal.</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="dietary_preference" class="form-label">Dietary Preference</label>
+                                <select id="dietary_preference" class="form-select">
+                                    <option value="" selected>No specific preference</option>
+                                    <option value="vegetarian">Vegetarian</option>
+                                    <option value="vegan">Vegan</option>
+                                    <option value="pescatarian">Pescatarian</option>
+                                    <option value="keto">Keto</option>
+                                    <option value="paleo">Paleo</option>
+                                    <option value="low_carb">Low Carb</option>
+                                    <option value="gluten_free">Gluten Free</option>
+                                    <option value="dairy_free">Dairy Free</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="allergies" class="form-label">Allergies</label>
+                                <input type="text" id="allergies" class="form-control" placeholder="List any allergies, separated by commas">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="dislikes" class="form-label">Food Dislikes</label>
+                                <input type="text" id="dislikes" class="form-control" placeholder="List foods you dislike, separated by commas">
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="preferred_cuisine" class="form-label">Preferred Cuisine</label>
+                                <select id="preferred_cuisine" class="form-select">
+                                    <option value="" selected>No specific preference</option>
+                                    <option value="mediterranean">Mediterranean</option>
+                                    <option value="asian">Asian</option>
+                                    <option value="italian">Italian</option>
+                                    <option value="mexican">Mexican</option>
+                                    <option value="indian">Indian</option>
+                                    <option value="middle_eastern">Middle Eastern</option>
+                                    <option value="american">American</option>
+                                    <option value="french">French</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="budget_constraint" class="form-label">Budget Constraint</label>
+                                <select id="budget_constraint" class="form-select">
+                                    <option value="" selected>No specific constraint</option>
+                                    <option value="low">Low - Budget-friendly options</option>
+                                    <option value="medium">Medium - Balanced cost</option>
+                                    <option value="high">High - Premium ingredients ok</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="cooking_skill" class="form-label">Cooking Skill Level</label>
+                                <select id="cooking_skill" class="form-select">
+                                    <option value="" selected>Not specified</option>
+                                    <option value="beginner">Beginner - Simple recipes only</option>
+                                    <option value="intermediate">Intermediate - Can follow recipes</option>
+                                    <option value="advanced">Advanced - Comfortable cooking</option>
+                                    <option value="expert">Expert - Professional level</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="time_available" class="form-label">Daily Cooking Time Available</label>
+                                <select id="time_available" class="form-select">
+                                    <option value="" selected>Not specified</option>
+                                    <option value="minimal">Minimal (< 15 minutes)</option>
+                                    <option value="moderate">Moderate (15-30 minutes)</option>
+                                    <option value="average">Average (30-60 minutes)</option>
+                                    <option value="extended">Extended (> 60 minutes)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="additional_notes" class="form-label">Additional Notes</label>
+                            <textarea id="additional_notes" class="form-control" rows="4" placeholder="Any additional information, special requests, or details you'd like to share with the coach"></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" id="terms_agreement" class="form-check-input" required>
+                                <label for="terms_agreement" class="form-check-label">
+                                    I understand that this is a request for a professional service and may be subject to charges by the coach.
+                                </label>
+                                <div class="invalid-feedback">
+                                    You must agree to the terms to proceed.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-end">
+                            <a href="{% url 'profiles:list_diet_requests' %}" class="btn btn-light me-2">Cancel</a>
+                            <button type="submit" id="submit-button" class="btn btn-primary">
+                                <i class="fas fa-paper-plane me-1"></i> Submit Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'profiles/js/api.js' %}"></script>
+<script src="{% static 'profiles/js/client/diet_requests_api.js' %}"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Form validation
+        const form = document.getElementById('diet-request-form');
+        
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+            
+            if (!form.checkValidity()) {
+                event.stopPropagation();
+                form.classList.add('was-validated');
+                return;
+            }
+            
+            // Submit form data via API
+            submitDietRequest();
+        });
+        
+        async function submitDietRequest() {
+            try {
+                const submitButton = document.getElementById('submit-button');
+                submitButton.disabled = true;
+                submitButton.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Submitting...';
+                
+                const requestData = {
+                    goal: document.getElementById('goal').value,
+                    dietary_preference: document.getElementById('dietary_preference').value,
+                    allergies: document.getElementById('allergies').value,
+                    dislikes: document.getElementById('dislikes').value,
+                    preferred_cuisine: document.getElementById('preferred_cuisine').value,
+                    budget_constraint: document.getElementById('budget_constraint').value,
+                    cooking_skill: document.getElementById('cooking_skill').value,
+                    time_available: document.getElementById('time_available').value,
+                    additional_notes: document.getElementById('additional_notes').value
+                };
+                
+                const response = await createDietRequest(requestData);
+                
+                if (response && response.id) {
+                    // Success - redirect to diet requests list
+                    window.location.href = "{% url 'profiles:list_diet_requests' %}";
+                } else {
+                    throw new Error('Invalid response from server');
+                }
+                
+            } catch (error) {
+                console.error('Error submitting diet request:', error);
+                alert('Failed to submit diet request. Please try again later.');
+                
+                const submitButton = document.getElementById('submit-button');
+                submitButton.disabled = false;
+                submitButton.innerHTML = '<i class="fas fa-paper-plane me-1"></i> Submit Request';
+            }
+        }
+    });
+</script>
+{% endblock %}

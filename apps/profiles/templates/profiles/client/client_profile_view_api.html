@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Client Profile | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid client-profile-container">
+    <!-- Profile Cover Section with Gradient Background -->
+    <div class="profile-cover-section">
+        <div class="profile-cover-gradient">
+            <div id="cover-image-container">
+                <!-- Cover image will be loaded by JS -->
+            </div>
+            <div class="profile-info">
+                <div class="profile-avatar">
+                    <div id="avatar-container">
+                        <!-- Avatar will be loaded by JS -->
+                    </div>
+                </div>
+                <div class="profile-name">
+                    <h1 id="username">Loading...</h1>
+                    <p class="subtitle" id="email">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Left Column - Profile Info -->
+        <div class="col-md-4">
+            <div class="card client-info-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-user-circle"></i> Profile Information</h4>
+                </div>
+                <div class="card-body">
+                    <div class="client-info-details" id="client-info-container">
+                        <!-- Client info will be loaded by JS -->
+                        <div class="skeleton-loader"></div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <button class="btn btn-primary" id="edit-profile-btn">
+                        <i class="fas fa-edit"></i> Edit Profile
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column - Main Content -->
+        <div class="col-md-8">
+            <!-- Measurements & Progress Stats -->
+            <div class="card client-stats-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-chart-line"></i> Fitness Statistics</h4>
+                        <button class="btn btn-sm btn-primary" id="view-measurements-btn">
+                            <i class="fas fa-weight"></i> View All Measurements
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row stats-container" id="stats-container">
+                        <!-- Stats will be loaded by JS -->
+                        <div class="skeleton-loader"></div>
+                    </div>
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="last-measurement" id="last-measurement">
+                                <!-- Last measurement info will be loaded by JS -->
+                                <div class="skeleton-loader"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Plan / Diet Requests -->
+            <div class="card mt-4 plans-card">
+                <ul class="nav nav-tabs" id="plansTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true">
+                            <i class="fas fa-clipboard-list"></i> Active Plans
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false">
+                            <i class="fas fa-utensils"></i> Diet Requests
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="plansTabContent">
+                    <!-- Active Plans Tab -->
+                    <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
+                        <div class="card-body">
+                            <div id="active-subscriptions-container">
+                                <!-- Active subscriptions will be loaded by JS -->
+                                <div class="skeleton-loader"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Diet Requests Tab -->
+                    <div class="tab-pane fade" id="diet-requests" role="tabpanel" aria-labelledby="diet-requests-tab">
+                        <div class="card-body">
+                            <div id="diet-requests-container">
+                                <!-- Diet requests will be loaded by JS -->
+                                <div class="skeleton-loader"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Gallery -->
+            <div class="card mt-4 gallery-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-images"></i> Progress Gallery</h4>
+                        <button class="btn btn-sm btn-primary" id="view-all-progress-btn">
+                            <i class="fas fa-external-link-alt"></i> View All
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="progress-gallery" id="progress-gallery">
+                        <!-- Progress gallery will be loaded by JS -->
+                        <div class="skeleton-loader"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/api.js' %}"></script>
+    <script src="{% static 'profiles/js/client/client_profile_api.js' %}"></script>
+{% endblock %}
