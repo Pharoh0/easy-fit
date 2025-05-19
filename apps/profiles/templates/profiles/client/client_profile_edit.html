@@ -1,0 +1,266 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_edit.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container client-edit-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="edit-header">
+                <h1><i class="fas fa-user-edit"></i> Edit Your Profile</h1>
+                <p>Update your personal information and preferences</p>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="profile-edit-form">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Personal Information -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-id-card"></i> Personal Information</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Age field -->
+                        <div class="mb-3">
+                            <label for="age" class="form-label">Age</label>
+                            <input type="number" class="form-control" id="age" name="age" value="{{ profile.age }}" min="1" max="120">
+                            {% if errors.age %}
+                            <div class="text-danger">{{ errors.age.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Gender field -->
+                        <div class="mb-3">
+                            <label for="gender" class="form-label">Gender</label>
+                            <select class="form-select" id="gender" name="gender">
+                                <option value="" {% if not profile.gender %}selected{% endif %}>Prefer not to say</option>
+                                <option value="M" {% if profile.gender == 'M' %}selected{% endif %}>Male</option>
+                                <option value="F" {% if profile.gender == 'F' %}selected{% endif %}>Female</option>
+                            </select>
+                            {% if errors.gender %}
+                            <div class="text-danger">{{ errors.gender.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Height field -->
+                        <div class="mb-3">
+                            <label for="height" class="form-label">Height (cm)</label>
+                            <input type="number" step="0.01" class="form-control" id="height" name="height" value="{{ profile.height }}" min="0" max="300">
+                            {% if errors.height %}
+                            <div class="text-danger">{{ errors.height.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Weight field -->
+                        <div class="mb-3">
+                            <label for="weight" class="form-label">Weight (kg)</label>
+                            <input type="number" step="0.01" class="form-control" id="weight" name="weight" value="{{ profile.weight }}" min="0" max="500">
+                            {% if errors.weight %}
+                            <div class="text-danger">{{ errors.weight.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Activity Level field -->
+                        <div class="mb-3">
+                            <label for="activity_level" class="form-label">Activity Level</label>
+                            <select class="form-select" id="activity_level" name="activity_level">
+                                <option value="" {% if not profile.activity_level %}selected{% endif %}>Select your activity level</option>
+                                <option value="sedentary" {% if profile.activity_level == 'sedentary' %}selected{% endif %}>Sedentary (little to no exercise)</option>
+                                <option value="lightly_active" {% if profile.activity_level == 'lightly_active' %}selected{% endif %}>Lightly Active (light exercise 1-3 days/week)</option>
+                                <option value="moderately_active" {% if profile.activity_level == 'moderately_active' %}selected{% endif %}>Moderately Active (moderate exercise 3-5 days/week)</option>
+                                <option value="very_active" {% if profile.activity_level == 'very_active' %}selected{% endif %}>Very Active (hard exercise 6-7 days/week)</option>
+                                <option value="extremely_active" {% if profile.activity_level == 'extremely_active' %}selected{% endif %}>Extremely Active (very hard exercise & physical job)</option>
+                            </select>
+                            {% if errors.activity_level %}
+                            <div class="text-danger">{{ errors.activity_level.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Health Information -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4><i class="fas fa-heartbeat"></i> Health Information</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Health Conditions field -->
+                        <div class="mb-3">
+                            <label for="health_conditions" class="form-label">Health Conditions</label>
+                            <textarea class="form-control" id="health_conditions" name="health_conditions" rows="3" placeholder="List any health conditions or concerns">{{ profile.health_conditions }}</textarea>
+                            {% if errors.health_conditions %}
+                            <div class="text-danger">{{ errors.health_conditions.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Fitness Goals field -->
+                        <div class="mb-3">
+                            <label for="fitness_goals" class="form-label">Fitness Goals</label>
+                            <textarea class="form-control" id="fitness_goals" name="fitness_goals" rows="3" placeholder="What are your fitness goals?">{{ profile.fitness_goals }}</textarea>
+                            {% if errors.fitness_goals %}
+                            <div class="text-danger">{{ errors.fitness_goals.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Dietary Preferences field -->
+                        <div class="mb-3">
+                            <label for="dietary_preferences" class="form-label">Dietary Preferences</label>
+                            <textarea class="form-control" id="dietary_preferences" name="dietary_preferences" rows="3" placeholder="Any dietary preferences or restrictions?">{{ profile.dietary_preferences }}</textarea>
+                            {% if errors.dietary_preferences %}
+                            <div class="text-danger">{{ errors.dietary_preferences.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Allergies field -->
+                        <div class="mb-3">
+                            <label for="allergies" class="form-label">Allergies</label>
+                            <textarea class="form-control" id="allergies" name="allergies" rows="3" placeholder="List any food allergies or intolerances">{{ profile.allergies }}</textarea>
+                            {% if errors.allergies %}
+                            <div class="text-danger">{{ errors.allergies.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Profile Media and Social Links -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h4><i class="fas fa-image"></i> Profile Media</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Profile Avatar -->
+                        <div class="mb-4">
+                            <label class="form-label">Profile Picture</label>
+                            <div class="avatar-preview">
+                                {% if profile.avatar %}
+                                    <img src="{{ profile.avatar.url }}" alt="Profile avatar" class="current-avatar" id="avatar-preview">
+                                {% else %}
+                                    <div class="default-avatar" id="avatar-preview">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
+                                <small class="form-text text-muted">Recommended size: 300x300 pixels. Maximum size: 2MB.</small>
+                                {% if errors.avatar %}
+                                <div class="text-danger">{{ errors.avatar.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        
+                        <!-- Cover Image -->
+                        <div class="mb-4">
+                            <label class="form-label">Cover Image</label>
+                            <div class="cover-preview">
+                                {% if profile.cover_image %}
+                                    <img src="{{ profile.cover_image.url }}" alt="Cover image" class="current-cover" id="cover-preview">
+                                {% else %}
+                                    <div class="default-cover" id="cover-preview">
+                                        <i class="fas fa-image"></i>
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mt-2">
+                                <input type="file" class="form-control" id="cover_image" name="cover_image" accept="image/*">
+                                <small class="form-text text-muted">Recommended size: 1200x300 pixels. Maximum size: 5MB.</small>
+                                {% if errors.cover_image %}
+                                <div class="text-danger">{{ errors.cover_image.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Social Links -->
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h4><i class="fas fa-share-alt"></i> Social Media Links</h4>
+                    </div>
+                    <div class="card-body">
+                        <!-- Instagram field -->
+                        <div class="mb-3">
+                            <label for="instagram" class="form-label">
+                                <i class="fab fa-instagram"></i> Instagram Username
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">@</span>
+                                <input type="text" class="form-control" id="instagram" name="instagram" value="{{ profile.instagram }}" placeholder="username">
+                            </div>
+                            {% if errors.instagram %}
+                            <div class="text-danger">{{ errors.instagram.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Facebook field -->
+                        <div class="mb-3">
+                            <label for="facebook" class="form-label">
+                                <i class="fab fa-facebook"></i> Facebook Username
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">facebook.com/</span>
+                                <input type="text" class="form-control" id="facebook" name="facebook" value="{{ profile.facebook }}" placeholder="username">
+                            </div>
+                            {% if errors.facebook %}
+                            <div class="text-danger">{{ errors.facebook.0 }}</div>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Twitter field -->
+                        <div class="mb-3">
+                            <label for="twitter" class="form-label">
+                                <i class="fab fa-twitter"></i> Twitter Username
+                            </label>
+                            <div class="input-group">
+                                <span class="input-group-text">@</span>
+                                <input type="text" class="form-control" id="twitter" name="twitter" value="{{ profile.twitter }}" placeholder="username">
+                            </div>
+                            {% if errors.twitter %}
+                            <div class="text-danger">{{ errors.twitter.0 }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Form Actions -->
+                <div class="form-actions mt-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
+                    <a href="{% url 'profiles:client_profile' %}" class="btn btn-secondary">
+                        <i class="fas fa-times"></i> Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/client/client_profile_edit.js' %}"></script>
+{% endblock %}
