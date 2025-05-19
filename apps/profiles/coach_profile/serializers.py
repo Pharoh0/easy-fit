@@ -2,7 +2,16 @@ from rest_framework import serializers
 from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
 from cities_light.models import Country, Region, City
 
+from django.contrib.auth import get_user_model
 
+CustomUser = get_user_model()
+
+class UserSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomUser  # Assuming you have a custom user model
+        fields = ['id', 'username']
+        
+        
 class CertificationSerializer(serializers.ModelSerializer):
     # coach_profile = serializers.PrimaryKeyRelatedField(queryset=CoachProfile.objects.all())
 
@@ -180,6 +189,8 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     country = serializers.SerializerMethodField()
     region = serializers.SerializerMethodField()
     city = serializers.SerializerMethodField()
+    user = UserSerializer(read_only=True)  # Include the user serializer
+    
 
     class Meta:
         model = CoachProfile
@@ -191,6 +202,7 @@ class CoachProfileSerializer(serializers.ModelSerializer):
             'certifications', 'client_pictures', 'coach_pictures', 'availabilities'
         ]
         read_only_fields = ['user']
+        
 
     def get_country(self, obj):
         if obj.country:
@@ -280,3 +292,22 @@ class CitySerializer(serializers.ModelSerializer):
     class Meta:
         model = City
         fields = ['id', 'name', 'region']
+
+
+class CoachProfileMinimalSerializer(serializers.ModelSerializer):
+    """A simplified version of the CoachProfile serializer for use in client modules"""
+    username = serializers.SerializerMethodField()
+    full_name = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = CoachProfile
+        fields = [
+            'id', 'username', 'full_name', 'avatar', 'specialties', 
+            'years_of_experience', 'hourly_rate'
+        ]
+    
+    def get_username(self, obj):
+        return obj.user.username
+    
+    def get_full_name(self, obj):
+        return obj.user.get_full_name() or obj.user.username
