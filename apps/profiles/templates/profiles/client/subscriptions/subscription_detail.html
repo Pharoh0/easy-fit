@@ -1,0 +1,596 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Subscription Details | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/subscriptions.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container subscription-detail-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-clipboard-check"></i> Subscription Details</h1>
+                <div class="subscription-status">
+                    <span class="status-badge status-{{ subscription.status }}">{{ subscription.get_status_display }}</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="row">
+        <div class="col-md-12">
+            {% for message in messages %}
+            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:subscriptions' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Subscriptions
+                </a>
+                {% if subscription.status == 'active' %}
+                <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#pauseSubscriptionModal">
+                    <i class="fas fa-pause-circle"></i> Pause Subscription
+                </button>
+                <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelSubscriptionModal">
+                    <i class="fas fa-times-circle"></i> Cancel Subscription
+                </button>
+                {% endif %}
+                {% if subscription.status == 'paused' %}
+                <form method="post" action="{% url 'profiles:resume_subscription' subscription.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-play-circle"></i> Resume Subscription
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <!-- Subscription Overview -->
+        <div class="col-lg-8">
+            <div class="card subscription-overview-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-info-circle"></i> Subscription Overview</h4>
+                </div>
+                <div class="card-body">
+                    <div class="subscription-header">
+                        <h3>{{ subscription.name }}</h3>
+                        <div class="subscription-meta">
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-alt"></i>
+                                <span>Started: {{ subscription.start_date|date }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-calendar-check"></i>
+                                <span>Ends: {{ subscription.end_date|date }}</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-clock"></i>
+                                <span>Duration: {{ subscription.duration_weeks }} weeks</span>
+                            </div>
+                            <div class="meta-item">
+                                <i class="fas fa-dollar-sign"></i>
+                                <span>Price: ${{ subscription.price }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if subscription.description %}
+                    <div class="subscription-section">
+                        <h5>Description</h5>
+                        <p>{{ subscription.description }}</p>
+                    </div>
+                    {% endif %}
+
+                    <div class="subscription-features">
+                        <h5>Included Features</h5>
+                        <div class="features-grid">
+                            <div class="feature-item">
+                                <div class="feature-icon {% if subscription.includes_meal_plan %}feature-included{% else %}feature-excluded{% endif %}">
+                                    <i class="fas fa-apple-alt"></i>
+                                </div>
+                                <div class="feature-text">Meal Plan</div>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon {% if subscription.includes_workout_plan %}feature-included{% else %}feature-excluded{% endif %}">
+                                    <i class="fas fa-dumbbell"></i>
+                                </div>
+                                <div class="feature-text">Workout Plan</div>
+                            </div>
+                            <div class="feature-item">
+                                <div class="feature-icon {% if subscription.includes_video_consultations %}feature-included{% else %}feature-excluded{% endif %}">
+                                    <i class="fas fa-video"></i>
+                                </div>
+                                <div class="feature-text">Video Consultations</div>
+                            </div>
+                        </div>
+                        
+                        {% if subscription.includes_video_consultations and subscription.num_consultations > 0 %}
+                        <div class="consultation-tracker">
+                            <h6>Video Consultations</h6>
+                            <div class="progress">
+                                {% with used=subscription.consultations_used available=subscription.num_consultations %}
+                                {% with percentage=used|mul:100|floordiv:available %}
+                                <div class="progress-bar {% if percentage > 75 %}bg-warning{% elif percentage == 100 %}bg-danger{% else %}bg-success{% endif %}" 
+                                     role="progressbar" 
+                                     style="width: {{ percentage }}%" 
+                                     aria-valuenow="{{ used }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="{{ available }}">
+                                    {{ used }}/{{ available }}
+                                </div>
+                                {% endwith %}
+                                {% endwith %}
+                            </div>
+                            <div class="consultation-actions mt-3">
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleConsultationModal">
+                                    <i class="fas fa-calendar-plus"></i> Schedule Consultation
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Coach Information -->
+                    <div class="subscription-section">
+                        <h5>Your Coach</h5>
+                        <div class="coach-profile">
+                            <div class="coach-info">
+                                {% if subscription.coach.avatar %}
+                                    <img src="{{ subscription.coach.avatar.url }}" alt="{{ subscription.coach.user.username }}" class="coach-avatar">
+                                {% else %}
+                                    <div class="default-avatar">
+                                        <i class="fas fa-user"></i>
+                                    </div>
+                                {% endif %}
+                                <div class="coach-details">
+                                    <h4>{{ subscription.coach.user.get_full_name }}</h4>
+                                    <p class="coach-specialization">{{ subscription.coach.specialization }}</p>
+                                </div>
+                            </div>
+                            <div class="coach-actions">
+                                <a href="{% url 'profiles:view_coach_profile' subscription.coach.id %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-user"></i> View Profile
+                                </a>
+                                <a href="{% url 'chat:start_chat' %}?recipient={{ subscription.coach.user.username }}" class="btn btn-primary">
+                                    <i class="fas fa-comment"></i> Message
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress Tracking -->
+        <div class="col-lg-4">
+            <div class="card progress-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-chart-line"></i> Progress Tracking</h4>
+                </div>
+                <div class="card-body">
+                    <div class="subscription-timeline">
+                        <div class="timeline-progress">
+                            {% with percentage=subscription.progress_percentage %}
+                            <div class="progress" data-bs-toggle="tooltip" title="{{ percentage }}% Complete">
+                                <div class="progress-bar bg-success" 
+                                     role="progressbar" 
+                                     style="width: {{ percentage }}%" 
+                                     aria-valuenow="{{ percentage }}" 
+                                     aria-valuemin="0" 
+                                     aria-valuemax="100">
+                                    {{ percentage }}%
+                                </div>
+                            </div>
+                            {% endwith %}
+                            <div class="timeline-dates">
+                                <span>{{ subscription.start_date|date }}</span>
+                                <span>{{ subscription.end_date|date }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="latest-measurements">
+                        <h5>Latest Measurements</h5>
+                        {% if latest_measurement %}
+                            <div class="measurement-date">
+                                <i class="fas fa-calendar-day"></i> {{ latest_measurement.date|date }}
+                            </div>
+                            <div class="measurement-stats">
+                                <div class="stat-item">
+                                    <div class="stat-label">Weight</div>
+                                    <div class="stat-value">{{ latest_measurement.weight }} kg</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">BMI</div>
+                                    <div class="stat-value">{{ latest_measurement.bmi|floatformat:1 }}</div>
+                                </div>
+                                <div class="stat-item">
+                                    <div class="stat-label">Body Fat</div>
+                                    <div class="stat-value">{{ latest_measurement.body_fat_percentage|default_if_none:"-" }}%</div>
+                                </div>
+                            </div>
+                            <a href="{% url 'profiles:measurements' %}" class="btn btn-outline-primary btn-sm mt-3">
+                                <i class="fas fa-weight"></i> All Measurements
+                            </a>
+                        {% else %}
+                            <div class="empty-state-mini">
+                                <i class="fas fa-weight"></i>
+                                <p>No measurements recorded yet</p>
+                                <a href="{% url 'profiles:add_measurement' %}" class="btn btn-sm btn-primary">Add Measurement</a>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Progress Reports -->
+                    <div class="progress-reports">
+                        <h5>
+                            <i class="fas fa-file-alt"></i> 
+                            Progress Reports
+                            <span class="reports-count">{{ progress_reports|length }}</span>
+                        </h5>
+                        
+                        {% if progress_reports %}
+                            <div class="reports-list">
+                                {% for report in progress_reports %}
+                                <a href="{% url 'profiles:view_progress_report' report.id %}" class="report-item">
+                                    <div class="report-icon">
+                                        <i class="fas fa-file-alt"></i>
+                                    </div>
+                                    <div class="report-details">
+                                        <div class="report-title">Week {{ report.week_number }} Report</div>
+                                        <div class="report-date">{{ report.date|date }}</div>
+                                    </div>
+                                    <div class="report-arrow">
+                                        <i class="fas fa-chevron-right"></i>
+                                    </div>
+                                </a>
+                                {% endfor %}
+                            </div>
+                            {% if progress_reports.count > 5 %}
+                                <a href="{% url 'profiles:progress_reports' subscription.id %}" class="btn btn-outline-primary btn-sm mt-3 w-100">
+                                    View All Reports
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <div class="empty-state-mini">
+                                <i class="fas fa-file-alt"></i>
+                                <p>No progress reports yet</p>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Subscription Plans -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card plans-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-calendar-week"></i> Your Plans</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="nav nav-tabs" id="plansTab" role="tablist">
+                        {% if subscription.includes_meal_plan %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="meal-tab" data-bs-toggle="tab" data-bs-target="#meal" 
+                                    type="button" role="tab" aria-controls="meal" aria-selected="true">
+                                <i class="fas fa-apple-alt"></i> Meal Plan
+                            </button>
+                        </li>
+                        {% endif %}
+                        {% if subscription.includes_workout_plan %}
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link {% if not subscription.includes_meal_plan %}active{% endif %}" 
+                                    id="workout-tab" data-bs-toggle="tab" data-bs-target="#workout" 
+                                    type="button" role="tab" aria-controls="workout" 
+                                    aria-selected="{% if not subscription.includes_meal_plan %}true{% else %}false{% endif %}">
+                                <i class="fas fa-dumbbell"></i> Workout Plan
+                            </button>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    <div class="tab-content" id="plansTabContent">
+                        {% if subscription.includes_meal_plan %}
+                        <div class="tab-pane fade show active" id="meal" role="tabpanel" aria-labelledby="meal-tab">
+                            {% if meal_plan %}
+                                <div class="plan-content">
+                                    <h3>{{ meal_plan.title }}</h3>
+                                    <div class="plan-description">
+                                        {{ meal_plan.description|linebreaks }}
+                                    </div>
+                                    
+                                    <div class="meal-days">
+                                        <div class="day-selector">
+                                            {% for day in meal_plan.days %}
+                                            <button class="day-btn {% if forloop.first %}active{% endif %}" 
+                                                    data-day="{{ forloop.counter }}">
+                                                {{ day.name }}
+                                            </button>
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        {% for day in meal_plan.days %}
+                                        <div class="day-content {% if forloop.first %}active{% endif %}" id="day{{ forloop.counter }}">
+                                            <h4>{{ day.name }}</h4>
+                                            
+                                            <div class="meals-container">
+                                                {% for meal in day.meals %}
+                                                <div class="meal-item">
+                                                    <div class="meal-header">
+                                                        <h5>{{ meal.name }}</h5>
+                                                        <span class="meal-time">{{ meal.time }}</span>
+                                                    </div>
+                                                    <div class="meal-foods">
+                                                        {% for food in meal.foods %}
+                                                        <div class="food-item">
+                                                            <span class="food-name">{{ food.name }}</span>
+                                                            <span class="food-amount">{{ food.amount }}</span>
+                                                        </div>
+                                                        {% endfor %}
+                                                    </div>
+                                                    {% if meal.notes %}
+                                                    <div class="meal-notes">
+                                                        <i class="fas fa-info-circle"></i> {{ meal.notes }}
+                                                    </div>
+                                                    {% endif %}
+                                                </div>
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <div class="plan-attachments">
+                                        {% if meal_plan.attachments %}
+                                        <h5>Attachments</h5>
+                                        <div class="attachments-list">
+                                            {% for attachment in meal_plan.attachments %}
+                                            <a href="{{ attachment.file.url }}" class="attachment-item" download>
+                                                <i class="fas fa-file-pdf"></i>
+                                                <span>{{ attachment.name }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-apple-alt"></i>
+                                    </div>
+                                    <h5>No Meal Plan Available</h5>
+                                    <p>Your coach hasn't uploaded a meal plan yet. Check back soon!</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                        
+                        {% if subscription.includes_workout_plan %}
+                        <div class="tab-pane fade {% if not subscription.includes_meal_plan %}show active{% endif %}" 
+                             id="workout" role="tabpanel" aria-labelledby="workout-tab">
+                            {% if workout_plan %}
+                                <div class="plan-content">
+                                    <h3>{{ workout_plan.title }}</h3>
+                                    <div class="plan-description">
+                                        {{ workout_plan.description|linebreaks }}
+                                    </div>
+                                    
+                                    <div class="workout-days">
+                                        <div class="day-selector">
+                                            {% for day in workout_plan.days %}
+                                            <button class="day-btn {% if forloop.first %}active{% endif %}" 
+                                                    data-day="w{{ forloop.counter }}">
+                                                {{ day.name }}
+                                            </button>
+                                            {% endfor %}
+                                        </div>
+                                        
+                                        {% for day in workout_plan.days %}
+                                        <div class="day-content {% if forloop.first %}active{% endif %}" id="w{{ forloop.counter }}">
+                                            <h4>{{ day.name }}</h4>
+                                            
+                                            {% if day.rest_day %}
+                                                <div class="rest-day">
+                                                    <i class="fas fa-bed"></i>
+                                                    <h5>Rest Day</h5>
+                                                    {% if day.notes %}
+                                                    <p>{{ day.notes }}</p>
+                                                    {% endif %}
+                                                </div>
+                                            {% else %}
+                                                <div class="exercises-container">
+                                                    {% for exercise in day.exercises %}
+                                                    <div class="exercise-item">
+                                                        <div class="exercise-header">
+                                                            <h5>{{ exercise.name }}</h5>
+                                                            {% if exercise.target_muscles %}
+                                                            <span class="target-muscles">{{ exercise.target_muscles }}</span>
+                                                            {% endif %}
+                                                        </div>
+                                                        <div class="exercise-details">
+                                                            <div class="sets-reps">
+                                                                <span class="sets">{{ exercise.sets }} sets</span>
+                                                                <span class="reps">{{ exercise.reps }}</span>
+                                                                {% if exercise.weight %}
+                                                                <span class="weight">{{ exercise.weight }}</span>
+                                                                {% endif %}
+                                                            </div>
+                                                            {% if exercise.rest %}
+                                                            <div class="rest-time">
+                                                                <i class="fas fa-stopwatch"></i> Rest: {{ exercise.rest }}
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                        {% if exercise.notes %}
+                                                        <div class="exercise-notes">
+                                                            <i class="fas fa-info-circle"></i> {{ exercise.notes }}
+                                                        </div>
+                                                        {% endif %}
+                                                        {% if exercise.video_url %}
+                                                        <a href="{{ exercise.video_url }}" target="_blank" class="exercise-video">
+                                                            <i class="fas fa-play-circle"></i> Watch Demo
+                                                        </a>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                    
+                                    <div class="plan-attachments">
+                                        {% if workout_plan.attachments %}
+                                        <h5>Attachments</h5>
+                                        <div class="attachments-list">
+                                            {% for attachment in workout_plan.attachments %}
+                                            <a href="{{ attachment.file.url }}" class="attachment-item" download>
+                                                <i class="fas fa-file-pdf"></i>
+                                                <span>{{ attachment.name }}</span>
+                                            </a>
+                                            {% endfor %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-dumbbell"></i>
+                                    </div>
+                                    <h5>No Workout Plan Available</h5>
+                                    <p>Your coach hasn't uploaded a workout plan yet. Check back soon!</p>
+                                </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pause Subscription Modal -->
+{% if subscription.status == 'active' %}
+<div class="modal fade" id="pauseSubscriptionModal" tabindex="-1" aria-labelledby="pauseSubscriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="pauseSubscriptionModalLabel">Pause Subscription</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'profiles:pause_subscription' subscription.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p>Are you sure you want to pause your subscription?</p>
+                    <p><strong>Note:</strong> While paused, you won't be able to access your meal and workout plans or schedule consultations.</p>
+                    <div class="mb-3">
+                        <label for="pauseReason" class="form-label">Reason for pausing (optional)</label>
+                        <textarea name="pause_reason" id="pauseReason" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Pause Subscription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Subscription Modal -->
+<div class="modal fade" id="cancelSubscriptionModal" tabindex="-1" aria-labelledby="cancelSubscriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cancelSubscriptionModalLabel">Cancel Subscription</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'profiles:cancel_subscription' subscription.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-danger"><strong>Warning:</strong> Are you sure you want to cancel your subscription?</p>
+                    <p>This action cannot be undone. You will lose access to all subscription benefits including meal plans, workout plans, and consultations.</p>
+                    <div class="mb-3">
+                        <label for="cancelReason" class="form-label">Reason for cancelling (optional)</label>
+                        <textarea name="cancel_reason" id="cancelReason" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep Subscription</button>
+                    <button type="submit" class="btn btn-danger">Yes, Cancel Subscription</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Schedule Consultation Modal -->
+{% if subscription.status == 'active' and subscription.includes_video_consultations and subscription.consultations_used < subscription.num_consultations %}
+<div class="modal fade" id="scheduleConsultationModal" tabindex="-1" aria-labelledby="scheduleConsultationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="scheduleConsultationModalLabel">Schedule Consultation</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form method="post" action="{% url 'profiles:schedule_consultation' subscription.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="consultation-remaining">
+                        <span>Consultations Remaining: {{ subscription.consultations_remaining }}</span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="consultationDate" class="form-label">Preferred Date</label>
+                        <input type="date" name="consultation_date" id="consultationDate" class="form-control" required min="{{ today|date:'Y-m-d' }}">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="consultationTime" class="form-label">Preferred Time</label>
+                        <input type="time" name="consultation_time" id="consultationTime" class="form-control" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="consultationNotes" class="form-label">Notes (optional)</label>
+                        <textarea name="consultation_notes" id="consultationNotes" class="form-control" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="form-text">
+                        <i class="fas fa-info-circle"></i> Your coach will confirm or suggest an alternative time.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Request Consultation</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/client/subscriptions.js' %}"></script>
+{% endblock %}
