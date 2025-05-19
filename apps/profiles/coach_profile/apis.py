@@ -1,6 +1,7 @@
 from rest_framework import viewsets
 from rest_framework import generics
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
 from .serializers import CoachProfileSerializer, AvailabilitySerializer, CertificationSerializer, ClientPictureSerializer, CoachPictureSerializer
 from cities_light.models import Country, Region, City
@@ -125,6 +126,8 @@ class CoachPictureViewSet(viewsets.ModelViewSet):
 #         return City.objects.none()
 
 class RegionViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]  # Allow unauthenticated access
+    
     def list(self, request):
         country_id = request.query_params.get('country_id')
         if country_id:
@@ -135,6 +138,8 @@ class RegionViewSet(viewsets.ViewSet):
         return Response(serializer.data)
 
 class CityViewSet(viewsets.ViewSet):
+    permission_classes = [AllowAny]  # Allow unauthenticated access
+    
     def list(self, request):
         region_id = request.query_params.get('region_id')
         if region_id:
