@@ -1,0 +1,439 @@
+/* Client Profile View Styles */
+.client-profile-container {
+    padding-bottom: 50px;
+}
+
+/* Profile Cover Section */
+.profile-cover-section {
+    position: relative;
+    width: 100%;
+    height: 250px;
+    overflow: hidden;
+    border-radius: 0 0 15px 15px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.profile-cover-gradient {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #3a8ffe 0%, #9658fe 100%);
+    display: flex;
+    align-items: flex-end;
+}
+
+.cover-image {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: 0;
+}
+
+.profile-cover-gradient::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7));
+    z-index: 1;
+}
+
+.profile-info {
+    display: flex;
+    align-items: flex-end;
+    padding: 20px;
+    width: 100%;
+    position: relative;
+    z-index: 2;
+    color: white;
+}
+
+.profile-avatar {
+    margin-right: 20px;
+    margin-bottom: -30px;
+}
+
+.avatar-image, .default-avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    border: 5px solid white;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    background-color: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+    color: #6c757d;
+}
+
+.avatar-image {
+    object-fit: cover;
+}
+
+.profile-name {
+    flex-grow: 1;
+}
+
+.profile-name h1 {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: bold;
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+.profile-name .subtitle {
+    margin: 0;
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.profile-actions {
+    align-self: flex-start;
+}
+
+/* Cards */
+.card {
+    border-radius: 10px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    border: none;
+    overflow: hidden;
+    transition: transform 0.3s, box-shadow 0.3s;
+    margin-bottom: 20px;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+.card-header {
+    background-color: #fff;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 15px 20px;
+    font-weight: 600;
+}
+
+.card-header h4 {
+    margin: 0;
+    font-size: 18px;
+    color: #333;
+}
+
+.card-header h4 i {
+    margin-right: 10px;
+    color: #3a8ffe;
+}
+
+.card-body {
+    padding: 20px;
+}
+
+/* Client Info Card */
+.client-info-card .list-group-item {
+    border-left: none;
+    border-right: none;
+    padding: 12px 20px;
+}
+
+.client-info-card .list-group-item strong {
+    margin-right: 10px;
+    color: #495057;
+}
+
+.client-info-card .list-group-item i {
+    margin-right: 8px;
+    color: #3a8ffe;
+}
+
+/* Health Information Card */
+.client-health-card h5 {
+    font-size: 16px;
+    color: #495057;
+    margin-bottom: 5px;
+}
+
+.client-health-card p {
+    margin-bottom: 0;
+    color: #6c757d;
+    padding-left: 10px;
+    border-left: 3px solid #3a8ffe;
+}
+
+/* Social Links Card */
+.social-links-card .list-group-item {
+    border-left: none;
+    border-right: none;
+    padding: 12px 20px;
+}
+
+.social-links-card .list-group-item i {
+    margin-right: 10px;
+    font-size: 18px;
+}
+
+.social-links-card .list-group-item a {
+    color: #3a8ffe;
+    text-decoration: none;
+}
+
+.social-links-card .list-group-item a:hover {
+    text-decoration: underline;
+}
+
+/* Stats Card */
+.client-stats-card .stats-container {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.stat-box {
+    background-color: #f8f9fa;
+    border-radius: 10px;
+    padding: 15px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: transform 0.2s;
+    height: 100%;
+}
+
+.stat-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+    background: linear-gradient(135deg, #3a8ffe 0%, #9658fe 100%);
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 15px;
+    color: white;
+    font-size: 20px;
+}
+
+.stat-info {
+    flex-grow: 1;
+}
+
+.stat-info h5 {
+    margin: 0;
+    font-size: 14px;
+    color: #6c757d;
+}
+
+.stat-value {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 5px 0;
+    color: #343a40;
+}
+
+.stat-change {
+    font-size: 12px;
+    margin: 0;
+}
+
+.stat-change.text-success {
+    color: #28a745;
+}
+
+.stat-change.text-danger {
+    color: #dc3545;
+}
+
+.last-measurement {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-top: 1px solid rgba(0, 0, 0, 0.1);
+    padding-top: 15px;
+}
+
+.last-measurement p {
+    margin: 0;
+    color: #6c757d;
+}
+
+.last-measurement p i {
+    color: #3a8ffe;
+    margin-right: 5px;
+}
+
+/* Plans Card */
+.plans-card .nav-tabs {
+    border-bottom: none;
+    padding: 10px 20px 0;
+    background-color: #f8f9fa;
+}
+
+.plans-card .nav-link {
+    border: none;
+    color: #6c757d;
+    padding: 10px 15px;
+    border-radius: 5px 5px 0 0;
+    margin-right: 5px;
+}
+
+.plans-card .nav-link.active {
+    background-color: white;
+    color: #3a8ffe;
+    border-bottom: 2px solid #3a8ffe;
+}
+
+.plans-card .nav-link i {
+    margin-right: 8px;
+}
+
+.subscription-item, .diet-request-item {
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 15px 0;
+}
+
+.subscription-item:last-child, .diet-request-item:last-child {
+    border-bottom: none;
+}
+
+.coach-name, .request-date, .request-status, .subscription-dates, .offer-count {
+    font-size: 14px;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.subscription-features {
+    margin-top: 10px;
+}
+
+.subscription-features .badge {
+    margin-right: 5px;
+    padding: 5px 10px;
+}
+
+.subscription-actions, .request-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.remaining-days {
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Gallery Card */
+.gallery-container {
+    display: flex;
+    flex-wrap: wrap;
+}
+
+.gallery-item {
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s;
+}
+
+.gallery-item:hover {
+    transform: scale(1.05);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+}
+
+.gallery-caption {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 5px 10px;
+    font-size: 12px;
+    text-align: center;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 30px 20px;
+}
+
+.empty-state-icon {
+    font-size: 50px;
+    color: #dee2e6;
+    margin-bottom: 15px;
+}
+
+.empty-state h5 {
+    margin-bottom: 10px;
+    color: #495057;
+}
+
+.empty-state p {
+    color: #6c757d;
+    margin-bottom: 20px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .profile-cover-section {
+        height: 200px;
+    }
+    
+    .profile-info {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .profile-avatar {
+        margin-right: 0;
+        margin-bottom: 10px;
+    }
+    
+    .avatar-image, .default-avatar {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .profile-name {
+        text-align: center;
+        margin-bottom: 10px;
+    }
+    
+    .profile-actions {
+        align-self: center;
+    }
+    
+    .stat-box {
+        margin-bottom: 15px;
+    }
+    
+    .last-measurement {
+        flex-direction: column;
+    }
+    
+    .last-measurement a {
+        margin-top: 10px;
+    }
+    
+    .subscription-item, .diet-request-item {
+        padding: 15px;
+    }
+    
+    .subscription-actions, .request-actions {
+        margin-top: 10px;
+        align-items: flex-start;
+    }
+}
