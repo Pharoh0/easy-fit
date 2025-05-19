@@ -1,0 +1,407 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Client Profile | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_view.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid client-profile-container">
+    <!-- Profile Cover Section with Gradient Background -->
+    <div class="profile-cover-section">
+        <div class="profile-cover-gradient">
+            {% if client_profile.cover_image %}
+                <img src="{{ client_profile.cover_image.url }}" alt="Cover Image" class="cover-image">
+            {% endif %}
+            <div class="profile-info">
+                <div class="profile-avatar">
+                    {% if client_profile.avatar %}
+                        <img src="{{ client_profile.avatar.url }}" alt="{{ client_profile.user.username }}" class="avatar-image">
+                    {% else %}
+                        <div class="default-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
+                    {% endif %}
+                </div>
+                <div class="profile-name">
+                    <h1>{{ client_profile.user.username }}</h1>
+                    <p class="subtitle">{{ client_profile.user.email }}</p>
+                </div>
+                
+                <div class="profile-actions">
+                    {% if is_own_profile %}
+                        <a href="{% url 'profiles:edit_client_profile' %}" class="btn btn-primary"><i class="fas fa-edit"></i> Edit Profile</a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content Area -->
+    <div class="row mt-4">
+        <!-- Left Column - Profile Info -->
+        <div class="col-md-4">
+            <div class="card client-info-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-user-circle"></i> Profile Information</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-birthday-cake"></i> Age:</strong> 
+                            <span>{{ client_profile.age|default:"Not specified" }}</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-venus-mars"></i> Gender:</strong> 
+                            <span>{{ client_profile.get_gender_display|default:"Not specified" }}</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-ruler-vertical"></i> Height:</strong> 
+                            <span>{{ client_profile.height|default:"Not specified" }} cm</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-weight"></i> Weight:</strong> 
+                            <span>{{ client_profile.weight|default:"Not specified" }} kg</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-calculator"></i> BMI:</strong> 
+                            <span>{{ client_profile.bmi|default:"Not calculated" }}</span>
+                        </li>
+                        <li class="list-group-item">
+                            <strong><i class="fas fa-running"></i> Activity Level:</strong> 
+                            <span>{{ client_profile.get_activity_level_display|default:"Not specified" }}</span>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Health Information Card -->
+            <div class="card mt-4 client-health-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-heartbeat"></i> Health Information</h4>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h5>Health Conditions</h5>
+                        <p>{{ client_profile.health_conditions|default:"None specified" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Fitness Goals</h5>
+                        <p>{{ client_profile.fitness_goals|default:"None specified" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Dietary Preferences</h5>
+                        <p>{{ client_profile.dietary_preferences|default:"None specified" }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <h5>Allergies</h5>
+                        <p>{{ client_profile.allergies|default:"None specified" }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Links Card -->
+            {% if client_profile.instagram or client_profile.facebook or client_profile.twitter %}
+            <div class="card mt-4 social-links-card">
+                <div class="card-header">
+                    <h4><i class="fas fa-share-alt"></i> Social Links</h4>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% if client_profile.instagram %}
+                        <li class="list-group-item">
+                            <i class="fab fa-instagram"></i> <a href="https://instagram.com/{{ client_profile.instagram }}" target="_blank">{{ client_profile.instagram }}</a>
+                        </li>
+                        {% endif %}
+                        {% if client_profile.facebook %}
+                        <li class="list-group-item">
+                            <i class="fab fa-facebook"></i> <a href="https://facebook.com/{{ client_profile.facebook }}" target="_blank">{{ client_profile.facebook }}</a>
+                        </li>
+                        {% endif %}
+                        {% if client_profile.twitter %}
+                        <li class="list-group-item">
+                            <i class="fab fa-twitter"></i> <a href="https://twitter.com/{{ client_profile.twitter }}" target="_blank">{{ client_profile.twitter }}</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <!-- Right Column - Dashboard and Features -->
+        <div class="col-md-8">
+            <!-- Measurements & Progress Stats -->
+            <div class="card client-stats-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-chart-line"></i> Fitness Statistics</h4>
+                        <a href="{% url 'profiles:client_measurements' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-tape"></i> View All Measurements
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row stats-container">
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-weight"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h5>Current Weight</h5>
+                                    <p class="stat-value">{{ latest_measurement.weight|default:"N/A" }} kg</p>
+                                    {% if weight_change %}
+                                        <p class="stat-change {% if weight_change < 0 %}text-success{% elif weight_change > 0 %}text-danger{% endif %}">
+                                            {% if weight_change < 0 %}
+                                                <i class="fas fa-arrow-down"></i> {{ weight_change|abs }} kg
+                                            {% elif weight_change > 0 %}
+                                                <i class="fas fa-arrow-up"></i> {{ weight_change }} kg
+                                            {% endif %}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-percentage"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h5>Body Fat %</h5>
+                                    <p class="stat-value">{{ latest_measurement.body_fat_percentage|default:"N/A" }}%</p>
+                                    {% if fat_change %}
+                                        <p class="stat-change {% if fat_change < 0 %}text-success{% elif fat_change > 0 %}text-danger{% endif %}">
+                                            {% if fat_change < 0 %}
+                                                <i class="fas fa-arrow-down"></i> {{ fat_change|abs }}%
+                                            {% elif fat_change > 0 %}
+                                                <i class="fas fa-arrow-up"></i> {{ fat_change }}%
+                                            {% endif %}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stat-box">
+                                <div class="stat-icon">
+                                    <i class="fas fa-ruler-combined"></i>
+                                </div>
+                                <div class="stat-info">
+                                    <h5>Waist Size</h5>
+                                    <p class="stat-value">{{ latest_measurement.waist|default:"N/A" }} cm</p>
+                                    {% if waist_change %}
+                                        <p class="stat-change {% if waist_change < 0 %}text-success{% elif waist_change > 0 %}text-danger{% endif %}">
+                                            {% if waist_change < 0 %}
+                                                <i class="fas fa-arrow-down"></i> {{ waist_change|abs }} cm
+                                            {% elif waist_change > 0 %}
+                                                <i class="fas fa-arrow-up"></i> {{ waist_change }} cm
+                                            {% endif %}
+                                        </p>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-4">
+                        <div class="col-12">
+                            <div class="last-measurement">
+                                <p>
+                                    <i class="fas fa-calendar-alt"></i>
+                                    Last measurement taken: 
+                                    {% if latest_measurement %}
+                                        <strong>{{ latest_measurement.date }}</strong>
+                                    {% else %}
+                                        <strong>No measurements recorded</strong>
+                                    {% endif %}
+                                </p>
+                                {% if is_own_profile %}
+                                <a href="{% url 'profiles:add_measurement' %}" class="btn btn-success">
+                                    <i class="fas fa-plus"></i> Add New Measurement
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Plan / Diet Requests -->
+            <div class="card mt-4 plans-card">
+                <ul class="nav nav-tabs" id="plansTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true">
+                            <i class="fas fa-clipboard-list"></i> Active Plans
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false">
+                            <i class="fas fa-utensils"></i> Diet Requests
+                        </button>
+                    </li>
+                </ul>
+                <div class="tab-content" id="plansTabContent">
+                    <!-- Active Plans Tab -->
+                    <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
+                        <div class="card-body">
+                            {% if active_subscriptions %}
+                                <div class="subscription-list">
+                                    {% for subscription in active_subscriptions %}
+                                    <div class="subscription-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h5>{{ subscription.offer.title }}</h5>
+                                                <p class="coach-name">Coach: <a href="{% url 'profiles:view_coach_profile' subscription.coach.id %}">{{ subscription.coach.user.username }}</a></p>
+                                                <p class="subscription-dates">
+                                                    <span class="badge bg-primary">{{ subscription.start_date }}</span> to 
+                                                    <span class="badge bg-primary">{{ subscription.end_date }}</span>
+                                                </p>
+                                                <div class="subscription-features">
+                                                    {% if subscription.offer.includes_meal_plan %}
+                                                    <span class="badge bg-success"><i class="fas fa-apple-alt"></i> Meal Plan</span>
+                                                    {% endif %}
+                                                    {% if subscription.offer.includes_workout_plan %}
+                                                    <span class="badge bg-info"><i class="fas fa-dumbbell"></i> Workout Plan</span>
+                                                    {% endif %}
+                                                    {% if subscription.offer.includes_video_consultations %}
+                                                    <span class="badge bg-warning"><i class="fas fa-video"></i> {{ subscription.offer.num_consultations }} Consultations</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <div class="subscription-actions">
+                                                <a href="{% url 'profiles:subscription_detail' subscription.id %}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-eye"></i> View Details
+                                                </a>
+                                                <div class="remaining-days mt-2">
+                                                    <span class="badge bg-secondary">{{ subscription.remaining_days }} days remaining</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-clipboard-list"></i>
+                                    </div>
+                                    <h5>No Active Plans</h5>
+                                    <p>You don't have any active fitness or diet plans.</p>
+                                    {% if is_own_profile %}
+                                    <a href="{% url 'profiles:create_diet_request' %}" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> Create a Diet Request
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Diet Requests Tab -->
+                    <div class="tab-pane fade" id="diet-requests" role="tabpanel" aria-labelledby="diet-requests-tab">
+                        <div class="card-body">
+                            {% if diet_requests %}
+                                <div class="diet-request-list">
+                                    {% for request in diet_requests %}
+                                    <div class="diet-request-item">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div>
+                                                <h5>{{ request.title }}</h5>
+                                                <p class="request-status">
+                                                    Status: 
+                                                    <span class="badge {% if request.status == 'open' %}bg-success{% elif request.status == 'in_progress' %}bg-warning{% elif request.status == 'completed' %}bg-info{% else %}bg-secondary{% endif %}">
+                                                        {{ request.get_status_display }}
+                                                    </span>
+                                                </p>
+                                                <p class="request-date">Created: {{ request.created_at|date }}</p>
+                                                <p class="offer-count">
+                                                    <i class="fas fa-comment-dollar"></i> {{ request.offers.count }} offer{{ request.offers.count|pluralize }}
+                                                </p>
+                                            </div>
+                                            <div class="request-actions">
+                                                <a href="{% url 'profiles:diet_request_detail' request.id %}" class="btn btn-sm btn-primary">
+                                                    <i class="fas fa-eye"></i> View Details
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% if is_own_profile %}
+                                <div class="mt-3 text-center">
+                                    <a href="{% url 'profiles:create_diet_request' %}" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> Create New Diet Request
+                                    </a>
+                                </div>
+                                {% endif %}
+                            {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">
+                                        <i class="fas fa-utensils"></i>
+                                    </div>
+                                    <h5>No Diet Requests</h5>
+                                    <p>You haven't created any diet plan requests yet.</p>
+                                    {% if is_own_profile %}
+                                    <a href="{% url 'profiles:create_diet_request' %}" class="btn btn-success">
+                                        <i class="fas fa-plus"></i> Create a Diet Request
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Progress Gallery -->
+            <div class="card mt-4 gallery-card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4><i class="fas fa-images"></i> Progress Gallery</h4>
+                        <a href="{% url 'profiles:client_progress' %}" class="btn btn-sm btn-primary">
+                            <i class="fas fa-chart-bar"></i> View Full Progress
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if progress_photos %}
+                        <div class="row gallery-container">
+                            {% for photo in progress_photos %}
+                            <div class="col-md-4 mb-3">
+                                <div class="gallery-item">
+                                    <img src="{{ photo.progress_photo.url }}" alt="Progress Photo" class="img-fluid rounded">
+                                    <div class="gallery-caption">
+                                        <p>{{ photo.report_date }}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="empty-state">
+                            <div class="empty-state-icon">
+                                <i class="fas fa-images"></i>
+                            </div>
+                            <h5>No Progress Photos</h5>
+                            <p>Track your progress by adding photos as you achieve your fitness goals!</p>
+                            {% if is_own_profile and active_subscriptions %}
+                            <a href="{% url 'profiles:add_progress_report' %}" class="btn btn-success">
+                                <i class="fas fa-plus"></i> Add Progress Report
+                            </a>
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/client/client_profile_view.js' %}"></script>
+{% endblock %}
