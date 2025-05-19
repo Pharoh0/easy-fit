@@ -1,0 +1,151 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Diet Request Details | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/diet_requests.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container diet-request-container">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="page-header">
+                <h1><i class="fas fa-utensils"></i> Diet Request</h1>
+                <p>
+                    <span class="badge" id="request-status">Status</span>
+                </p>
+                <p class="text-muted">Requested on <span id="request-date">-</span></p>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-12">
+            <div class="action-buttons">
+                <a href="{% url 'profiles:list_diet_requests' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left"></i> Back to Requests
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loading-spinner" class="text-center my-5">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <!-- Error Container -->
+    <div id="error-container" class="alert alert-danger my-3" style="display: none;"></div>
+
+    <!-- Diet Request Detail Container -->
+    <div id="request-detail" class="row mt-4" data-request-id="{{ request.id }}" style="display: none;">
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-user-shield"></i> Coach</h5>
+                </div>
+                <div class="card-body">
+                    <div class="coach-profile">
+                        <img src="" alt="Coach profile picture" class="coach-img" id="coach-img">
+                        <h5 id="coach-name">Coach Name</h5>
+                        <div class="coach-actions mt-3">
+                            <a href="#" class="btn btn-primary btn-sm view-profile-btn">
+                                <i class="fas fa-eye"></i> View Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mb-4" id="offer-section" style="display: none;">
+                <div class="card-header bg-success text-white">
+                    <h5><i class="fas fa-tag"></i> Diet Plan Offer</h5>
+                </div>
+                <div class="card-body">
+                    <div class="offer-details">
+                        <h4 class="offer-price"><span id="offer-price">$0</span></h4>
+                        <p class="text-muted">This coach has made you an offer for a personalized diet plan.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5><i class="fas fa-cogs"></i> Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div id="request-actions">
+                        <!-- Action buttons will be added here dynamically -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5><i class="fas fa-bullseye"></i> Your Goals</h5>
+                </div>
+                <div class="card-body">
+                    <p id="request-goals">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card mb-4" id="restrictions-section">
+                <div class="card-header">
+                    <h5><i class="fas fa-ban"></i> Dietary Restrictions</h5>
+                </div>
+                <div class="card-body">
+                    <p id="request-restrictions">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card mb-4" id="allergies-section">
+                <div class="card-header">
+                    <h5><i class="fas fa-exclamation-triangle"></i> Allergies</h5>
+                </div>
+                <div class="card-body">
+                    <p id="request-allergies">Loading...</p>
+                </div>
+            </div>
+
+            <div class="card" id="notes-section">
+                <div class="card-header">
+                    <h5><i class="fas fa-sticky-note"></i> Additional Notes</h5>
+                </div>
+                <div class="card-body">
+                    <p id="request-notes">Loading...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Modal content will be set dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn" id="confirmActionBtn" data-action="" data-request-id="">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="{% static 'profiles/js/api.js' %}"></script>
+    <script src="{% static 'profiles/js/client/diet_requests_api.js' %}"></script>
+{% endblock %}
