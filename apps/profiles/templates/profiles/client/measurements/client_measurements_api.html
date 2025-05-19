@@ -1,0 +1,404 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Measurements | Eazy Fit{% endblock %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{% static 'profiles/css/client/measurements.css' %}">
+{% endblock %}
+
+{% block content %}
+<body data-client-id="{{ request.user.client_profile.id }}">
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="page-title-box">
+                <div class="page-title-right">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb m-0">
+                            <li class="breadcrumb-item"><a href="{% url 'auth_users:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'profiles:client_profile' %}">Profile</a></li>
+                            <li class="breadcrumb-item active">Measurements</li>
+                        </ol>
+                    </nav>
+                </div>
+                <h4 class="page-title">My Measurements</h4>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading and error containers -->
+    <div id="loading-spinner" class="text-center" style="display: none;">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+    <div id="error-container" class="alert alert-danger" style="display: none;"></div>
+
+    <div class="row">
+        <!-- Latest Measurements Card -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Latest Measurements</h5>
+                </div>
+                <div class="card-body">
+                    <div id="latest-measurements">
+                        <div class="skeleton-loader"></div>
+                    </div>
+                </div>
+                <div class="card-footer text-center">
+                    <button id="add-measurement-btn" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add New Measurement
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Graphs Card -->
+        <div class="col-lg-8 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Progress Overview</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-primary active" data-metric="weight">Weight</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-metric="body_fat">Body Fat %</button>
+                        <button type="button" class="btn btn-sm btn-outline-primary" data-metric="muscle_mass">Muscle Mass</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="measurement-chart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Measurement History Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Measurement History</h5>
+                    <button id="compare-measurements-btn" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-exchange-alt"></i> Compare Measurements
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-centered mb-0" id="measurements-table">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Weight (kg)</th>
+                                        <th>Height (cm)</th>
+                                        <th>BMI</th>
+                                        <th>Body Fat %</th>
+                                        <th>Muscle (kg)</th>
+                                        <th>Water %</th>
+                                        <th>Bone Mass (kg)</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="measurements-table-body">
+                                    <!-- Measurements will be loaded here via JavaScript -->
+                                    <tr>
+                                        <td colspan="9" class="text-center py-4">
+                                            <div class="spinner-border text-primary" role="status">
+                                                <span class="visually-hidden">Loading...</span>
+                                            </div>
+                                            <p class="mt-2 mb-0">Loading measurements...</p>
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Measurement Detail Modal -->
+    <div class="modal fade" id="measurementModal" tabindex="-1" aria-labelledby="measurementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="measurementModalLabel">Measurement Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="measurement-modal-body">
+                    <div class="skeleton-loader"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Measurement Modal -->
+    <div class="modal fade" id="addMeasurementModal" tabindex="-1" aria-labelledby="addMeasurementModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addMeasurementModalLabel">Add New Measurement</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="add-measurement-form" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="measurement-date" class="form-label">Date</label>
+                                <input type="date" class="form-control" id="measurement-date" required>
+                                <div class="invalid-feedback">Please select a date.</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Basic Information -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Basic Information</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="measurement-weight" class="form-label">Weight (kg) <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-weight" required>
+                                        <div class="invalid-feedback">Please enter your weight.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-height" class="form-label">Height (cm) <span class="text-danger">*</span></label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-height" required>
+                                        <div class="invalid-feedback">Please enter your height.</div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-bmi" class="form-label">BMI</label>
+                                        <div class="input-group">
+                                            <input type="number" step="0.1" class="form-control" id="measurement-bmi" readonly>
+                                            <button class="btn btn-outline-secondary" type="button" id="calculate-bmi">
+                                                <i class="fas fa-calculator"></i> Calculate
+                                            </button>
+                                        </div>
+                                        <div id="bmi-feedback" class="form-text mt-1"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Body Composition -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Body Composition</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="measurement-body-fat" class="form-label">Body Fat (%)</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-body-fat">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-muscle-mass" class="form-label">Muscle Mass (kg)</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-muscle-mass">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-water-percentage" class="form-label">Water %</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-water-percentage">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-bone-mass" class="form-label">Bone Mass (kg)</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-bone-mass">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-visceral-fat" class="form-label">Visceral Fat</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-visceral-fat">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-metabolic-age" class="form-label">Metabolic Age</label>
+                                        <input type="number" class="form-control" id="measurement-metabolic-age">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Body Measurements -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Body Measurements (cm)</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="measurement-neck" class="form-label">Neck</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-neck">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-shoulders" class="form-label">Shoulders</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-shoulders">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-chest" class="form-label">Chest</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-chest">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-waist" class="form-label">Waist</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-waist">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-hips" class="form-label">Hips</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-hips">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-upper-arms" class="form-label">Upper Arms</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-upper-arms">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-forearms" class="form-label">Forearms</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-forearms">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-thighs" class="form-label">Thighs</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-thighs">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-calves" class="form-label">Calves</label>
+                                        <input type="number" step="0.1" class="form-control" id="measurement-calves">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Photo Upload Section -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Progress Photos (Optional)</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="row g-3">
+                                    <div class="col-md-4">
+                                        <label for="measurement-front-photo" class="form-label">Front Photo</label>
+                                        <input type="file" class="form-control" id="measurement-front-photo" accept="image/*">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-side-photo" class="form-label">Side Photo</label>
+                                        <input type="file" class="form-control" id="measurement-side-photo" accept="image/*">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label for="measurement-back-photo" class="form-label">Back Photo</label>
+                                        <input type="file" class="form-control" id="measurement-back-photo" accept="image/*">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Additional Information -->
+                        <div class="card mb-3">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">Additional Information</h6>
+                            </div>
+                            <div class="card-body p-3">
+                                <div class="mb-0">
+                                    <label for="measurement-notes" class="form-label">Notes</label>
+                                    <textarea class="form-control" id="measurement-notes" rows="3" placeholder="Enter any additional notes about this measurement..."></textarea>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Goal Measurement Setting -->
+                        <div class="card mb-3">
+                            <div class="card-body p-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="measurement-is-goal">
+                                    <label class="form-check-label" for="measurement-is-goal">
+                                        Set as goal measurement
+                                    </label>
+                                    <small class="text-muted d-block mt-1">Check this box if this measurement represents a fitness goal you want to achieve.</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Form Buttons -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="save-measurement-btn">Save Measurement</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer d-none">
+                    <!-- Buttons are now in the form itself -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Compare Measurements Modal -->
+    <div class="modal fade" id="compareMeasurementsModal" tabindex="-1" aria-labelledby="compareMeasurementsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title" id="compareMeasurementsModalLabel">
+                        <i class="fas fa-balance-scale-left me-2"></i>Compare Measurements
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>Select two different measurements to compare progress over time.
+                    </div>
+                    
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-5">
+                            <label for="compare-measurement-1" class="form-label fw-bold">First Measurement</label>
+                            <select class="form-select" id="compare-measurement-1" aria-label="Select first measurement">
+                                <option value="" selected disabled>Select first measurement</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end justify-content-center">
+                            <span class="h4 text-muted fw-bold">vs</span>
+                        </div>
+                        <div class="col-md-5">
+                            <label for="compare-measurement-2" class="form-label fw-bold">Second Measurement</label>
+                            <select class="form-select" id="compare-measurement-2" aria-label="Select second measurement">
+                                <option value="" selected disabled>Select second measurement</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="card border-0 shadow-sm mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Comparison Results</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div id="comparison-results" class="p-4">
+                                <div class="text-center text-muted py-5">
+                                    <i class="fas fa-balance-scale fa-3x d-block mb-3 text-muted"></i>
+                                    <h5>Select two measurements to compare</h5>
+                                    <p class="mb-0">Choose different dates to see your progress over time</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="alert alert-warning d-none" id="comparison-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <span id="warning-message"></span>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="fas fa-times me-1"></i> Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'profiles/js/client/measurements.js' %}"></script>
+{% endblock %}
+</body>
