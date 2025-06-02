@@ -5,6 +5,8 @@
 
 {% block extra_head %}
     <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_view.css' %}">
+    <!-- Add tippy.js for tooltips -->
+    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css">
 {% endblock %}
 
 {% block content %}
@@ -16,9 +18,12 @@
                 <!-- Cover image will be loaded by JS -->
             </div>
             <div class="profile-info">
-                <div class="profile-avatar">
-                    <div id="avatar-container">
+                <div class="profile-avatar" data-tippy-content="Profile Photo">
+                    <div id="avatar-container" class="avatar-container">
                         <!-- Avatar will be loaded by JS -->
+                        <div class="default-avatar">
+                            <i class="fas fa-user"></i>
+                        </div>
                     </div>
                 </div>
                 <div class="profile-name">
@@ -43,7 +48,7 @@
                     </div>
                 </div>
                 <div class="card-footer text-center">
-                    <button class="btn btn-primary" id="edit-profile-btn">
+                    <button class="btn btn-primary" id="edit-profile-btn" data-tippy-content="Update your profile information">
                         <i class="fas fa-edit"></i> Edit Profile
                     </button>
                 </div>
@@ -57,7 +62,7 @@
                 <div class="card-header">
                     <div class="d-flex justify-content-between align-items-center">
                         <h4><i class="fas fa-chart-line"></i> Fitness Statistics</h4>
-                        <button class="btn btn-sm btn-primary" id="view-measurements-btn">
+                        <button class="btn btn-sm btn-primary" id="view-measurements-btn" data-tippy-content="See your complete measurement history">
                             <i class="fas fa-weight"></i> View All Measurements
                         </button>
                     </div>
@@ -80,18 +85,22 @@
 
             <!-- Active Plan / Diet Requests -->
             <div class="card mt-4 plans-card">
-                <ul class="nav nav-tabs" id="plansTab" role="tablist">
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true">
-                            <i class="fas fa-clipboard-list"></i> Active Plans
-                        </button>
-                    </li>
-                    <li class="nav-item" role="presentation">
-                        <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false">
-                            <i class="fas fa-utensils"></i> Diet Requests
-                        </button>
-                    </li>
-                </ul>
+                <div class="card-header p-0 border-bottom-0">
+                    <ul class="nav nav-tabs card-header-tabs" id="plansTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true" data-tippy-content="View your current active fitness and diet plans">
+                                <i class="fas fa-clipboard-list"></i> Active Plans
+                                <span class="badge rounded-pill bg-primary ms-1" id="active-plans-count">0</span>
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false" data-tippy-content="Manage your diet consultation requests">
+                                <i class="fas fa-utensils"></i> Diet Requests
+                                <span class="badge rounded-pill bg-info ms-1" id="diet-requests-count">0</span>
+                            </button>
+                        </li>
+                    </ul>
+                </div>
                 <div class="tab-content" id="plansTabContent">
                     <!-- Active Plans Tab -->
                     <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
@@ -116,18 +125,39 @@
 
             <!-- Progress Gallery -->
             <div class="card mt-4 gallery-card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4><i class="fas fa-images"></i> Progress Gallery</h4>
-                        <button class="btn btn-sm btn-primary" id="view-all-progress-btn">
-                            <i class="fas fa-external-link-alt"></i> View All
-                        </button>
-                    </div>
+                <div class="card-header p-0 border-bottom-0">
+                    <ul class="nav nav-tabs card-header-tabs" id="galleryTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="before-after-tab" data-bs-toggle="tab" data-bs-target="#before-after" type="button" role="tab" aria-controls="before-after" aria-selected="true" data-tippy-content="View your progress transformation">
+                                <i class="fas fa-sync-alt"></i> Before & After
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="all-photos-tab" data-bs-toggle="tab" data-bs-target="#all-photos" type="button" role="tab" aria-controls="all-photos" aria-selected="false" data-tippy-content="Browse all your progress photos">
+                                <i class="fas fa-images"></i> All Photos
+                                <span class="badge rounded-pill bg-primary ms-1" id="photos-count">0</span>
+                            </button>
+                        </li>
+                    </ul>
                 </div>
-                <div class="card-body">
-                    <div class="progress-gallery" id="progress-gallery">
-                        <!-- Progress gallery will be loaded by JS -->
-                        <div class="skeleton-loader"></div>
+                <div class="tab-content" id="galleryTabContent">
+                    <!-- Before & After Tab -->
+                    <div class="tab-pane fade show active" id="before-after" role="tabpanel" aria-labelledby="before-after-tab">
+                        <div class="card-body">
+                            <div id="before-after-container">
+                                <!-- Before & After content will be loaded by JS -->
+                                <div class="skeleton-loader"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- All Photos Tab -->
+                    <div class="tab-pane fade" id="all-photos" role="tabpanel" aria-labelledby="all-photos-tab">
+                        <div class="card-body">
+                            <div id="all-photos-container" class="gallery-grid">
+                                <!-- All photos will be loaded by JS -->
+                                <div class="skeleton-loader"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -137,6 +167,14 @@
 {% endblock %}
 
 {% block extra_js %}
+    <!-- Third-party libraries -->
+    <script src="https://unpkg.com/@popperjs/core@2"></script>
+    <script src="https://unpkg.com/tippy.js@6"></script>
+    
+    <!-- App scripts - Load API module first and only once -->
     <script src="{% static 'profiles/js/api.js' %}"></script>
+    
+    <!-- Client profile modules -->
     <script src="{% static 'profiles/js/client/client_profile_api.js' %}"></script>
+    <script src="{% static 'profiles/js/client/client_profile_view.js' %}"></script>
 {% endblock %}
