@@ -45,6 +45,9 @@ async function initializeProfilePage() {
         // Fetch and display diet requests
         await fetchAndDisplayDietRequests();
         
+        // Fetch and display progress gallery
+        await fetchAndDisplayProgressGallery();
+        
         // Set up event listeners
         setupEventListeners();
     } catch (error) {
@@ -328,6 +331,13 @@ async function fetchAndDisplaySubscriptions() {
         // Filter active subscriptions
         const activeSubscriptions = subscriptions.filter(sub => sub.status === 'active' || sub.status === 'paused');
         
+        // Update count badge
+        const countBadge = document.getElementById('active-plans-count');
+        if (countBadge) {
+            countBadge.textContent = activeSubscriptions.length;
+            countBadge.classList.remove('d-none');
+        }
+        
         if (activeSubscriptions.length > 0) {
             let html = '<div class="active-plans-list">';
             
@@ -397,6 +407,13 @@ async function fetchAndDisplayDietRequests() {
             .filter(req => ['pending', 'in_progress', 'completed'].includes(req.status))
             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
             .slice(0, 5); // Show only 5 most recent
+        
+        // Update count badge
+        const countBadge = document.getElementById('diet-requests-count');
+        if (countBadge) {
+            countBadge.textContent = dietRequests.length;
+            countBadge.classList.remove('d-none');
+        }
         
         if (recentRequests.length > 0) {
             let html = '<div class="diet-request-list">';
@@ -485,6 +502,265 @@ function setupEventListeners() {
             // Redirect to progress page
             window.location.href = '/profiles/client/progress/';
         });
+    }
+    
+    // Gallery lightbox modal functionality
+    document.body.addEventListener('click', function(e) {
+        if (e.target && e.target.classList.contains('gallery-image')) {
+            e.preventDefault();
+            const imageUrl = e.target.src;
+            if (typeof openGalleryModal === 'function') {
+                openGalleryModal(imageUrl);
+            }
+        }
+    });
+}
+
+/**
+ * Fetch and display progress gallery
+ */
+async function fetchAndDisplayProgressGallery() {
+    try {
+        // Get containers
+        const beforeAfterContainer = document.getElementById('before-after-container');
+        const allPhotosContainer = document.getElementById('all-photos-container');
+        const beforeAfterBadge = document.getElementById('before-after-count');
+        const allPhotosBadge = document.getElementById('all-photos-count');
+        
+        // Reset containers
+        if (beforeAfterContainer) {
+            beforeAfterContainer.innerHTML = '<div class="skeleton-loader"></div>';
+        }
+        if (allPhotosContainer) {
+            allPhotosContainer.innerHTML = '<div class="skeleton-loader"></div>';
+        }
+        
+        // Fetch progress reports which contain photos
+        const progressReports = await fetchAPI('client-progress-reports/', 'GET');
+        
+        // Exit if no containers found
+        if (!beforeAfterContainer && !allPhotosContainer) {
+            console.warn('Gallery containers not found in the DOM');
+            return;
+        }
+        
+        // Handle empty state
+        if (!progressReports || progressReports.length === 0) {
+            const emptyState = `
+                <div class="empty-state">
+                    <div class="empty-state-icon">
+                        <i class="fas fa-images"></i>
+                    </div>
+                    <h3>No Progress Photos Yet</h3>
+                    <p>Track your fitness journey by adding progress photos to your active plans.</p>
+                </div>
+            `;
+            
+            if (beforeAfterContainer) {
+                beforeAfterContainer.innerHTML = emptyState;
+            }
+            if (allPhotosContainer) {
+                allPhotosContainer.innerHTML = emptyState;
+            }
+            
+            // Update badges
+            if (beforeAfterBadge) beforeAfterBadge.textContent = '0';
+            if (allPhotosBadge) allPhotosBadge.textContent = '0';
+            
+            return;
+        }
+        
+        // Process the reports
+        const beforeAfterPairs = [];
+        const allPhotos = [];
+        
+        // Extract before/after pairs and all photos
+        progressReports.forEach(report => {
+            // If report has both before and after photos, add to before/after pairs
+            if (report.before_photo && report.after_photo) {
+                beforeAfterPairs.push({
+                    id: report.id,
+                    title: report.title || `Progress Report #${report.id}`,
+                    date: report.created_at,
+                    beforePhoto: report.before_photo,
+                    afterPhoto: report.after_photo
+                });
+            }
+            
+            // Add all photos to the all photos array
+            if (report.before_photo) {
+                allPhotos.push({
+                    url: report.before_photo,
+                    title: `Before - ${report.title || `Progress Report #${report.id}`}`,
+                    reportId: report.id,
+                    date: report.created_at
+                });
+            }
+            
+            if (report.after_photo) {
+                allPhotos.push({
+                    url: report.after_photo,
+                    title: `After - ${report.title || `Progress Report #${report.id}`}`,
+                    reportId: report.id,
+                    date: report.created_at
+                });
+            }
+            
+            // Add any additional photos
+            if (report.additional_photos && Array.isArray(report.additional_photos)) {
+                report.additional_photos.forEach((photoUrl, index) => {
+                    allPhotos.push({
+                        url: photoUrl,
+                        title: `Photo ${index+1} - ${report.title || `Progress Report #${report.id}`}`,
+                        reportId: report.id,
+                        date: report.created_at
+                    });
+                });
+            }
+        });
+        
+        // Update badges
+        if (beforeAfterBadge) beforeAfterBadge.textContent = beforeAfterPairs.length;
+        if (allPhotosBadge) allPhotosBadge.textContent = allPhotos.length;
+        
+        // Render Before & After section
+        if (beforeAfterContainer) {
+            if (beforeAfterPairs.length > 0) {
+                // Sort by most recent first
+                beforeAfterPairs.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                // Take the most recent 3 for display
+                const recentPairs = beforeAfterPairs.slice(0, 3);
+                
+                let html = '<div class="row">';
+                
+                recentPairs.forEach(pair => {
+                    const formattedDate = formatDate(pair.date);
+                    
+                    html += `
+                        <div class="col-md-4 mb-4">
+                            <div class="comparison-card">
+                                <div class="comparison-header">
+                                    <h5>${pair.title}</h5>
+                                    <span class="date">${formattedDate}</span>
+                                </div>
+                                <div class="comparison-images">
+                                    <div class="comparison-image before">
+                                        <img src="${pair.beforePhoto}" alt="Before" class="gallery-image" 
+                                            data-gallery-id="${pair.id}" data-image-type="before">
+                                        <div class="image-label">Before</div>
+                                    </div>
+                                    <div class="comparison-image after">
+                                        <img src="${pair.afterPhoto}" alt="After" class="gallery-image" 
+                                            data-gallery-id="${pair.id}" data-image-type="after">
+                                        <div class="image-label">After</div>
+                                    </div>
+                                </div>
+                                <div class="comparison-footer">
+                                    <a href="/profiles/client/progress-reports/report/${pair.id}/" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i> View Details
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                // Add view all button if there are more than shown
+                if (beforeAfterPairs.length > 3) {
+                    html += `
+                        <div class="text-center mt-3">
+                            <a href="/profiles/client/progress-reports/" class="btn btn-outline-primary">
+                                <i class="fas fa-images"></i> View All Comparisons (${beforeAfterPairs.length})
+                            </a>
+                        </div>
+                    `;
+                }
+                
+                beforeAfterContainer.innerHTML = html;
+            } else {
+                beforeAfterContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-images"></i>
+                        </div>
+                        <h3>No Before & After Comparisons</h3>
+                        <p>Add before and after photos to track your transformation journey.</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Render All Photos section
+        if (allPhotosContainer) {
+            if (allPhotos.length > 0) {
+                // Sort by most recent first
+                allPhotos.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                let html = '<div class="gallery-grid">';
+                
+                allPhotos.forEach((photo, index) => {
+                    html += `
+                        <div class="gallery-item">
+                            <img src="${photo.url}" alt="${photo.title}" class="gallery-image" 
+                                data-index="${index}" data-tippy-content="${photo.title}">
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                
+                // Add view all button if there are many photos
+                if (allPhotos.length > 12) {
+                    html += `
+                        <div class="text-center mt-3">
+                            <a href="/profiles/client/progress-reports/" class="btn btn-outline-primary">
+                                <i class="fas fa-images"></i> View All Photos (${allPhotos.length})
+                            </a>
+                        </div>
+                    `;
+                }
+                
+                allPhotosContainer.innerHTML = html;
+                
+                // Initialize tooltips if Tippy.js is available
+                if (typeof tippy === 'function') {
+                    tippy('.gallery-image[data-tippy-content]', {
+                        placement: 'top',
+                        arrow: true,
+                        theme: 'light',
+                        animation: 'scale'
+                    });
+                }
+            } else {
+                allPhotosContainer.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">
+                            <i class="fas fa-images"></i>
+                        </div>
+                        <h3>No Progress Photos</h3>
+                        <p>Track your fitness journey by adding progress photos.</p>
+                    </div>
+                `;
+            }
+        }
+    } catch (error) {
+        console.error('Error fetching progress gallery:', error);
+        
+        // Show error in containers
+        const beforeAfterContainer = document.getElementById('before-after-container');
+        const allPhotosContainer = document.getElementById('all-photos-container');
+        
+        const errorHtml = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle"></i> Failed to load gallery. Please try again later.
+            </div>
+        `;
+        
+        if (beforeAfterContainer) beforeAfterContainer.innerHTML = errorHtml;
+        if (allPhotosContainer) allPhotosContainer.innerHTML = errorHtml;
     }
 }
 
