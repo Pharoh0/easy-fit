@@ -98,8 +98,8 @@ function handleTokenExpiry() {
 // Automatically refresh the token before it expires
 function scheduleTokenRefresh() {
     // Check if user is logged in before scheduling a refresh
-    const refreshToken = localStorage.getItem('refresh_token');
-    if (!refreshToken) {
+    const refreshTokenValue = localStorage.getItem('refresh_token');
+    if (!refreshTokenValue) {
         // No token to refresh, check again later
         setTimeout(scheduleTokenRefresh, 30000); // Check again in 30 seconds
         return;
@@ -107,7 +107,7 @@ function scheduleTokenRefresh() {
     
     const accessTokenLifetime = 60 * 1000; // 1 minute in milliseconds
     setTimeout(() => {
-        refreshToken();
+        refreshToken(); // Call the function to refresh the token
         scheduleTokenRefresh(); // Schedule the next refresh
     }, accessTokenLifetime - 5000); // Refresh 5 seconds before expiration
 }
