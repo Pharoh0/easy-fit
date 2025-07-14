@@ -4,7 +4,9 @@ from apps.profiles.client_profile.models import (
     ClientMeasurement, 
     ClientDietRequest, 
     ClientSubscription,
-    ProgressReport
+    ProgressReport,
+    BodyPart,
+    BodyPartMeasurement
 )
 from apps.profiles.coach_profile.models import CoachProfile
 from apps.profiles.coach_profile.serializers import CoachProfileMinimalSerializer
@@ -28,6 +30,9 @@ class ClientProfileMinimalSerializer(serializers.ModelSerializer):
         return f"{obj.user.first_name} {obj.user.last_name}"
 
 class ClientMeasurementSerializer(serializers.ModelSerializer):
+    # Add BMI as a calculated field since it's not in the model
+    bmi = serializers.SerializerMethodField()
+    
     class Meta:
         model = ClientMeasurement
         fields = [
@@ -36,14 +41,16 @@ class ClientMeasurementSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['client']
     
+    def get_bmi(self, obj):
+        # Calculate BMI if height and weight are available
+        if obj.weight and obj.height and obj.height > 0:
+            height_m = float(obj.height) / 100  # Convert cm to meters
+            weight_kg = float(obj.weight)
+            return round(weight_kg / (height_m * height_m), 2)
+        return None
+    
     def create(self, validated_data):
-        # Calculate BMI if not provided
-        if not validated_data.get('bmi') and validated_data.get('weight') and validated_data.get('height'):
-            # Height in meters, weight in kg
-            height_m = float(validated_data['height']) / 100
-            weight_kg = float(validated_data['weight'])
-            validated_data['bmi'] = round(weight_kg / (height_m * height_m), 2)
-        
+        # BMI is now calculated via get_bmi method, not stored in the model
         return super().create(validated_data)
 
 class ProgressReportSerializer(serializers.ModelSerializer):
@@ -116,3 +123,104 @@ class ClientSubscriptionSerializer(serializers.ModelSerializer):
     
     def get_progress_reports_count(self, obj):
         return ProgressReport.objects.filter(subscription=obj).count()
+
+
+class BodyPartSerializer(serializers.ModelSerializer):
+    """Serializer for BodyPart model"""
+    category_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BodyPart
+        fields = [
+            'id', 'name', 'display_name', 'description', 'image_coordinates',
+            'category', 'category_display', 'sort_order', 'is_default',
+            'created_at', 'updated_at'
+        ]
+    
+    def get_category_display(self, obj):
+        return dict(BodyPart._meta.get_field('category').choices).get(obj.category) if obj.category else None
+
+
+class BodyPartMeasurementSerializer(serializers.ModelSerializer):
+    """Serializer for BodyPartMeasurement model"""
+    body_part_details = BodyPartSerializer(source='body_part', read_only=True)
+    body_part_id = serializers.PrimaryKeyRelatedField(
+        queryset=BodyPart.objects.all(),
+        source='body_part',
+        write_only=True
+    )
+    unit_display = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = BodyPartMeasurement
+        fields = [
+            'id', 'measurement', 'body_part', 'body_part_details', 'body_part_id',
+            'value', 'unit', 'unit_display', 'notes', 'created_at', 'updated_at'
+        ]
+        read_only_fields = ['body_part']
+    
+    def get_unit_display(self, obj):
+        return dict(BodyPartMeasurement._meta.get_field('unit').choices).get(obj.unit)
+
+
+class EnhancedClientMeasurementSerializer(ClientMeasurementSerializer):
+    """Enhanced Client Measurement serializer with body parts"""
+    body_part_measurements = BodyPartMeasurementSerializer(many=True, read_only=True)
+    body_parts_data = serializers.ListField(child=serializers.JSONField(), write_only=True, required=False)
+    
+    class Meta(ClientMeasurementSerializer.Meta):
+        fields = ClientMeasurementSerializer.Meta.fields + ['body_part_measurements', 'body_parts_data']
+    
+    def create(self, validated_data):
+        body_parts_data = validated_data.pop('body_parts_data', [])
+        measurement = super().create(validated_data)
+        
+        # Create body part measurements
+        for part_data in body_parts_data:
+            body_part_id = part_data.get('body_part_id')
+            value = part_data.get('value')
+            unit = part_data.get('unit', 'cm')
+            notes = part_data.get('notes', '')
+            
+            if body_part_id and value:
+                try:
+                    body_part = BodyPart.objects.get(id=body_part_id)
+                    BodyPartMeasurement.objects.create(
+                        measurement=measurement,
+                        body_part=body_part,
+                        value=value,
+                        unit=unit,
+                        notes=notes
+                    )
+                except BodyPart.DoesNotExist:
+                    pass  # Skip invalid body part IDs
+        
+        return measurement
+    
+    def update(self, instance, validated_data):
+        body_parts_data = validated_data.pop('body_parts_data', [])
+        measurement = super().update(instance, validated_data)
+        
+        # Update body part measurements
+        for part_data in body_parts_data:
+            body_part_id = part_data.get('body_part_id')
+            value = part_data.get('value')
+            unit = part_data.get('unit', 'cm')
+            notes = part_data.get('notes', '')
+            
+            if body_part_id and value:
+                try:
+                    body_part = BodyPart.objects.get(id=body_part_id)
+                    measurement_obj, created = BodyPartMeasurement.objects.update_or_create(
+                        measurement=measurement,
+                        body_part=body_part,
+                        defaults={
+                            'value': value,
+                            'unit': unit,
+                            'notes': notes
+                        }
+                    )
+                except BodyPart.DoesNotExist:
+                    pass  # Skip invalid body part IDs
+        
+        return measurement
