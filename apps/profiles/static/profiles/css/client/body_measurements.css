@@ -1,0 +1,176 @@
+/* Body Measurements CSS */
+
+/* Body diagram styling */
+.body-diagram {
+    max-height: 500px;
+}
+
+.body-part-marker {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background-color: rgba(13, 110, 253, 0.7);
+    border: 2px solid #fff;
+    cursor: pointer;
+    transform: translate(-50%, -50%);
+    transition: all 0.2s ease;
+    z-index: 10;
+}
+
+.body-part-marker:hover,
+.body-part-marker.active {
+    background-color: #0d6efd;
+    transform: translate(-50%, -50%) scale(1.3);
+    box-shadow: 0 0 15px rgba(13, 110, 253, 0.6);
+}
+
+.body-part-marker.highlight {
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0.7);
+    }
+    70% {
+        box-shadow: 0 0 0 10px rgba(13, 110, 253, 0);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(13, 110, 253, 0);
+    }
+}
+
+/* Trend indicators */
+.trend {
+    display: flex;
+    align-items: center;
+    font-weight: bold;
+}
+
+.trend i {
+    margin-left: 4px;
+}
+
+.trend-up {
+    color: #dc3545; /* Red for increase (usually bad for measurements) */
+}
+
+.trend-down {
+    color: #198754; /* Green for decrease (usually good for measurements) */
+}
+
+.trend-neutral {
+    color: #6c757d; /* Gray for no change */
+}
+
+/* Progress bars styling */
+.progress {
+    height: 8px;
+    border-radius: 4px;
+}
+
+/* Stats styling */
+.stat-item {
+    padding: 10px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Table cell with measurement change */
+.change-value {
+    font-weight: bold;
+    padding: 2px 6px;
+    border-radius: 4px;
+}
+
+.change-positive {
+    background-color: rgba(220, 53, 69, 0.1);
+    color: #dc3545;
+}
+
+.change-negative {
+    background-color: rgba(25, 135, 84, 0.1);
+    color: #198754;
+}
+
+.change-neutral {
+    background-color: rgba(108, 117, 125, 0.1);
+    color: #6c757d;
+}
+
+/* Body parts container in the add measurement form */
+.body-part-checkbox {
+    margin-bottom: 10px;
+}
+
+.measurement-input-group {
+    margin-bottom: 15px;
+    padding: 10px;
+    border-radius: 6px;
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+/* Chart container */
+.chart-container {
+    position: relative;
+    margin: auto;
+}
+
+/* Tippy tooltip customization */
+.tippy-box[data-theme~='measurement'] {
+    background-color: #fff;
+    color: #212529;
+    border-radius: 8px;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    padding: 8px;
+    font-size: 14px;
+}
+
+.tippy-box[data-theme~='measurement'] .measurement-tooltip {
+    min-width: 180px;
+}
+
+.tippy-box[data-theme~='measurement'] .tippy-arrow {
+    color: #fff;
+}
+
+.measurement-tooltip .tooltip-title {
+    font-weight: bold;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+}
+
+.measurement-tooltip .tooltip-value {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 2px;
+}
+
+/* DataTables customization */
+.dataTables_wrapper .dataTables_length,
+.dataTables_wrapper .dataTables_filter {
+    margin-bottom: 15px;
+}
+
+.dataTables_wrapper .dataTables_info,
+.dataTables_wrapper .dataTables_paginate {
+    margin-top: 15px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767.98px) {
+    .body-diagram {
+        max-height: 300px;
+    }
+    
+    .card-title {
+        font-size: 1.1rem;
+    }
+    
+    .chart-container {
+        height: 250px !important;
+    }
+}
