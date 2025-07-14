@@ -48,6 +48,7 @@ urlpatterns = [
     
     # API-driven Client Measurements URLs
     path('client/measurements/', client_views_api.client_measurements, name='client_measurements'),
+    path('client/body-measurements/', client_views_api.body_measurements_full, name='body_measurements_full'),
     
     # API-driven Client Diet Request URLs
     path('client/diet-requests/', client_views_api.list_diet_requests, name='list_diet_requests'),
