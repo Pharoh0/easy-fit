@@ -1,11 +1,25 @@
 // Client Profile View JavaScript
 
+/**
+ * Global variables for body measurements
+ */
+let bodyParts = [];
+let currentMeasurementId = null;
+let bodyPartMeasurements = [];
+let bodyMeasurementHistory = [];
+let bodyDiagramLoaded = false;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize Bootstrap tooltips
     var bootstrapTooltips = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     bootstrapTooltips.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+    
+    // Initialize body measurements functionality if element exists
+    if (document.getElementById('view-measurements-btn')) {
+        initBodyMeasurements();
+    }
     
     // Initialize Tippy.js tooltips if library is loaded
     if (typeof tippy !== 'undefined') {
@@ -254,8 +268,656 @@ function initializeGalleryLightbox() {
     if (!document.getElementById('galleryLightbox')) {
         document.body.appendChild(lightboxModal);
     }
+}
+
+// ======= BODY MEASUREMENTS FUNCTIONALITY ======= //
+
+/**
+ * Initialize body measurements functionality
+ */
+function initBodyMeasurements() {
+    // Add event listener to measurements button
+    const viewMeasurementsBtn = document.getElementById('view-measurements-btn');
+    if (viewMeasurementsBtn) {
+        viewMeasurementsBtn.addEventListener('click', function() {
+            // Load and display measurements in modal
+            loadAndDisplayMeasurements();
+        });
+    }
+}
+
+/**
+ * Load and display body measurements
+ */
+async function loadAndDisplayMeasurements() {
+    try {
+        // Fetch latest measurements
+        const response = await fetch('/api/v1/client-profile/enhanced-measurements/latest/', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        
+        // Create a modal to show the measurements
+        showBodyMeasurementsModal(data);
+    } catch (error) {
+        console.error('Error loading measurements:', error);
+        alert('Failed to load body measurements. Please try again later.');
+    }
+}
+
+/**
+ * Show body measurements modal
+ */
+function showBodyMeasurementsModal(measurement) {
+    // Create modal if it doesn't exist already
+    let modal = document.getElementById('bodyMeasurementsModal');
+    if (!modal) {
+        // Create modal element
+        modal = document.createElement('div');
+        modal.id = 'bodyMeasurementsModal';
+        modal.className = 'modal fade';
+        modal.setAttribute('tabindex', '-1');
+        modal.setAttribute('aria-labelledby', 'bodyMeasurementsModalLabel');
+        modal.setAttribute('aria-hidden', 'true');
+        
+        // Modal HTML structure - more advanced with tabs for different measurement views
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="bodyMeasurementsModalLabel">Body Measurements</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body" id="bodyMeasurementsModalBody">
+                        <ul class="nav nav-tabs" id="measurementTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="latest-tab" data-bs-toggle="tab" data-bs-target="#latest-measurements" type="button" role="tab" aria-controls="latest-measurements" aria-selected="true">
+                                    Latest Measurements
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#measurement-history" type="button" role="tab" aria-controls="measurement-history" aria-selected="false">
+                                    Measurement History
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="add-tab" data-bs-toggle="tab" data-bs-target="#add-measurement" type="button" role="tab" aria-controls="add-measurement" aria-selected="false">
+                                    Add Measurement
+                                </button>
+                            </li>
+                        </ul>
+                        <div class="tab-content mt-3" id="measurementTabContent">
+                            <div class="tab-pane fade show active" id="latest-measurements" role="tabpanel" aria-labelledby="latest-tab">
+                                <div id="latest-measurements-content">
+                                    <div class="text-center">
+                                        <div class="spinner-border" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="measurement-history" role="tabpanel" aria-labelledby="history-tab">
+                                <div class="row mb-3">
+                                    <div class="col">
+                                        <div class="input-group">
+                                            <span class="input-group-text">Filter</span>
+                                            <input type="text" id="measurements-filter" class="form-control" placeholder="Enter body part...">
+                                            <button class="btn btn-primary" id="measurements-filter-btn">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-auto">
+                                        <select id="measurements-page-size" class="form-select">
+                                            <option value="10">10 per page</option>
+                                            <option value="25">25 per page</option>
+                                            <option value="50">50 per page</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="table-responsive">
+                                    <table id="measurements-history-table" class="table table-striped table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>Date</th>
+                                                <th>Body Part</th>
+                                                <th>Measurement</th>
+                                                <th>Unit</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="measurements-history-tbody">
+                                            <tr>
+                                                <td colspan="5" class="text-center">Loading measurements...</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <div id="measurements-pagination-info">
+                                        Page 1 of 1
+                                    </div>
+                                    <div>
+                                        <button id="measurements-prev-page" class="btn btn-sm btn-outline-secondary" disabled>
+                                            <i class="fas fa-arrow-left"></i> Previous
+                                        </button>
+                                        <button id="measurements-next-page" class="btn btn-sm btn-outline-secondary" disabled>
+                                            Next <i class="fas fa-arrow-right"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="add-measurement" role="tabpanel" aria-labelledby="add-tab">
+                                <form id="add-measurement-form">
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="measurement-date" class="form-label">Date</label>
+                                            <input type="date" class="form-control" id="measurement-date" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="measurement-body-part" class="form-label">Body Part</label>
+                                            <select class="form-select" id="measurement-body-part" required>
+                                                <option value="" disabled selected>Select a body part</option>
+                                                <!-- Body parts will be populated dynamically -->
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <label for="measurement-value" class="form-label">Measurement</label>
+                                            <input type="number" step="0.01" class="form-control" id="measurement-value" required>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="measurement-unit" class="form-label">Unit</label>
+                                            <select class="form-select" id="measurement-unit" required>
+                                                <option value="cm">Centimeters (cm)</option>
+                                                <option value="in">Inches (in)</option>
+                                                <option value="kg">Kilograms (kg)</option>
+                                                <option value="lb">Pounds (lb)</option>
+                                                <option value="%">Percent (%)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="measurement-notes" class="form-label">Notes</label>
+                                        <textarea class="form-control" id="measurement-notes" rows="3"></textarea>
+                                    </div>
+                                    <div class="d-grid">
+                                        <button type="submit" class="btn btn-primary">Save Measurement</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <a href="#" class="btn btn-primary" id="viewFullMeasurementsBtn">
+                            <i class="fas fa-external-link-alt"></i> View Full Measurements Page
+                        </a>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+        // Set up event listeners for the modal's interactive elements
+        setupMeasurementModalEvents();
+    }
     
-    // Add lightbox CSS
+    // Populate the modal with measurement data
+    populateMeasurementData(measurement);
+    
+    // Initialize and show the modal
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+}
+
+/**
+ * Set up event listeners for the measurement modal's interactive elements
+ */
+function setupMeasurementModalEvents() {
+    // Set up event listener for adding new measurement
+    const addMeasurementForm = document.getElementById('add-measurement-form');
+    if (addMeasurementForm) {
+        addMeasurementForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveMeasurement();
+        });
+    }
+    
+    // Set up event listeners for pagination buttons
+    const prevPageBtn = document.getElementById('measurements-prev-page');
+    const nextPageBtn = document.getElementById('measurements-next-page');
+    if (prevPageBtn) {
+        prevPageBtn.addEventListener('click', function() {
+            loadPreviousPage();
+        });
+    }
+    if (nextPageBtn) {
+        nextPageBtn.addEventListener('click', function() {
+            loadNextPage();
+        });
+    }
+    
+    // Set up filter button
+    const filterBtn = document.getElementById('measurements-filter-btn');
+    if (filterBtn) {
+        filterBtn.addEventListener('click', function() {
+            filterMeasurements();
+        });
+    }
+    
+    // Set up page size change
+    const pageSizeSelect = document.getElementById('measurements-page-size');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            changePageSize();
+        });
+    }
+    
+    // Load body parts for dropdown
+    loadBodyParts();
+    
+    // Set up history tab click event to load measurement history
+    const historyTab = document.getElementById('history-tab');
+    if (historyTab) {
+        historyTab.addEventListener('click', function() {
+            loadMeasurementHistory();
+        });
+    }
+    
+    // Set up full measurements page link
+    const viewFullMeasurementsBtn = document.getElementById('viewFullMeasurementsBtn');
+    if (viewFullMeasurementsBtn) {
+        viewFullMeasurementsBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Navigate to full measurements page (to be implemented)
+            alert('Full measurements page will be implemented soon!');
+        });
+    }
+}
+
+/**
+ * Populate the modal with measurement data
+ * @param {Object} measurement - Latest measurement data from API
+ */
+function populateMeasurementData(measurement) {
+    const latestContent = document.getElementById('latest-measurements-content');
+    if (!latestContent) return;
+    
+    // Clear loading spinner
+    latestContent.innerHTML = '';
+    
+    if (!measurement || !measurement.body_part_measurements || measurement.body_part_measurements.length === 0) {
+        latestContent.innerHTML = '<div class="alert alert-info">No measurements found. Add your first measurement using the "Add Measurement" tab.</div>';
+        return;
+    }
+    
+    // Create table for latest measurements
+    let tableHtml = `
+        <div class="table-responsive">
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th>Body Part</th>
+                        <th>Measurement</th>
+                        <th>Unit</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+    
+    // Add rows for each body part measurement
+    measurement.body_part_measurements.forEach(partMeasurement => {
+        const date = new Date(measurement.date_measured).toLocaleDateString();
+        tableHtml += `
+            <tr>
+                <td>${partMeasurement.body_part.name}</td>
+                <td>${partMeasurement.measurement_value}</td>
+                <td>${partMeasurement.unit}</td>
+                <td>${date}</td>
+            </tr>
+        `;
+    });
+    
+    tableHtml += `
+                </tbody>
+            </table>
+        </div>
+        <div class="mt-3">
+            <p><strong>Date Measured:</strong> ${new Date(measurement.date_measured).toLocaleDateString()}</p>
+            <p><strong>Notes:</strong> ${measurement.notes || 'No notes'}</p>
+        </div>
+    `;
+    
+    latestContent.innerHTML = tableHtml;
+}
+
+/**
+ * Load body parts for the dropdown select
+ */
+async function loadBodyParts() {
+    try {
+        const response = await fetch('/api/v1/client-profile/body-parts/', {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const bodyParts = await response.json();
+        
+        const bodyPartSelect = document.getElementById('measurement-body-part');
+        if (!bodyPartSelect) return;
+        
+        // Clear existing options except for the default one
+        while (bodyPartSelect.options.length > 1) {
+            bodyPartSelect.remove(1);
+        }
+        
+        // Add body parts to the dropdown
+        bodyParts.results.forEach(part => {
+            const option = document.createElement('option');
+            option.value = part.id;
+            option.textContent = part.name;
+            bodyPartSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading body parts:', error);
+    }
+}
+
+/**
+ * Load measurement history with pagination
+ */
+async function loadMeasurementHistory(page = 1, pageSize = 10, filter = '') {
+    try {
+        let url = `/api/v1/client-profile/enhanced-measurements/?page=${page}&page_size=${pageSize}`;
+        if (filter) {
+            url += `&body_part__name__icontains=${encodeURIComponent(filter)}`;
+        }
+        
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        
+        // Update the history table
+        updateHistoryTable(data);
+        
+        // Update pagination
+        updatePagination(data, page);
+    } catch (error) {
+        console.error('Error loading measurement history:', error);
+        const tbody = document.getElementById('measurements-history-tbody');
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading measurements: ${error.message}</td></tr>`;
+        }
+    }
+}
+
+/**
+ * Update the history table with data
+ */
+function updateHistoryTable(data) {
+    const tbody = document.getElementById('measurements-history-tbody');
+    if (!tbody) return;
+    
+    tbody.innerHTML = '';
+    
+    if (!data.results || data.results.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center">No measurements found</td></tr>';
+        return;
+    }
+    
+    // Add rows for each measurement
+    data.results.forEach(measurement => {
+        measurement.body_part_measurements.forEach(partMeasurement => {
+            const tr = document.createElement('tr');
+            
+            // Format date
+            const date = new Date(measurement.date_measured).toLocaleDateString();
+            
+            tr.innerHTML = `
+                <td>${date}</td>
+                <td>${partMeasurement.body_part.name}</td>
+                <td>${partMeasurement.measurement_value}</td>
+                <td>${partMeasurement.unit}</td>
+                <td>
+                    <button class="btn btn-sm btn-primary edit-measurement" data-id="${measurement.id}" data-part-id="${partMeasurement.id}">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-sm btn-danger delete-measurement" data-id="${measurement.id}" data-part-id="${partMeasurement.id}">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            
+            // Add event listeners for edit and delete buttons
+            const editBtn = tr.querySelector('.edit-measurement');
+            const deleteBtn = tr.querySelector('.delete-measurement');
+            
+            editBtn.addEventListener('click', function() {
+                editMeasurement(measurement.id, partMeasurement.id);
+            });
+            
+            deleteBtn.addEventListener('click', function() {
+                deleteMeasurement(measurement.id, partMeasurement.id);
+            });
+            
+            tbody.appendChild(tr);
+        });
+    });
+}
+
+/**
+ * Update pagination controls
+ */
+function updatePagination(data, currentPage) {
+    const paginationInfo = document.getElementById('measurements-pagination-info');
+    const prevPageBtn = document.getElementById('measurements-prev-page');
+    const nextPageBtn = document.getElementById('measurements-next-page');
+    
+    if (!paginationInfo || !prevPageBtn || !nextPageBtn) return;
+    
+    // Update pagination info text
+    const totalPages = Math.ceil(data.count / data.results.length) || 1;
+    paginationInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+    
+    // Update button states
+    prevPageBtn.disabled = currentPage <= 1;
+    nextPageBtn.disabled = currentPage >= totalPages;
+    
+    // Store current page for pagination functions
+    prevPageBtn.dataset.page = currentPage - 1;
+    nextPageBtn.dataset.page = currentPage + 1;
+}
+
+/**
+ * Load previous page of measurements
+ */
+function loadPreviousPage() {
+    const prevPageBtn = document.getElementById('measurements-prev-page');
+    if (!prevPageBtn || prevPageBtn.disabled) return;
+    
+    const page = parseInt(prevPageBtn.dataset.page) || 1;
+    const pageSize = getSelectedPageSize();
+    const filter = getFilter();
+    
+    loadMeasurementHistory(page, pageSize, filter);
+}
+
+/**
+ * Load next page of measurements
+ */
+function loadNextPage() {
+    const nextPageBtn = document.getElementById('measurements-next-page');
+    if (!nextPageBtn || nextPageBtn.disabled) return;
+    
+    const page = parseInt(nextPageBtn.dataset.page) || 2;
+    const pageSize = getSelectedPageSize();
+    const filter = getFilter();
+    
+    loadMeasurementHistory(page, pageSize, filter);
+}
+
+/**
+ * Get selected page size from dropdown
+ */
+function getSelectedPageSize() {
+    const pageSizeSelect = document.getElementById('measurements-page-size');
+    return pageSizeSelect ? parseInt(pageSizeSelect.value) : 10;
+}
+
+/**
+ * Get filter value
+ */
+function getFilter() {
+    const filterInput = document.getElementById('measurements-filter');
+    return filterInput ? filterInput.value.trim() : '';
+}
+
+/**
+ * Filter measurements based on input
+ */
+function filterMeasurements() {
+    const filter = getFilter();
+    const pageSize = getSelectedPageSize();
+    loadMeasurementHistory(1, pageSize, filter);
+}
+
+/**
+ * Change page size
+ */
+function changePageSize() {
+    const pageSize = getSelectedPageSize();
+    const filter = getFilter();
+    loadMeasurementHistory(1, pageSize, filter);
+}
+
+/**
+ * Save a new measurement
+ */
+async function saveMeasurement() {
+    try {
+        const bodyPartId = document.getElementById('measurement-body-part').value;
+        const measurementValue = document.getElementById('measurement-value').value;
+        const unit = document.getElementById('measurement-unit').value;
+        const date = document.getElementById('measurement-date').value;
+        const notes = document.getElementById('measurement-notes').value;
+        
+        if (!bodyPartId || !measurementValue || !unit || !date) {
+            alert('Please fill in all required fields.');
+            return;
+        }
+        
+        const measurementData = {
+            date_measured: date,
+            notes: notes,
+            body_part_measurements: [
+                {
+                    body_part: bodyPartId,
+                    measurement_value: parseFloat(measurementValue),
+                    unit: unit
+                }
+            ]
+        };
+        
+        const response = await fetch('/api/v1/client-profile/enhanced-measurements/', {
+            method: 'POST',
+            headers: {
+                ...getAuthHeaders(),
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(measurementData)
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        alert('Measurement saved successfully!');
+        
+        // Reset form
+        document.getElementById('add-measurement-form').reset();
+        
+        // Reload latest measurements
+        loadAndDisplayMeasurements();
+        
+    } catch (error) {
+        console.error('Error saving measurement:', error);
+        alert(`Failed to save measurement: ${error.message}`);
+    }
+}
+
+/**
+ * Edit measurement
+ */
+function editMeasurement(measurementId, partMeasurementId) {
+    // To be implemented
+    alert(`Editing measurement ${measurementId}, part ${partMeasurementId} - Feature coming soon!`);
+}
+
+/**
+ * Delete measurement
+ */
+async function deleteMeasurement(measurementId, partMeasurementId) {
+    if (!confirm('Are you sure you want to delete this measurement?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/v1/client-profile/body-part-measurements/${partMeasurementId}/`, {
+            method: 'DELETE',
+            headers: getAuthHeaders()
+        });
+        
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
+        alert('Measurement deleted successfully!');
+        
+        // Reload data
+        const pageSize = getSelectedPageSize();
+        const filter = getFilter();
+        loadMeasurementHistory(1, pageSize, filter);
+        loadAndDisplayMeasurements();
+        
+    } catch (error) {
+        console.error('Error deleting measurement:', error);
+        alert(`Failed to delete measurement: ${error.message}`);
+    }
+}
+
+/**
+ * Helper function to get auth headers for API requests
+ */
+function getAuthHeaders() {
+    // Get JWT token from localStorage or cookie
+    const token = localStorage.getItem('token') || getCookie('token');
+    
+    return {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json'
+    };
+}
+
+/**
+ * Helper function to get cookie value by name
+ */
+function getCookie(name) {
+    const value = `; ${document.cookie}`;
+    const parts = value.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return null;
+}
+
+// Add lightbox CSS
+function addLightboxStyles() {
     if (!document.getElementById('lightbox-styles')) {
         const style = document.createElement('style');
         style.id = 'lightbox-styles';
