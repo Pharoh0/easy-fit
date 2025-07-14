@@ -5,6 +5,7 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from apps.auth_users.models import CustomUser
 from apps.profiles.coach_profile.models import CoachProfile
 from ..choices import GENDER_CHOICES
+import uuid
 
 
 class ClientProfile(models.Model):
@@ -224,3 +225,52 @@ class ProgressReport(models.Model):
     
     class Meta:
         ordering = ['-report_date']
+
+
+class BodyPart(models.Model):
+    """Define body parts that can be measured"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=100)
+    display_name = models.CharField(max_length=100, blank=True, null=True, help_text='User-friendly display name')
+    description = models.TextField(null=True, blank=True)
+    image_coordinates = models.JSONField(null=True, blank=True, 
+                                        help_text="Coordinates for display on body diagram [x, y] as percentage of image size")
+    category = models.CharField(max_length=50, blank=True, null=True, 
+                             choices=[('upper_body', 'Upper Body'), 
+                                     ('lower_body', 'Lower Body'),
+                                     ('core', 'Core'),
+                                     ('other', 'Other')])
+    sort_order = models.PositiveIntegerField(default=0, help_text='Order for display in UI')
+    is_default = models.BooleanField(default=False, help_text='Whether this is a default body part')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return self.name
+
+    class Meta:
+        ordering = ['category', 'sort_order', 'name']
+
+
+class BodyPartMeasurement(models.Model):
+    """Individual body part measurement linked to client measurement"""
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    measurement = models.ForeignKey(ClientMeasurement, on_delete=models.CASCADE, related_name='body_part_measurements')
+    body_part = models.ForeignKey(BodyPart, on_delete=models.CASCADE, related_name='measurements')
+    value = models.DecimalField(max_digits=6, decimal_places=2)
+    unit = models.CharField(max_length=10, default='cm', 
+                          choices=[('cm', 'Centimeters'),
+                                  ('in', 'Inches'),
+                                  ('kg', 'Kilograms'),
+                                  ('lb', 'Pounds'),
+                                  ('%', 'Percentage')])
+    notes = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    def __str__(self):
+        return f"{self.body_part.name}: {self.value} {self.unit}"
+        
+    class Meta:
+        ordering = ['body_part__category', 'body_part__sort_order']
+        unique_together = ['measurement', 'body_part']
