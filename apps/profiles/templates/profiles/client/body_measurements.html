@@ -1,0 +1,429 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Body Measurements | EazyFit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.11.5/css/dataTables.bootstrap5.min.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy.css">
+<link rel="stylesheet" href="{% static 'profiles/css/client/body_measurements.css' %}">
+<style>
+  .chart-container {
+    position: relative;
+    height: 300px;
+    margin-bottom: 1.5rem;
+  }
+  
+  .measurement-tab-content {
+    padding-top: 1.5rem;
+  }
+
+  #no-measurements-message {
+    padding: 3rem;
+    text-align: center;
+    background: #f8f9fc;
+    border-radius: 0.5rem;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h1 class="h3 mb-0">Body Measurements</h1>
+            <p class="text-muted">Track and analyze your body measurements over time</p>
+        </div>
+        <div class="col-auto">
+            <button id="add-measurement-btn" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Add New Measurement
+            </button>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Interactive Body Diagram -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Body Diagram</h5>
+                </div>
+                <div class="card-body text-center position-relative">
+                    <div id="body-diagram-container" class="position-relative">
+                        <img src="{% static 'profiles/images/body_diagram.png' %}" alt="Body Diagram" 
+                             id="body-diagram" class="img-fluid body-diagram">
+                        <!-- Body part markers will be added dynamically -->
+                    </div>
+                    <div class="mt-3">
+                        <small class="text-muted">Click on a body part to view measurement history</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Latest Measurements Card -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Latest Measurements</h5>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fas fa-download"></i> Export
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="exportDropdown">
+                            <li><a class="dropdown-item" href="#" id="export-csv">CSV</a></li>
+                            <li><a class="dropdown-item" href="#" id="export-pdf">PDF</a></li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="latest-measurements-content">
+                        <div class="text-center">
+                            <div class="spinner-border" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer text-muted">
+                    <small id="latest-measurements-date">Last updated: -</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Progress Charts -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Measurement Progress</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Chart Navigation Tabs -->
+                    <ul class="nav nav-tabs" id="measurement-chart-tabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="weight-tab" data-bs-toggle="tab" data-bs-target="#weight-panel" 
+                                type="button" role="tab" aria-controls="weight-panel" aria-selected="true">Weight</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="body-comp-tab" data-bs-toggle="tab" data-bs-target="#body-comp-panel" 
+                                type="button" role="tab" aria-controls="body-comp-panel" aria-selected="false">Body Composition</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="measurements-tab" data-bs-toggle="tab" data-bs-target="#measurements-panel" 
+                                type="button" role="tab" aria-controls="measurements-panel" aria-selected="false">Circumference</button>
+                        </li>
+                    </ul>
+                    
+                    <!-- Tab Content -->
+                    <div class="tab-content measurement-tab-content" id="measurement-chart-content">
+                        <!-- Weight Chart Panel -->
+                        <div class="tab-pane fade show active" id="weight-panel" role="tabpanel" aria-labelledby="weight-tab">
+                            <div class="chart-container">
+                                <canvas id="weight-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Body Composition Chart Panel -->
+                        <div class="tab-pane fade" id="body-comp-panel" role="tabpanel" aria-labelledby="body-comp-tab">
+                            <div class="chart-container">
+                                <canvas id="body-composition-chart"></canvas>
+                            </div>
+                        </div>
+                        
+                        <!-- Circumference Measurements Chart Panel -->
+                        <div class="tab-pane fade" id="measurements-panel" role="tabpanel" aria-labelledby="measurements-tab">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <select id="chart-time-range" class="form-select">
+                                        <option value="30">Last 30 days</option>
+                                        <option value="90">Last 3 months</option>
+                                        <option value="180">Last 6 months</option>
+                                        <option value="365">Last year</option>
+                                        <option value="all">All time</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="circumference-chart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- No data message -->
+                    <div id="no-measurements-message" class="d-none">
+                        <div class="text-center">
+                            <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                            <h5>No Measurement Data Available</h5>
+                            <p class="text-muted">Add your first measurement to start tracking your progress</p>
+                            <button class="btn btn-primary mt-2" id="no-data-add-btn">
+                                <i class="fas fa-plus"></i> Add Measurement
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats Summary -->
+        <div class="col-lg-4 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Summary Statistics</h5>
+                </div>
+                <div class="card-body">
+                    <div id="stats-container">
+                        <div class="stat-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>Weight</strong>
+                                <div class="trend trend-down">
+                                    <span>-2.5%</span>
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                            </div>
+                            <div class="progress mt-1">
+                                <div class="progress-bar bg-success" role="progressbar" style="width: 65%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small>Current: <span id="weight-current">75kg</span></small>
+                                <small>Goal: <span id="weight-goal">70kg</span></small>
+                            </div>
+                        </div>
+
+                        <div class="stat-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>Body Fat %</strong>
+                                <div class="trend trend-down">
+                                    <span>-1.8%</span>
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                            </div>
+                            <div class="progress mt-1">
+                                <div class="progress-bar bg-info" role="progressbar" style="width: 45%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small>Current: <span id="bodyfat-current">18%</span></small>
+                                <small>Goal: <span id="bodyfat-goal">15%</span></small>
+                            </div>
+                        </div>
+
+                        <div class="stat-item mb-3">
+                            <div class="d-flex justify-content-between">
+                                <strong>Waist</strong>
+                                <div class="trend trend-down">
+                                    <span>-3.2%</span>
+                                    <i class="fas fa-arrow-down"></i>
+                                </div>
+                            </div>
+                            <div class="progress mt-1">
+                                <div class="progress-bar bg-warning" role="progressbar" style="width: 70%"></div>
+                            </div>
+                            <div class="d-flex justify-content-between mt-1">
+                                <small>Current: <span id="waist-current">85cm</span></small>
+                                <small>Goal: <span id="waist-goal">80cm</span></small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Measurement History Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">Measurement History</h5>
+                    <div>
+                        <button id="refresh-history" class="btn btn-sm btn-outline-secondary me-2">
+                            <i class="fas fa-sync"></i> Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="measurements-table" class="table table-striped table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Body Part</th>
+                                    <th>Measurement</th>
+                                    <th>Unit</th>
+                                    <th>Change</th>
+                                    <th>Notes</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="7" class="text-center">Loading measurement data...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Measurement Modal -->
+<div class="modal fade" id="addMeasurementModal" tabindex="-1" aria-labelledby="addMeasurementModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addMeasurementModalLabel">Add New Measurement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-measurement-form">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="measurement-date" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="measurement-date" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="measurement-type" class="form-label">Measurement Type</label>
+                            <select class="form-select" id="measurement-type" required>
+                                <option value="single">Single Body Part</option>
+                                <option value="multiple">Multiple Body Parts</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div id="single-measurement-container">
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="measurement-body-part" class="form-label">Body Part</label>
+                                <select class="form-select" id="measurement-body-part" required>
+                                    <option value="" disabled selected>Select a body part</option>
+                                    <!-- Body parts will be populated dynamically -->
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="measurement-category" class="form-label">Category</label>
+                                <select class="form-select" id="measurement-category" disabled>
+                                    <option value="" disabled selected>Body part category</option>
+                                    <!-- Categories are auto-selected based on body part -->
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="measurement-value" class="form-label">Measurement</label>
+                                <input type="number" step="0.01" class="form-control" id="measurement-value" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="measurement-unit" class="form-label">Unit</label>
+                                <select class="form-select" id="measurement-unit" required>
+                                    <option value="cm">Centimeters (cm)</option>
+                                    <option value="in">Inches (in)</option>
+                                    <option value="kg">Kilograms (kg)</option>
+                                    <option value="lb">Pounds (lb)</option>
+                                    <option value="%">Percent (%)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="multiple-measurement-container" style="display:none;">
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle"></i> You can add measurements for multiple body parts at once. Select the body parts you want to measure.
+                        </div>
+                        <div id="body-parts-container" class="mb-3">
+                            <!-- Body parts checkboxes will be added dynamically -->
+                            <div class="text-center">
+                                <div class="spinner-border spinner-border-sm" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                                <span class="ms-2">Loading body parts...</span>
+                            </div>
+                        </div>
+                        <div id="measurements-inputs-container">
+                            <!-- Input fields for selected body parts will appear here -->
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="measurement-notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="measurement-notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-measurement-btn">Save Measurement</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Measurement Modal -->
+<div class="modal fade" id="editMeasurementModal" tabindex="-1" aria-labelledby="editMeasurementModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editMeasurementModalLabel">Edit Measurement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-measurement-form">
+                    <input type="hidden" id="edit-measurement-id">
+                    <input type="hidden" id="edit-part-measurement-id">
+                    
+                    <div class="mb-3">
+                        <label for="edit-measurement-body-part" class="form-label">Body Part</label>
+                        <input type="text" class="form-control" id="edit-measurement-body-part" readonly>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="edit-measurement-value" class="form-label">Measurement</label>
+                            <input type="number" step="0.01" class="form-control" id="edit-measurement-value" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="edit-measurement-unit" class="form-label">Unit</label>
+                            <select class="form-select" id="edit-measurement-unit" required>
+                                <option value="cm">Centimeters (cm)</option>
+                                <option value="in">Inches (in)</option>
+                                <option value="kg">Kilograms (kg)</option>
+                                <option value="lb">Pounds (lb)</option>
+                                <option value="%">Percent (%)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-measurement-date" class="form-label">Date</label>
+                        <input type="date" class="form-control" id="edit-measurement-date" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="edit-measurement-notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="edit-measurement-notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger me-auto" id="delete-measurement-btn">Delete</button>
+                <button type="button" class="btn btn-primary" id="update-measurement-btn">Update</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- jQuery must be loaded before DataTables -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.11.5/js/dataTables.bootstrap5.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.10.2/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tippy.js@6.3.7/dist/tippy-bundle.umd.min.js"></script>
+<script src="{% static 'js/lib/chart.min.js' %}"></script>
+<script src="{% static 'profiles/js/client/measurement_charts.js' %}"></script>
+<script src="{% static 'profiles/js/client/body_measurements.js' %}"></script>
+{% endblock %}
