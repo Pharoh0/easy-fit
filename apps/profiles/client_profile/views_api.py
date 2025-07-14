@@ -11,7 +11,9 @@ from .models import (
     ClientMeasurement, 
     ClientDietRequest, 
     ClientSubscription, 
-    ProgressReport
+    ProgressReport,
+    BodyPart,
+    BodyPartMeasurement
 )
 from django.contrib import messages
 
@@ -44,6 +46,24 @@ def client_measurements(request):
         return redirect('profiles:create_client_profile')
     
     return render(request, 'profiles/client/measurements/client_measurements_api.html', {
+        'client': client
+    })
+
+
+@login_required
+def body_measurements_full(request):
+    """
+    Display the enhanced body measurements full page view.
+    This page provides detailed visualization, charts, and CRUD operations
+    for the client's body measurements.
+    Data will be loaded via API calls from JavaScript.
+    """
+    try:
+        client = ClientProfile.objects.get(user=request.user)
+    except ClientProfile.DoesNotExist:
+        return redirect('profiles:create_client_profile')
+    
+    return render(request, 'profiles/client/body_measurements.html', {
         'client': client
     })
 
