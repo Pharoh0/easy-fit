@@ -82,7 +82,7 @@ class EnhancedClientMeasurementViewSet(viewsets.ModelViewSet):
         """
         Return appropriate serializer based on action
         """
-        if self.action in ['list', 'retrieve']:
+        if self.action in ['list', 'retrieve', 'update', 'partial_update']:
             return EnhancedClientMeasurementSerializer
         return ClientMeasurementSerializer
     
