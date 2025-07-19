@@ -235,7 +235,7 @@ function calculateBmi() {
 }
 
 /**
- * Save a new measurement
+ * Save a new measurement or update existing one
  */
 async function saveMeasurement() {
     const form = document.getElementById('add-measurement-form');
@@ -257,9 +257,23 @@ async function saveMeasurement() {
         // Gather form data (now returns FormData)
         const formData = getFormData();
         
+        // Check if we're in update mode
+        const measurementId = form.getAttribute('data-measurement-id');
+        const isUpdateMode = measurementId && measurementId !== '';
+        
+        console.log('Save measurement - Update mode:', isUpdateMode, 'Measurement ID:', measurementId);
+        
+        // Determine URL and method based on whether we're updating or creating
+        const url = isUpdateMode 
+            ? `/profiles/api/v1/client-measurements/${measurementId}/`
+            : '/profiles/api/v1/client-measurements/';
+        const method = isUpdateMode ? 'PUT' : 'POST';
+        
+        console.log(`${method} request to ${url}`);
+        
         // We need to use direct fetch for FormData uploads instead of fetchAPI
-        const response = await fetch('/profiles/api/v1/client-measurements/', {
-            method: 'POST',
+        const response = await fetch(url, {
+            method: method,
             headers: {
                 'X-CSRFToken': getCsrfToken(),
                 'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`
@@ -268,27 +282,30 @@ async function saveMeasurement() {
         });
         
         if (!response.ok) {
-            throw new Error('Failed to save measurement');
+            throw new Error(`Failed to ${isUpdateMode ? 'update' : 'save'} measurement`);
         }
         
         const result = await response.json();
         
         if (!result) {
-            throw new Error('Failed to save measurement');
+            throw new Error(`Failed to ${isUpdateMode ? 'update' : 'save'} measurement`);
         }
         
         // Show success message
-        showSuccess('Measurement saved successfully');
+        showSuccess(`Measurement ${isUpdateMode ? 'updated' : 'saved'} successfully`);
         
         // Close modal and refresh data
         const modal = bootstrap.Modal.getInstance(document.getElementById('addMeasurementModal'));
         if (modal) modal.hide();
         
+        // Reset update mode
+        form.setAttribute('data-measurement-id', '');
+        
         // Reload measurements
         await loadMeasurements();
         
     } catch (error) {
-        console.error('Error saving measurement:', error);
+        console.error('Error saving/updating measurement:', error);
         showError(error.message || 'An error occurred while saving the measurement');
     } finally {
         // Reset button state
@@ -737,6 +754,8 @@ function editMeasurement(measurementId) {
             throw new Error('Measurement not found');
         }
         
+        console.log('Editing measurement:', measurement);
+        
         // Get form and show modal
         const form = document.getElementById('add-measurement-form');
         if (!form) return;
@@ -744,6 +763,21 @@ function editMeasurement(measurementId) {
         // Reset form
         form.reset();
         form.classList.remove('was-validated');
+        
+        // Set form in update mode - store the measurement ID
+        form.setAttribute('data-measurement-id', measurementId);
+        
+        // Update modal title to indicate edit mode
+        const modalTitle = document.querySelector('#addMeasurementModal .modal-title');
+        if (modalTitle) {
+            modalTitle.textContent = 'Edit Measurement';
+        }
+        
+        // Update save button text
+        const saveBtn = document.getElementById('save-measurement-btn');
+        if (saveBtn) {
+            saveBtn.textContent = 'Update';
+        }
         
         // Populate form with measurement data
         // Basic information
