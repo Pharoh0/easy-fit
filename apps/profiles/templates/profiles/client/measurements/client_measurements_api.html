@@ -398,7 +398,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 <script src="{% static 'profiles/js/client/measurements.js' %}"></script>
 {% endblock %}
 </body>

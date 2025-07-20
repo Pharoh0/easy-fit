@@ -3,6 +3,51 @@
  * Handles navbar functionality including dark mode toggle, search, and notifications
  */
 
+/**
+ * Generate a local avatar using canvas based on user initials
+ * @param {string} name - User's name
+ * @returns {string} - Data URL of the generated avatar
+ */
+function generateLocalAvatar(name) {
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+    const size = 100;
+    
+    canvas.width = size;
+    canvas.height = size;
+    
+    // Get initials (first letter of each word, max 2)
+    const initials = name.split(' ')
+        .map(word => word.charAt(0).toUpperCase())
+        .slice(0, 2)
+        .join('');
+    
+    // Generate a consistent color based on the name
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    const hue = Math.abs(hash) % 360;
+    
+    // Create gradient background
+    const gradient = ctx.createLinearGradient(0, 0, size, size);
+    gradient.addColorStop(0, `hsl(${hue}, 70%, 60%)`);
+    gradient.addColorStop(1, `hsl(${hue + 30}, 70%, 50%)`);
+    
+    // Draw background
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    
+    // Draw initials
+    ctx.fillStyle = 'white';
+    ctx.font = `bold ${size * 0.4}px Arial, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(initials, size / 2, size / 2);
+    
+    return canvas.toDataURL();
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Handle image fallbacks
     const navbarLogo = document.querySelector('.navbar-logo');
@@ -18,10 +63,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const profileAvatars = document.querySelectorAll('.profile-avatar');
     profileAvatars.forEach(avatar => {
         avatar.onerror = function() {
-            // Use a default avatar or generate one based on user initials
+            // Generate local avatar based on user initials
             this.onerror = null;
             const userName = this.getAttribute('data-username') || 'User';
-            this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(userName)}&background=random`;
+            this.src = generateLocalAvatar(userName);
         };
     });
 

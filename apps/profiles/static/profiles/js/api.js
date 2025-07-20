@@ -296,41 +296,6 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
     };
 }
 
-/**
- * Client API service for measurements
- */
-class MeasurementService {
-    constructor(apiClient) {
-        this.apiClient = apiClient;
-        this.endpoint = 'measurements/';
-    }
-    
-    // Get all measurements
-    async getAllMeasurements() {
-        return this.apiClient.get(this.endpoint);
-    }
-    
-    // Get a single measurement
-    async getMeasurement(id) {
-        return this.apiClient.get(`${this.endpoint}${id}/`);
-    }
-    
-    // Create a new measurement
-    async createMeasurement(data) {
-        return this.apiClient.post(this.endpoint, data);
-    }
-    
-    // Update a measurement
-    async updateMeasurement(id, data) {
-        return this.apiClient.patch(`${this.endpoint}${id}/`, data);
-    }
-    
-    // Delete a measurement
-    async deleteMeasurement(id) {
-        return this.apiClient.delete(`${this.endpoint}${id}/`);
-    }
-}
-
 
 /**
  * Client API service for progress reports

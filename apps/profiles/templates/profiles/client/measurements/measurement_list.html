@@ -194,26 +194,13 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
+    {{ measurements|json_script:"measurements-data" }}
+    <script type="text/javascript">
         // Chart data from Django template
-        /* eslint-disable */
-        // @ts-nocheck
-        const measurements = [
-            {% for m in measurements %}
-                {
-                    date: "{{ m.date|date:'Y-m-d' }}",
-                    weight: {{ m.weight|default:"null" }},
-                    bodyFat: {{ m.body_fat_percentage|default:"null" }},
-                    chest: {{ m.chest|default:"null" }},
-                    waist: {{ m.waist|default:"null" }},
-                    hips: {{ m.hips|default:"null" }},
-                    arms: {{ m.arms|default:"null" }},
-                    thighs: {{ m.thighs|default:"null" }}
-                }{% if not forloop.last %},{% endif %}
-            {% endfor %}
-        ];
-        /* eslint-enable */
+        const measurementsData = JSON.parse(document.getElementById('measurements-data').textContent);
+        // Make it globally available
+        window.measurementsData = measurementsData;
     </script>
     <script src="{% static 'profiles/js/client/measurements.js' %}"></script>
 {% endblock %}

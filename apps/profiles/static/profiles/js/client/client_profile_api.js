@@ -39,12 +39,6 @@ async function initializeProfilePage() {
         // Fetch and display client measurements
         await fetchAndDisplayMeasurements();
         
-        // Fetch and display active subscriptions
-        await fetchAndDisplaySubscriptions();
-        
-        // Fetch and display diet requests
-        await fetchAndDisplayDietRequests();
-        
         // Fetch and display progress gallery
         await fetchAndDisplayProgressGallery();
         

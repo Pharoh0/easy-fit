@@ -53,7 +53,7 @@
                                 <span id="report-workout-adherence" class="metric-value">{{ report.workout_adherence }}/5</span>
                                 <div class="progress">
                                     <div class="progress-bar bg-success" role="progressbar" 
-                                        style="width: {{ report.workout_adherence|floatformat:0|default:0|multiply:20 }}%" 
+                                        style="width: {% widthratio report.workout_adherence|default:0 5 100 %}%" 
                                         aria-valuenow="{{ report.workout_adherence }}" 
                                         aria-valuemin="0" aria-valuemax="5"></div>
                                 </div>
@@ -63,8 +63,8 @@
                                 <span id="report-diet-adherence" class="metric-value">{{ report.diet_adherence }}/5</span>
                                 <div class="progress">
                                     <div class="progress-bar bg-info" role="progressbar" 
-                                        style="width: {{ report.diet_adherence|floatformat:0|default:0|multiply:20 }}%" 
-                                        aria-valuenow="{{ report.diet_adherence }}" 
+                                        data-diet-adherence="{{ report.diet_adherence|default:0 }}"
+                                        aria-valuenow="{{ report.diet_adherence|default:0 }}" 
                                         aria-valuemin="0" aria-valuemax="5"></div>
                                 </div>
                             </div>
@@ -178,25 +178,48 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
+    {{ progress_data|json_script:"progress-data" }}
+    <script type="text/javascript">
         // Progress data from the backend
-        // Using a safer way to pass JSON data from Django to JavaScript
-        var progressData = JSON.parse('{{ progress_data|default:"{\"dates\": [], \"weights\": [], \"bmis\": [], \"body_fats\": []}" | escapejs }}');
+        let progressData;
+        try {
+            const dataElement = document.getElementById('progress-data');
+            progressData = dataElement ? JSON.parse(dataElement.textContent) : {};
+        } catch (error) {
+            console.error('Error parsing progress data:', error);
+            progressData = {};
+        }
+        
+        // Ensure we have a valid data structure with required properties
+        window.progressData = {
+            dates: Array.isArray(progressData.dates) ? progressData.dates : [],
+            weights: Array.isArray(progressData.weights) ? progressData.weights : [],
+            bmis: Array.isArray(progressData.bmis) ? progressData.bmis : [],
+            body_fats: Array.isArray(progressData.body_fats) ? progressData.body_fats : []
+        };
         
         document.addEventListener('DOMContentLoaded', function() {
+            // Initialize progress bars
+            const dietProgressBar = document.querySelector('[data-diet-adherence]');
+            if (dietProgressBar) {
+                const dietAdherence = parseInt(dietProgressBar.getAttribute('data-diet-adherence')) || 0;
+                const percentage = (dietAdherence / 5) * 100;
+                dietProgressBar.style.width = percentage + '%';
+            }
+            
             // Initialize charts
-            if (progressData && progressData.dates.length > 0) {
+            if (window.progressData.dates.length > 0) {
                 // Weight chart
                 const weightChartCanvas = document.getElementById('weight-chart');
-                if (weightChartCanvas && progressData.weights.length > 0) {
+                if (weightChartCanvas && window.progressData.weights.length > 0) {
                     new Chart(weightChartCanvas, {
                         type: 'line',
                         data: {
-                            labels: progressData.dates,
+                            labels: window.progressData.dates,
                             datasets: [{
                                 label: 'Weight (kg)',
-                                data: progressData.weights,
+                                data: window.progressData.weights,
                                 backgroundColor: 'rgba(75, 192, 192, 0.2)',
                                 borderColor: 'rgba(75, 192, 192, 1)',
                                 borderWidth: 2,
@@ -216,14 +239,14 @@
                 
                 // BMI chart
                 const bmiChartCanvas = document.getElementById('bmi-chart');
-                if (bmiChartCanvas && progressData.bmis.length > 0) {
+                if (bmiChartCanvas && window.progressData.bmis.length > 0) {
                     new Chart(bmiChartCanvas, {
                         type: 'line',
                         data: {
-                            labels: progressData.dates,
+                            labels: window.progressData.dates,
                             datasets: [{
                                 label: 'BMI',
-                                data: progressData.bmis,
+                                data: window.progressData.bmis,
                                 backgroundColor: 'rgba(153, 102, 255, 0.2)',
                                 borderColor: 'rgba(153, 102, 255, 1)',
                                 borderWidth: 2,
@@ -243,14 +266,14 @@
                 
                 // Body fat chart
                 const bodyFatChartCanvas = document.getElementById('body-fat-chart');
-                if (bodyFatChartCanvas && progressData.body_fats.length > 0) {
+                if (bodyFatChartCanvas && window.progressData.body_fats.length > 0) {
                     new Chart(bodyFatChartCanvas, {
                         type: 'line',
                         data: {
-                            labels: progressData.dates,
+                            labels: window.progressData.dates,
                             datasets: [{
                                 label: 'Body Fat (%)',
-                                data: progressData.body_fats,
+                                data: window.progressData.body_fats,
                                 backgroundColor: 'rgba(255, 159, 64, 0.2)',
                                 borderColor: 'rgba(255, 159, 64, 1)',
                                 borderWidth: 2,

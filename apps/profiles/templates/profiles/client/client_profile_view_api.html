@@ -6,7 +6,7 @@
 {% block extra_head %}
     <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_view.css' %}">
     <!-- Add tippy.js for tooltips -->
-    <link rel="stylesheet" href="https://unpkg.com/tippy.js@6/animations/scale.css">
+    <link rel="stylesheet" href="{% static 'vendor/tippy/scale.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -168,8 +168,8 @@
 
 {% block extra_js %}
     <!-- Third-party libraries -->
-    <script src="https://unpkg.com/@popperjs/core@2"></script>
-    <script src="https://unpkg.com/tippy.js@6"></script>
+    <script src="{% static 'vendor/popper/popper.min.js' %}"></script>
+    <script src="{% static 'vendor/tippy/tippy-bundle.umd.min.js' %}"></script>
     
     <!-- App scripts - Load API module first and only once -->
     <script src="{% static 'profiles/js/api.js' %}"></script>

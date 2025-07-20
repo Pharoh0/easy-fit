@@ -409,13 +409,13 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
+    <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
+    {{ progress_data|json_script:"progress-data" }}
+    <script type="text/javascript">
         // Progress data from the backend
-        /* eslint-disable */
-        // @ts-nocheck
-        const progressData = {{ progress_data|default:'{"dates": [], "weights": [], "bmis": [], "body_fats": []}' | safe }};
-        /* eslint-enable */
+        const progressData = JSON.parse(document.getElementById('progress-data').textContent || '{}');
+        // Fallback data structure and make globally available
+        window.progressData = progressData.dates ? progressData : {"dates": [], "weights": [], "bmis": [], "body_fats": []};
     </script>
     <script src="{% static 'profiles/js/client/progress.js' %}"></script>
 {% endblock %}
