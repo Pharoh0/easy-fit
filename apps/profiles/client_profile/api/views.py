@@ -37,30 +37,6 @@ class IsOwnerOrReadOnly(permissions.BasePermission):
         return obj.user == request.user
 
 
-class ClientMeasurementViewSet(viewsets.ModelViewSet):
-    serializer_class = ClientMeasurementSerializer
-    permission_classes = [permissions.IsAuthenticated, IsOwnerOrReadOnly]
-    filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['date']
-    ordering = ['-date']
-    
-    def get_queryset(self):
-        """
-        This view should return a list of all measurements
-        for the currently authenticated user.
-        """
-        user = self.request.user
-        try:
-            client = ClientProfile.objects.get(user=user)
-            return ClientMeasurement.objects.filter(client=client)
-        except ClientProfile.DoesNotExist:
-            return ClientMeasurement.objects.none()
-    
-    def perform_create(self, serializer):
-        client = ClientProfile.objects.get(user=self.request.user)
-        serializer.save(client=client)
-
-
 class ProgressReportViewSet(viewsets.ModelViewSet):
     serializer_class = ProgressReportSerializer
     permission_classes = [permissions.IsAuthenticated]

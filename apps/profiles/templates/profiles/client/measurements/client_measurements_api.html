@@ -84,37 +84,83 @@
                     </button>
                 </div>
                 <div class="card-body">
-                    <div class="table-responsive">
-                        <div class="table-responsive">
-                            <table class="table table-hover table-centered mb-0" id="measurements-table">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Weight (kg)</th>
-                                        <th>Height (cm)</th>
-                                        <th>BMI</th>
-                                        <th>Body Fat %</th>
-                                        <th>Muscle (kg)</th>
-                                        <th>Water %</th>
-                                        <th>Bone Mass (kg)</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="measurements-table-body">
-                                    <!-- Measurements will be loaded here via JavaScript -->
-                                    <tr>
-                                        <td colspan="9" class="text-center py-4">
-                                            <div class="spinner-border text-primary" role="status">
-                                                <span class="visually-hidden">Loading...</span>
-                                            </div>
-                                            <p class="mt-2 mb-0">Loading measurements...</p>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                    <!-- Search and Filter Controls -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                                <input type="text" class="form-control" id="search-measurements" placeholder="Search measurements...">
+                            </div>
                         </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="sort-measurements">
+                                <option value="-date">Latest First</option>
+                                <option value="date">Oldest First</option>
+                                <option value="-weight">Weight (High to Low)</option>
+                                <option value="weight">Weight (Low to High)</option>
+                                <option value="-body_fat_percentage">Body Fat % (High to Low)</option>
+                                <option value="body_fat_percentage">Body Fat % (Low to High)</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <select class="form-select" id="page-size-select">
+                                <option value="10">10 per page</option>
+                                <option value="25">25 per page</option>
+                                <option value="50">50 per page</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Loading Spinner -->
+                    <div id="measurements-loading" class="text-center py-4" style="display: none;">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading measurements...</p>
+                    </div>
+                    
+                    <!-- Table -->
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0" id="measurements-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th><i class="fas fa-calendar-alt me-1"></i>Date</th>
+                                    <th><i class="fas fa-weight me-1"></i>Weight (kg)</th>
+                                    <th><i class="fas fa-ruler-vertical me-1"></i>Height (cm)</th>
+                                    <th><i class="fas fa-calculator me-1"></i>BMI</th>
+                                    <th><i class="fas fa-percentage me-1"></i>Body Fat %</th>
+                                    <th><i class="fas fa-dumbbell me-1"></i>Muscle (kg)</th>
+                                    <th><i class="fas fa-tint me-1"></i>Water %</th>
+                                    <th><i class="fas fa-bone me-1"></i>Bone Mass (kg)</th>
+                                    <th><i class="fas fa-cogs me-1"></i>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="measurements-table-body">
+                                <!-- Measurements will be loaded here -->
                             </tbody>
                         </table>
+                    </div>
+                    
+                    <!-- Empty State -->
+                    <div id="no-measurements" class="text-center py-5" style="display: none;">
+                        <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+                        <h5 class="text-muted">No measurements found</h5>
+                        <p class="text-muted">Start tracking your progress by adding your first measurement.</p>
+                        <button class="btn btn-primary" onclick="document.getElementById('add-measurement-btn').click()">
+                            <i class="fas fa-plus me-1"></i>Add First Measurement
+                        </button>
+                    </div>
+                    
+                    <!-- Pagination Controls -->
+                    <div id="pagination-container" class="d-flex justify-content-between align-items-center mt-3" style="display: none !important;">
+                        <div class="text-muted">
+                            <span id="pagination-info">Showing 0 - 0 of 0 measurements</span>
+                        </div>
+                        <nav aria-label="Measurements pagination">
+                            <ul class="pagination pagination-sm mb-0" id="pagination-controls">
+                                <!-- Pagination buttons will be generated here -->
+                            </ul>
+                        </nav>
                     </div>
                 </div>
             </div>

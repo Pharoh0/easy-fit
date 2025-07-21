@@ -1,6 +1,7 @@
 from rest_framework import viewsets, permissions, status, filters, mixins
 from rest_framework.decorators import action
 from rest_framework.response import Response
+from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 from django.db.models import Q, Count
 from django.utils import timezone
@@ -47,14 +48,24 @@ class ClientProfileViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Client profile not found"}, status=status.HTTP_404_NOT_FOUND)
 
 
+class ClientMeasurementPagination(PageNumberPagination):
+    """Custom pagination for client measurements"""
+    page_size = 10
+    page_size_query_param = 'page_size'
+    max_page_size = 50
+    page_query_param = 'page'
+
+
 class ClientMeasurementViewSet(viewsets.ModelViewSet):
-    """API endpoint for managing client body measurements"""
+    """API endpoint for managing client body measurements with pagination and enhanced filtering"""
     queryset = ClientMeasurement.objects.all()
     serializer_class = ClientMeasurementSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [filters.OrderingFilter]
-    ordering_fields = ['date', 'weight', 'body_fat_percentage']
+    filter_backends = [filters.OrderingFilter, filters.SearchFilter]
+    ordering_fields = ['date', 'weight', 'body_fat_percentage', 'height', 'muscle_mass']
     ordering = ['-date']
+    search_fields = ['notes']
+    pagination_class = ClientMeasurementPagination
 
     def get_queryset(self):
         user = self.request.user

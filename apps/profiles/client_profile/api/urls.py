@@ -1,7 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    ClientMeasurementViewSet,
     ProgressReportViewSet,
     ClientDietRequestViewSet,
     ClientSubscriptionViewSet
@@ -13,8 +12,6 @@ from .views_measurements import (
 )
 
 router = DefaultRouter()
-# Original measurement endpoint (will be kept for backwards compatibility)
-router.register(r'measurements', ClientMeasurementViewSet, basename='client-measurement')
 # Enhanced measurement endpoint with body part support
 router.register(r'enhanced-measurements', EnhancedClientMeasurementViewSet, basename='enhanced-measurement')
 # Body parts and their measurements
