@@ -12,14 +12,14 @@
     z-index: 1000;
 }
 
-.form-label {
+.login-container .form-label {
     color: #6c757d;
     font-weight: 500;
     margin-bottom: 0.5rem;
     transition: all 0.3s ease;
 }
 
-.form-control {
+.login-container .form-control {
     border: 2px solid #e9ecef;
     border-radius: 8px;
     padding: 0.8rem 1rem;
@@ -28,13 +28,13 @@
     background-color: #f8f9fa;
 }
 
-.form-control:focus {
+.login-container .form-control:focus {
     border-color: #4e73df;
     box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     background-color: #fff;
 }
 
-.btn-primary {
+.login-container .btn-primary {
     background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
     border: none;
     padding: 1rem;
@@ -43,12 +43,12 @@
     transition: all 0.3s ease;
 }
 
-.btn-primary:hover {
+.login-container .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(78, 115, 223, 0.3);
 }
 
-.error-message {
+.login-container .error-message {
     color: #dc3545;
     margin-top: 0.5rem;
     font-size: 0.875rem;
@@ -163,13 +163,13 @@
     overflow: hidden;
 }
 
-.card-header {
+.login-container .card-header {
     background: none;
     border: none;
     padding-bottom: 1rem;
 }
 
-.card-body {
+.login-container .card-body {
     flex: 1;
     display: flex;
     flex-direction: column;
@@ -182,31 +182,31 @@
     border-radius: 12px;
 }
 
-.input-group-text {
+.login-container .input-group-text {
     background-color: transparent;
     border-right: none;
 }
 
-.form-control {
+.login-container .form-control {
     border-left: none;
 }
 
-.form-control:focus {
+.login-container .form-control:focus {
     box-shadow: none;
     border-color: #ced4da;
 }
 
-.btn-primary {
+.login-container .btn-primary {
     padding: 0.8rem;
     transition: all 0.3s ease;
 }
 
-.btn-primary:hover {
+.login-container .btn-primary:hover {
     transform: translateY(-2px);
     box-shadow: 0 5px 15px rgba(78, 115, 223, 0.3);
 }
 
-.error-messages {
+.login-container .error-messages {
     color: #dc3545;
     margin-top: 0.5rem;
     font-size: 0.875rem;
