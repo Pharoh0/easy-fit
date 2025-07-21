@@ -6,6 +6,12 @@
 // Global variables
 let measurementsData = [];
 let progressChart = null;
+let currentPage = 1;
+let pageSize = 10;
+let totalPages = 1;
+let totalCount = 0;
+let currentSearch = '';
+let currentOrdering = '-date';
 
 /**
  * Initialize page on document load
@@ -49,6 +55,9 @@ function setupUIComponents() {
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Set up BMI calculation
+    setupBmiCalculation();
 }
 
 /**
@@ -64,30 +73,101 @@ function initializeDatePicker() {
 }
 
 /**
- * Set up all event listeners
+ * Set up event listeners
  */
 function setupEventListeners() {
-    // Form submission
+    // Set up form validation
     const form = document.getElementById('add-measurement-form');
     if (form) {
         form.addEventListener('submit', function(e) {
             e.preventDefault();
-            saveMeasurement();
+            if (form.checkValidity()) {
+                saveMeasurement();
+            }
+            form.classList.add('was-validated');
+        });
+    }
+    
+    // Add measurement button
+    const addMeasurementBtn = document.getElementById('add-measurement-btn');
+    if (addMeasurementBtn) {
+        addMeasurementBtn.addEventListener('click', function() {
+            // Reset form to create mode
+            const form = document.getElementById('add-measurement-form');
+            if (form) {
+                form.setAttribute('data-measurement-id', '');
+                form.reset();
+                form.classList.remove('was-validated');
+            }
+            
+            // Update modal title and button text
+            const modalTitle = document.querySelector('#addMeasurementModal .modal-title');
+            if (modalTitle) {
+                modalTitle.textContent = 'Add New Measurement';
+            }
+            
+            const saveBtn = document.getElementById('save-measurement-btn');
+            if (saveBtn) {
+                saveBtn.textContent = 'Save';
+            }
+            
+            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addMeasurementModal'));
+            modal.show();
         });
     }
     
     // Save measurement button
-    const saveBtn = document.getElementById('save-measurement-btn');
-    if (saveBtn) {
-        saveBtn.addEventListener('click', saveMeasurement);
+    const saveMeasurementBtn = document.getElementById('save-measurement-btn');
+    if (saveMeasurementBtn) {
+        saveMeasurementBtn.addEventListener('click', saveMeasurement);
+    }
+    
+    // Search functionality
+    const searchInput = document.getElementById('search-measurements');
+    if (searchInput) {
+        let searchTimeout;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                const searchValue = this.value.trim();
+                loadMeasurements(1, searchValue, currentOrdering);
+            }, 500); // Debounce search by 500ms
+        });
+    }
+    
+    // Sort functionality
+    const sortSelect = document.getElementById('sort-measurements');
+    if (sortSelect) {
+        sortSelect.addEventListener('change', function() {
+            const ordering = this.value;
+            loadMeasurements(1, currentSearch, ordering);
+        });
+    }
+    
+    // Page size functionality
+    const pageSizeSelect = document.getElementById('page-size-select');
+    if (pageSizeSelect) {
+        pageSizeSelect.addEventListener('change', function() {
+            pageSize = parseInt(this.value);
+            loadMeasurements(1, currentSearch, currentOrdering);
+        });
     }
     
     // Compare measurements button
     const compareBtn = document.getElementById('compare-measurements-btn');
     if (compareBtn) {
         compareBtn.addEventListener('click', function() {
-            showNotification('info', 'Coming soon!', 'Measurement comparison feature will be available soon.');
+            openComparisonModal();
         });
+    }
+    
+    // Comparison modal event listeners
+    const compareSelect1 = document.getElementById('compare-measurement-1');
+    const compareSelect2 = document.getElementById('compare-measurement-2');
+    
+    if (compareSelect1 && compareSelect2) {
+        compareSelect1.addEventListener('change', updateComparison);
+        compareSelect2.addEventListener('change', updateComparison);
     }
     
     // Chart metric buttons
@@ -397,22 +477,43 @@ function getFormData() {
 }
 
 /**
- * Load measurements from the API
+ * Load measurements from the API with pagination support
  */
-async function loadMeasurements() {
+async function loadMeasurements(page = 1, search = '', ordering = '-date') {
     try {
         showLoading(true);
         
+        // Build query parameters
+        const params = new URLSearchParams({
+            page: page,
+            page_size: pageSize,
+            ordering: ordering
+        });
+        
+        if (search) {
+            params.append('search', search);
+        }
+        
         // Use fetchAPI utility to ensure authentication headers are included
-        const data = await fetchAPI('client-measurements/');
+        const data = await fetchAPI(`client-measurements/?${params.toString()}`);
         if (!data) {
             throw new Error('Failed to load measurements');
         }
         
-        measurementsData = data;
-        displayMeasurements(measurementsData);
+        // Update pagination state
+        currentPage = page;
+        currentSearch = search;
+        currentOrdering = ordering;
+        totalCount = data.count || 0;
+        totalPages = Math.ceil(totalCount / pageSize);
         
-        // Update the Latest Measurements section
+        // Store results array (paginated API returns {count, next, previous, results})
+        measurementsData = data.results || data;
+        
+        displayMeasurements(measurementsData);
+        updatePaginationControls();
+        
+        // Update the Latest Measurements section (use first item if available)
         updateLatestMeasurements(measurementsData);
         
         // Update chart if it exists
@@ -420,10 +521,11 @@ async function loadMeasurements() {
             updateChart(measurementsData);
         }
         
-        showLoading(false);
     } catch (error) {
         console.error('Error loading measurements:', error);
-        showError(error.message || 'An error occurred while loading measurements');
+        showError('Failed to load measurements. Please try again.');
+        displayEmptyState();
+    } finally {
         showLoading(false);
     }
 }
@@ -432,10 +534,127 @@ async function loadMeasurements() {
  * Show or hide loading state
  */
 function showLoading(show) {
-    const loadingSpinner = document.getElementById('loading-spinner');
-    if (loadingSpinner) {
-        loadingSpinner.style.display = show ? 'block' : 'none';
+    const loadingElement = document.getElementById('measurements-loading');
+    if (loadingElement) {
+        loadingElement.style.display = show ? 'block' : 'none';
     }
+}
+
+/**
+ * Display empty state when no measurements are found
+ */
+function displayEmptyState() {
+    const tableBody = document.getElementById('measurements-table-body');
+    const noMeasurementsDiv = document.getElementById('no-measurements');
+    const paginationContainer = document.getElementById('pagination-container');
+    
+    if (tableBody) {
+        tableBody.innerHTML = '';
+    }
+    
+    if (noMeasurementsDiv) {
+        noMeasurementsDiv.style.display = 'block';
+    }
+    
+    if (paginationContainer) {
+        paginationContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Update pagination controls based on current state
+ */
+function updatePaginationControls() {
+    const paginationContainer = document.getElementById('pagination-container');
+    const paginationInfo = document.getElementById('pagination-info');
+    const paginationControls = document.getElementById('pagination-controls');
+    const noMeasurementsDiv = document.getElementById('no-measurements');
+    
+    if (!paginationContainer || !paginationInfo || !paginationControls) {
+        return;
+    }
+    
+    // Hide empty state if we have data
+    if (noMeasurementsDiv && totalCount > 0) {
+        noMeasurementsDiv.style.display = 'none';
+    }
+    
+    // Show pagination if we have data
+    if (totalCount > 0) {
+        paginationContainer.style.display = 'flex';
+        
+        // Update info text
+        const startItem = (currentPage - 1) * pageSize + 1;
+        const endItem = Math.min(currentPage * pageSize, totalCount);
+        paginationInfo.textContent = `Showing ${startItem} - ${endItem} of ${totalCount} measurements`;
+        
+        // Generate pagination buttons
+        let paginationHTML = '';
+        
+        // Previous button
+        const prevDisabled = currentPage <= 1 ? 'disabled' : '';
+        paginationHTML += `
+            <li class="page-item ${prevDisabled}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage - 1})" ${prevDisabled ? 'tabindex="-1"' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>`;
+        
+        // Page numbers
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        
+        // Adjust start page if we're near the end
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+        
+        // First page and ellipsis
+        if (startPage > 1) {
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(1)">1</a></li>`;
+            if (startPage > 2) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+        }
+        
+        // Page numbers
+        for (let i = startPage; i <= endPage; i++) {
+            const activeClass = i === currentPage ? 'active' : '';
+            paginationHTML += `<li class="page-item ${activeClass}"><a class="page-link" href="#" onclick="changePage(${i})">${i}</a></li>`;
+        }
+        
+        // Last page and ellipsis
+        if (endPage < totalPages) {
+            if (endPage < totalPages - 1) {
+                paginationHTML += `<li class="page-item disabled"><span class="page-link">...</span></li>`;
+            }
+            paginationHTML += `<li class="page-item"><a class="page-link" href="#" onclick="changePage(${totalPages})">${totalPages}</a></li>`;
+        }
+        
+        // Next button
+        const nextDisabled = currentPage >= totalPages ? 'disabled' : '';
+        paginationHTML += `
+            <li class="page-item ${nextDisabled}">
+                <a class="page-link" href="#" onclick="changePage(${currentPage + 1})" ${nextDisabled ? 'tabindex="-1"' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>`;
+        
+        paginationControls.innerHTML = paginationHTML;
+    } else {
+        paginationContainer.style.display = 'none';
+    }
+}
+
+/**
+ * Change to a specific page
+ */
+function changePage(page) {
+    if (page < 1 || page > totalPages || page === currentPage) {
+        return;
+    }
+    loadMeasurements(page, currentSearch, currentOrdering);
 }
 
 /**
@@ -443,15 +662,17 @@ function showLoading(show) {
  */
 function displayMeasurements(measurements) {
     const tableBody = document.getElementById('measurements-table-body');
+    const noMeasurementsDiv = document.getElementById('no-measurements');
+    
     if (!tableBody) return;
     
+    // Hide empty state
+    if (noMeasurementsDiv) {
+        noMeasurementsDiv.style.display = 'none';
+    }
+    
     if (!measurements || measurements.length === 0) {
-        tableBody.innerHTML = `
-            <tr>
-                <td colspan="9" class="text-center py-4">
-                    <p class="mb-0 text-muted">No measurements found. Click "Add Measurement" to get started.</p>
-                </td>
-            </tr>`;
+        displayEmptyState();
         return;
     }
     
@@ -847,6 +1068,323 @@ async function deleteMeasurement(measurementId) {
     } finally {
         showLoading(false);
     }
+}
+
+/**
+ * Open comparison modal and populate with measurements
+ */
+function openComparisonModal() {
+    try {
+        // Check if we have measurements data
+        if (!measurementsData || measurementsData.length < 2) {
+            showError('You need at least 2 measurements to compare. Please add more measurements first.');
+            return;
+        }
+        
+        // Populate comparison dropdowns
+        populateComparisonDropdowns();
+        
+        // Reset comparison results
+        resetComparisonResults();
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('compareMeasurementsModal'));
+        modal.show();
+        
+    } catch (error) {
+        console.error('Error opening comparison modal:', error);
+        showError('Failed to open comparison modal');
+    }
+}
+
+/**
+ * Populate comparison dropdowns with measurements
+ */
+function populateComparisonDropdowns() {
+    const select1 = document.getElementById('compare-measurement-1');
+    const select2 = document.getElementById('compare-measurement-2');
+    
+    if (!select1 || !select2 || !measurementsData) return;
+    
+    // Sort measurements by date (newest first)
+    const sortedMeasurements = [...measurementsData].sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Clear existing options (except the first placeholder)
+    select1.innerHTML = '<option value="" selected disabled>Select first measurement</option>';
+    select2.innerHTML = '<option value="" selected disabled>Select second measurement</option>';
+    
+    // Add measurement options
+    sortedMeasurements.forEach(measurement => {
+        const option1 = document.createElement('option');
+        const option2 = document.createElement('option');
+        
+        const optionText = `${formatDate(measurement.date)} - ${formatWithUnit(measurement.weight, ' kg')}`;
+        
+        option1.value = measurement.id;
+        option1.textContent = optionText;
+        option2.value = measurement.id;
+        option2.textContent = optionText;
+        
+        select1.appendChild(option1);
+        select2.appendChild(option2);
+    });
+}
+
+/**
+ * Update comparison when selections change
+ */
+function updateComparison() {
+    const select1 = document.getElementById('compare-measurement-1');
+    const select2 = document.getElementById('compare-measurement-2');
+    const warningDiv = document.getElementById('comparison-warning');
+    const warningMessage = document.getElementById('warning-message');
+    
+    if (!select1 || !select2) return;
+    
+    const id1 = select1.value;
+    const id2 = select2.value;
+    
+    // Hide warning initially
+    if (warningDiv) {
+        warningDiv.classList.add('d-none');
+    }
+    
+    // Check if both measurements are selected
+    if (!id1 || !id2) {
+        resetComparisonResults();
+        return;
+    }
+    
+    // Check if same measurement is selected
+    if (id1 === id2) {
+        if (warningDiv && warningMessage) {
+            warningMessage.textContent = 'Please select two different measurements to compare.';
+            warningDiv.classList.remove('d-none');
+        }
+        resetComparisonResults();
+        return;
+    }
+    
+    // Find the measurements
+    const measurement1 = measurementsData.find(m => m.id.toString() === id1);
+    const measurement2 = measurementsData.find(m => m.id.toString() === id2);
+    
+    if (!measurement1 || !measurement2) {
+        showError('Selected measurements not found');
+        return;
+    }
+    
+    // Perform comparison
+    displayComparison(measurement1, measurement2);
+}
+
+/**
+ * Display comparison results
+ */
+function displayComparison(measurement1, measurement2) {
+    const resultsDiv = document.getElementById('comparison-results');
+    if (!resultsDiv) return;
+    
+    // Determine which is older/newer for better comparison context
+    const date1 = new Date(measurement1.date);
+    const date2 = new Date(measurement2.date);
+    const isM1Newer = date1 > date2;
+    
+    const older = isM1Newer ? measurement2 : measurement1;
+    const newer = isM1Newer ? measurement1 : measurement2;
+    
+    // Calculate differences
+    const differences = calculateDifferences(older, newer);
+    
+    // Generate comparison HTML
+    const html = `
+        <div class="comparison-header mb-4">
+            <div class="row text-center">
+                <div class="col-5">
+                    <div class="card bg-light">
+                        <div class="card-body py-3">
+                            <h6 class="card-title mb-1">Earlier Measurement</h6>
+                            <p class="card-text text-muted mb-0">${formatDate(older.date)}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-2 d-flex align-items-center justify-content-center">
+                    <i class="fas fa-arrow-right text-primary fa-2x"></i>
+                </div>
+                <div class="col-5">
+                    <div class="card bg-light">
+                        <div class="card-body py-3">
+                            <h6 class="card-title mb-1">Later Measurement</h6>
+                            <p class="card-text text-muted mb-0">${formatDate(newer.date)}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="comparison-metrics">
+            <div class="row g-3">
+                ${generateComparisonMetric('Weight', older.weight, newer.weight, 'kg', 'fas fa-weight')}
+                ${generateComparisonMetric('Height', older.height, newer.height, 'cm', 'fas fa-ruler-vertical')}
+                ${generateComparisonMetric('Body Fat %', older.body_fat_percentage, newer.body_fat_percentage, '%', 'fas fa-percentage')}
+                ${generateComparisonMetric('Muscle Mass', older.muscle_mass, newer.muscle_mass, 'kg', 'fas fa-dumbbell')}
+            </div>
+            
+            <div class="row g-3 mt-2">
+                ${generateComparisonMetric('Waist', older.waist, newer.waist, 'cm', 'fas fa-circle')}
+                ${generateComparisonMetric('Chest', older.chest, newer.chest, 'cm', 'fas fa-circle')}
+                ${generateComparisonMetric('Hips', older.hips, newer.hips, 'cm', 'fas fa-circle')}
+                ${generateComparisonMetric('Upper Arms', older.upper_arms, newer.upper_arms, 'cm', 'fas fa-circle')}
+            </div>
+        </div>
+        
+        <div class="comparison-summary mt-4">
+            <div class="card border-primary">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>Progress Summary</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">Improvements:</h6>
+                            <ul class="list-unstyled mb-0">
+                                ${generateImprovementsList(differences, true)}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-warning">Areas to Focus:</h6>
+                            <ul class="list-unstyled mb-0">
+                                ${generateImprovementsList(differences, false)}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    resultsDiv.innerHTML = html;
+}
+
+/**
+ * Generate comparison metric HTML
+ */
+function generateComparisonMetric(label, oldValue, newValue, unit, icon) {
+    if (oldValue === null || oldValue === undefined || newValue === null || newValue === undefined) {
+        return `
+            <div class="col-md-3 col-sm-6">
+                <div class="card h-100">
+                    <div class="card-body text-center">
+                        <i class="${icon} text-muted mb-2"></i>
+                        <h6 class="card-title">${label}</h6>
+                        <p class="text-muted mb-0">No data</p>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+    
+    const difference = newValue - oldValue;
+    const percentageChange = oldValue !== 0 ? ((difference / oldValue) * 100).toFixed(1) : 0;
+    
+    let changeClass = 'text-muted';
+    let changeIcon = 'fas fa-minus';
+    let changeText = 'No change';
+    
+    if (difference > 0) {
+        changeClass = label === 'Body Fat %' ? 'text-danger' : 'text-success';
+        changeIcon = 'fas fa-arrow-up';
+        changeText = `+${difference.toFixed(1)}${unit} (+${percentageChange}%)`;
+    } else if (difference < 0) {
+        changeClass = label === 'Body Fat %' ? 'text-success' : 'text-danger';
+        changeIcon = 'fas fa-arrow-down';
+        changeText = `${difference.toFixed(1)}${unit} (${percentageChange}%)`;
+    }
+    
+    return `
+        <div class="col-md-3 col-sm-6">
+            <div class="card h-100">
+                <div class="card-body text-center">
+                    <i class="${icon} text-primary mb-2"></i>
+                    <h6 class="card-title">${label}</h6>
+                    <div class="mb-2">
+                        <small class="text-muted">${oldValue}${unit} → ${newValue}${unit}</small>
+                    </div>
+                    <div class="${changeClass}">
+                        <i class="${changeIcon} me-1"></i>
+                        <strong>${changeText}</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Calculate differences between measurements
+ */
+function calculateDifferences(older, newer) {
+    const fields = [
+        { key: 'weight', label: 'Weight', unit: 'kg', lowerIsBetter: true },
+        { key: 'body_fat_percentage', label: 'Body Fat %', unit: '%', lowerIsBetter: true },
+        { key: 'muscle_mass', label: 'Muscle Mass', unit: 'kg', lowerIsBetter: false },
+        { key: 'waist', label: 'Waist', unit: 'cm', lowerIsBetter: true },
+        { key: 'chest', label: 'Chest', unit: 'cm', lowerIsBetter: false },
+        { key: 'hips', label: 'Hips', unit: 'cm', lowerIsBetter: true }
+    ];
+    
+    return fields.map(field => {
+        const oldVal = older[field.key];
+        const newVal = newer[field.key];
+        
+        if (oldVal === null || oldVal === undefined || newVal === null || newVal === undefined) {
+            return null;
+        }
+        
+        const difference = newVal - oldVal;
+        const isImprovement = field.lowerIsBetter ? difference < 0 : difference > 0;
+        
+        return {
+            ...field,
+            difference,
+            isImprovement,
+            oldValue: oldVal,
+            newValue: newVal
+        };
+    }).filter(item => item !== null);
+}
+
+/**
+ * Generate improvements list HTML
+ */
+function generateImprovementsList(differences, showImprovements) {
+    const filtered = differences.filter(diff => diff.isImprovement === showImprovements);
+    
+    if (filtered.length === 0) {
+        return `<li class="text-muted"><i class="fas fa-info-circle me-1"></i>None identified</li>`;
+    }
+    
+    return filtered.map(diff => {
+        const icon = showImprovements ? 'fas fa-check text-success' : 'fas fa-exclamation-triangle text-warning';
+        const changeText = diff.difference > 0 ? `+${diff.difference.toFixed(1)}` : diff.difference.toFixed(1);
+        return `<li><i class="${icon} me-1"></i>${diff.label}: ${changeText}${diff.unit}</li>`;
+    }).join('');
+}
+
+/**
+ * Reset comparison results to initial state
+ */
+function resetComparisonResults() {
+    const resultsDiv = document.getElementById('comparison-results');
+    if (!resultsDiv) return;
+    
+    resultsDiv.innerHTML = `
+        <div class="text-center text-muted py-5">
+            <i class="fas fa-balance-scale fa-3x d-block mb-3 text-muted"></i>
+            <h5>Select two measurements to compare</h5>
+            <p class="mb-0">Choose different dates to see your progress over time</p>
+        </div>
+    `;
 }
 
 /**
