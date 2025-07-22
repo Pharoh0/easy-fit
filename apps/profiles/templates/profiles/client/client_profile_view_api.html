@@ -10,156 +10,345 @@
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid client-profile-container">
-    <!-- Profile Cover Section with Gradient Background -->
-    <div class="profile-cover-section">
-        <div class="profile-cover-gradient">
-            <div id="cover-image-container">
-                <!-- Cover image will be loaded by JS -->
-            </div>
-            <div class="profile-info">
-                <div class="profile-avatar" data-tippy-content="Profile Photo">
-                    <div id="avatar-container" class="avatar-container">
-                        <!-- Avatar will be loaded by JS -->
-                        <div class="default-avatar">
-                            <i class="fas fa-user"></i>
-                        </div>
-                    </div>
-                </div>
-                <div class="profile-name">
-                    <h1 id="username">Loading...</h1>
-                    <p class="subtitle" id="email">Loading...</p>
-                </div>
-            </div>
+<div class="container-fluid client-profile-container p-0">
+    <!-- Profile Header Section with Cover Image -->
+    <div class="profile-cover-wrapper">
+        <div id="cover-image-container" class="profile-cover">
+            <!-- Cover image will be loaded by JS -->
+            <div class="cover-loading-placeholder"></div>
         </div>
+        <div class="profile-cover-overlay"></div>
     </div>
-
-    <div class="row mt-4">
-        <!-- Left Column - Profile Info -->
-        <div class="col-md-4">
-            <div class="card client-info-card">
-                <div class="card-header">
-                    <h4><i class="fas fa-user-circle"></i> Profile Information</h4>
+    
+    <div class="container profile-main-container">
+        <!-- Profile Information Section -->
+        <div class="profile-header">
+            <div class="profile-avatar-container">
+                <div id="avatar-container" class="profile-avatar" aria-label="Profile photo" role="img">
+                    <!-- Avatar will be loaded by JS -->
+                    <div class="skeleton-avatar pulse-animation"></div>
                 </div>
-                <div class="card-body">
-                    <div class="client-info-details" id="client-info-container">
-                        <!-- Client info will be loaded by JS -->
-                        <div class="skeleton-loader"></div>
-                    </div>
+            </div>
+            
+            <div class="profile-header-content">
+                <div class="profile-info">
+                    <h1 class="profile-name" id="profile-name" aria-live="polite">Loading Profile...</h1>
+                    <p class="profile-email" id="email" aria-live="polite">
+                        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Loading...
+                    </p>
                 </div>
-                <div class="card-footer text-center">
-                    <button class="btn btn-primary" id="edit-profile-btn" data-tippy-content="Update your profile information">
-                        <i class="fas fa-edit"></i> Edit Profile
+                
+                <div class="profile-actions" role="group" aria-label="Profile actions">
+                    <button class="btn btn-light rounded-pill shadow-sm" id="edit-profile-btn" data-tippy-content="Edit Profile" aria-label="Edit your profile">
+                        <i class="fas fa-pencil-alt me-2" aria-hidden="true"></i> Edit Profile
+                    </button>
+                    <button class="btn btn-primary rounded-pill shadow-sm ms-2" id="share-profile-btn" data-tippy-content="Share Profile" aria-label="Share your profile">
+                        <i class="fas fa-share-alt me-2" aria-hidden="true"></i> Share
                     </button>
                 </div>
             </div>
         </div>
+    </div>
+    <!-- Main Content Section -->
+    <div class="container content-container">
+        <div class="row g-4">
+            <!-- Left Column - Profile Info -->
+            <div class="col-lg-3">
+                <!-- Profile Info Card -->
+                <div class="card profile-card shadow-sm">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-user-circle me-2"></i>
+                        <h5 class="mb-0">Profile Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="client-info-details" id="client-info-container">
+                            <!-- Client info will be loaded by JS -->
+                            <div class="skeleton-loader"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Community Badges -->
+                <div class="card badges-card shadow-sm mt-4">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-certificate me-2"></i>
+                        <h5 class="mb-0">Achievements</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="badges-container">
+                            <div class="badge-item">
+                                <div class="badge-icon blue">
+                                    <i class="fas fa-award"></i>
+                                </div>
+                                <span>Newcomer</span>
+                            </div>
+                            <div class="badge-item">
+                                <div class="badge-icon yellow">
+                                    <i class="fas fa-star"></i>
+                                </div>
+                                <span>Active</span>
+                            </div>
+                            <div class="badge-item">
+                                <div class="badge-icon green">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <span>Fit Champ</span>
+                            </div>
+                            <div class="badge-item">
+                                <div class="badge-icon purple">
+                                    <i class="fas fa-crown"></i>
+                                </div>
+                                <span>Pro Member</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Right Column - Main Content -->
-        <div class="col-md-8">
-            <!-- Measurements & Progress Stats -->
-            <div class="card client-stats-card">
-                <div class="card-header">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <h4><i class="fas fa-chart-line"></i> Fitness Statistics</h4>
-                        <button class="btn btn-sm btn-primary" id="view-measurements-btn" data-tippy-content="See your complete measurement history">
-                            <i class="fas fa-weight"></i> View All Measurements
+            <!-- Middle Column - Main Content -->
+            <div class="col-lg-6">
+                <!-- Stats Section -->
+                <div class="card stats-card shadow-sm">
+                    <div class="card-header bg-gradient-light d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-chart-line me-2 text-primary"></i>
+                            <h5 class="mb-0">Fitness Statistics</h5>
+                        </div>
+                        <button class="btn btn-primary rounded-pill" id="view-measurements-btn" data-tippy-content="See your complete measurement history">
+                            <i class="fas fa-weight me-2"></i> View All
                         </button>
                     </div>
-                </div>
-                <div class="card-body">
-                    <div class="row stats-container" id="stats-container">
-                        <!-- Stats will be loaded by JS -->
-                        <div class="skeleton-loader"></div>
-                    </div>
-                    <div class="row mt-4">
-                        <div class="col-12">
+                    <div class="card-body p-4">
+                        <div class="stats-container fade-in" id="stats-container">
+                            <!-- Stats will be loaded by JS -->
+                            <div class="skeleton-loader pulse-animation"></div>
+                        </div>
+                        <div class="mt-4 pt-3 border-top">
+                            <h6 class="text-muted mb-3">Latest Measurements</h6>
                             <div class="last-measurement" id="last-measurement">
                                 <!-- Last measurement info will be loaded by JS -->
-                                <div class="skeleton-loader"></div>
+                                <div class="skeleton-loader pulse-animation"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Featured Content Card -->
+                <div class="card featured-card shadow-sm mt-4 overflow-hidden">
+                    <div class="card-body p-0">
+                        <div class="featured-content">
+                            <img src="{% static 'profiles/img/fitness-featured.jpg' %}" alt="Featured Content" class="featured-image" data-default-src="{% static 'profiles/img/default-featured.jpg' %}">
+                            <div class="featured-overlay">
+                                <h4 class="featured-title">Unlock Your Fitness Potential</h4>
+                                <p class="featured-description">Track your progress, set goals, and achieve your fitness dreams with our personalized coaching.</p>
+                                <a href="#" class="btn btn-light rounded-pill">Learn More</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Posts Section -->
+                <div class="card posts-card shadow-sm mt-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-clipboard-list me-2 text-success"></i>
+                            <h5 class="mb-0">Progress Reports</h5>
+                        </div>
+                        <a href="#" class="btn btn-sm btn-outline-primary rounded-pill">
+                            <i class="fas fa-eye me-1"></i> View All
+                        </a>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="posts-grid" id="progress-reports-container">
+                            <!-- Progress reports will be loaded by JS -->
+                            <div class="skeleton-loader pulse-animation"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Progress Gallery -->
+                <div class="card gallery-card shadow-sm mt-4">
+                    <div class="card-header bg-light p-0 border-bottom-0">
+                        <ul class="nav nav-tabs card-header-tabs" id="galleryTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="before-after-tab" data-bs-toggle="tab" data-bs-target="#before-after" type="button" role="tab" aria-controls="before-after" aria-selected="true" data-tippy-content="View your progress transformation">
+                                    <i class="fas fa-sync-alt me-2"></i> Before & After
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="all-photos-tab" data-bs-toggle="tab" data-bs-target="#all-photos" type="button" role="tab" aria-controls="all-photos" aria-selected="false" data-tippy-content="Browse all your progress photos">
+                                    <i class="fas fa-images me-2"></i> All Photos
+                                    <span class="badge rounded-pill bg-primary ms-1" id="photos-count">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="tab-content" id="galleryTabContent">
+                        <!-- Before & After Tab -->
+                        <div class="tab-pane fade show active" id="before-after" role="tabpanel" aria-labelledby="before-after-tab">
+                            <div class="card-body p-4">
+                                <div id="before-after-container" class="before-after-wrapper">
+                                    <!-- Before & After content will be loaded by JS -->
+                                    <div class="skeleton-loader pulse-animation"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- All Photos Tab -->
+                        <div class="tab-pane fade" id="all-photos" role="tabpanel" aria-labelledby="all-photos-tab">
+                            <div class="card-body p-4">
+                                <div id="all-photos-container" class="gallery-grid">
+                                    <!-- All photos will be loaded by JS -->
+                                    <div class="skeleton-loader pulse-animation"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-
-            <!-- Active Plan / Diet Requests -->
-            <div class="card mt-4 plans-card">
-                <div class="card-header p-0 border-bottom-0">
-                    <ul class="nav nav-tabs card-header-tabs" id="plansTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true" data-tippy-content="View your current active fitness and diet plans">
-                                <i class="fas fa-clipboard-list"></i> Active Plans
-                                <span class="badge rounded-pill bg-primary ms-1" id="active-plans-count">0</span>
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false" data-tippy-content="Manage your diet consultation requests">
-                                <i class="fas fa-utensils"></i> Diet Requests
-                                <span class="badge rounded-pill bg-info ms-1" id="diet-requests-count">0</span>
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="tab-content" id="plansTabContent">
-                    <!-- Active Plans Tab -->
-                    <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
-                        <div class="card-body">
-                            <div id="active-subscriptions-container">
-                                <!-- Active subscriptions will be loaded by JS -->
-                                <div class="skeleton-loader"></div>
+            
+            <!-- Right Column - Plans & Activity -->
+            <div class="col-lg-3">
+                <!-- Active Plan / Diet Requests -->
+                <div class="card plans-card shadow-sm">
+                    <div class="card-header bg-light p-0 border-bottom-0">
+                        <ul class="nav nav-tabs card-header-tabs" id="plansTab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true" data-tippy-content="View your current active fitness and diet plans">
+                                    <i class="fas fa-clipboard-list me-2"></i> Plans
+                                    <span class="badge rounded-pill bg-primary ms-1" id="active-plans-count">0</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false" data-tippy-content="Manage your diet consultation requests">
+                                    <i class="fas fa-utensils me-2"></i> Diet
+                                    <span class="badge rounded-pill bg-info ms-1" id="diet-requests-count">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="tab-content" id="plansTabContent">
+                        <!-- Active Plans Tab -->
+                        <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
+                            <div class="card-body p-4">
+                                <div id="active-subscriptions-container">
+                                    <!-- Active subscriptions will be loaded by JS -->
+                                    <div class="skeleton-loader pulse-animation"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- Diet Requests Tab -->
+                        <div class="tab-pane fade" id="diet-requests" role="tabpanel" aria-labelledby="diet-requests-tab">
+                            <div class="card-body p-4">
+                                <div id="diet-requests-container">
+                                    <!-- Diet requests will be loaded by JS -->
+                                    <div class="skeleton-loader pulse-animation"></div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    <!-- Diet Requests Tab -->
-                    <div class="tab-pane fade" id="diet-requests" role="tabpanel" aria-labelledby="diet-requests-tab">
-                        <div class="card-body">
-                            <div id="diet-requests-container">
-                                <!-- Diet requests will be loaded by JS -->
-                                <div class="skeleton-loader"></div>
+                </div>
+                
+                <!-- Upcoming Sessions Card -->
+                <div class="card sessions-card shadow-sm mt-4">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-calendar-check me-2 text-warning"></i>
+                        <h5 class="mb-0">Upcoming Sessions</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="upcoming-sessions" id="upcoming-sessions">
+                            <!-- Will be populated by JS -->
+                            <div class="session-item">
+                                <div class="session-date bg-primary text-white">
+                                    <span class="day">15</span>
+                                    <span class="month">Jun</span>
+                                </div>
+                                <div class="session-info">
+                                    <h6 class="mb-1">Strength Training</h6>
+                                    <p class="mb-1 text-muted"><i class="fas fa-clock me-2"></i> 10:00 AM - 11:30 AM</p>
+                                    <p class="mb-0"><i class="fas fa-user me-2"></i> Coach Michael</p>
+                                </div>
                             </div>
+                            <div class="session-item">
+                                <div class="session-date bg-success text-white">
+                                    <span class="day">18</span>
+                                    <span class="month">Jun</span>
+                                </div>
+                                <div class="session-info">
+                                    <h6 class="mb-1">Cardio & HIIT</h6>
+                                    <p class="mb-1 text-muted"><i class="fas fa-clock me-2"></i> 9:00 AM - 10:00 AM</p>
+                                    <p class="mb-0"><i class="fas fa-user me-2"></i> Coach Sarah</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Activity Timeline -->
+                <div class="card activity-card shadow-sm mt-4">
+                    <div class="card-header d-flex align-items-center">
+                        <i class="fas fa-history me-2 text-info"></i>
+                        <h5 class="mb-0">Recent Activity</h5>
+                    </div>
+                    <div class="card-body p-4">
+                        <div class="activity-timeline" id="activity-container">
+                            <!-- Activities will be loaded by JS -->
+                            <div class="activity-item">
+                                <div class="activity-icon bg-light">
+                                    <i class="fas fa-weight text-primary"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <p class="mb-1">Updated weight measurement</p>
+                                    <span class="activity-time text-muted">3 hours ago</span>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">
+                                    <i class="fas fa-running"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <p>Completed weekly fitness assessment</p>
+                                    <span class="activity-time">2 days ago</span>
+                                </div>
+                            </div>
+                            
+                            <div class="activity-item">
+                                <div class="activity-icon">
+                                    <i class="fas fa-trophy"></i>
+                                </div>
+                                <div class="activity-content">
+                                    <p>Earned "Consistency Champion" badge</p>
+                                    <span class="activity-time">1 week ago</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="text-center mt-3">
+                            <a href="#" class="btn btn-sm btn-outline-primary">See More Activities</a>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
+    </div>
+</div>
 
-            <!-- Progress Gallery -->
-            <div class="card mt-4 gallery-card">
-                <div class="card-header p-0 border-bottom-0">
-                    <ul class="nav nav-tabs card-header-tabs" id="galleryTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="before-after-tab" data-bs-toggle="tab" data-bs-target="#before-after" type="button" role="tab" aria-controls="before-after" aria-selected="true" data-tippy-content="View your progress transformation">
-                                <i class="fas fa-sync-alt"></i> Before & After
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="all-photos-tab" data-bs-toggle="tab" data-bs-target="#all-photos" type="button" role="tab" aria-controls="all-photos" aria-selected="false" data-tippy-content="Browse all your progress photos">
-                                <i class="fas fa-images"></i> All Photos
-                                <span class="badge rounded-pill bg-primary ms-1" id="photos-count">0</span>
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-                <div class="tab-content" id="galleryTabContent">
-                    <!-- Before & After Tab -->
-                    <div class="tab-pane fade show active" id="before-after" role="tabpanel" aria-labelledby="before-after-tab">
-                        <div class="card-body">
-                            <div id="before-after-container">
-                                <!-- Before & After content will be loaded by JS -->
-                                <div class="skeleton-loader"></div>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- All Photos Tab -->
-                    <div class="tab-pane fade" id="all-photos" role="tabpanel" aria-labelledby="all-photos-tab">
-                        <div class="card-body">
-                            <div id="all-photos-container" class="gallery-grid">
-                                <!-- All photos will be loaded by JS -->
-                                <div class="skeleton-loader"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+<!-- Lightbox Modal for Gallery Images -->
+<div class="modal fade" id="galleryLightbox" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Progress Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body text-center">
+                <img src="" class="img-fluid" id="lightboxImage">
+                <p class="mt-2" id="lightboxCaption"></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="prevImageBtn"><i class="fas fa-arrow-left"></i> Previous</button>
+                <span class="mx-3" id="imageCounter">1/1</span>
+                <button type="button" class="btn btn-primary" id="nextImageBtn">Next <i class="fas fa-arrow-right"></i></button>
             </div>
         </div>
     </div>
@@ -174,7 +363,33 @@
     <!-- App scripts - Load API module first and only once -->
     <script src="{% static 'profiles/js/api.js' %}"></script>
     
-    <!-- Client profile modules -->
+    <!-- JavaScript for API calls -->
     <script src="{% static 'profiles/js/client/client_profile_api.js' %}"></script>
+    
+    <!-- JavaScript for image fallbacks -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Handle featured image fallback
+            const featuredImages = document.querySelectorAll('.featured-image');
+            featuredImages.forEach(img => {
+                img.addEventListener('error', function() {
+                    const defaultSrc = this.getAttribute('data-default-src');
+                    if (defaultSrc) {
+                        this.src = defaultSrc;
+                    }
+                });
+            });
+            
+            // Initialize any loading placeholders
+            const loadingElements = document.querySelectorAll('.loading-placeholder');
+            if (loadingElements.length > 0) {
+                setTimeout(() => {
+                    loadingElements.forEach(el => {
+                        el.classList.remove('loading-placeholder');
+                    });
+                }, 1500);
+            }
+        });
+    </script>
     <script src="{% static 'profiles/js/client/client_profile_view.js' %}"></script>
 {% endblock %}

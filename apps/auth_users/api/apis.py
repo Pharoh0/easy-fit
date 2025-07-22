@@ -142,7 +142,7 @@ class UserLoginAPIView(APIView):
         print(f"Refresh Token: {str(refresh)[:20]}...")
 
         # Calculate expiration times
-        access_token_expiration = timezone.now() + refresh.access_token.lifetime
+        access_token_expiration = timezone.now() + timedelta(minutes=5)  # Default access token lifetime
         refresh_token_expiration = timezone.now() + refresh.lifetime
 
         response_data = {

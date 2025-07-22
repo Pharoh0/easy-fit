@@ -20,6 +20,9 @@ function getCsrfToken() {
     return cookieValue;
 }
 
+// Flag to track authentication failures
+let authFailureDetected = false;
+
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize the page
     initializeProfilePage();
@@ -54,6 +57,12 @@ async function initializeProfilePage() {
  * Fetch client profile data from API
  */
 async function fetchClientProfile() {
+    // Don't attempt to fetch if we've already detected an auth failure
+    if (authFailureDetected) {
+        console.warn('Authentication failure detected, skipping API call');
+        throw new Error('Authentication required');
+    }
+    
     try {
         // Use the correct endpoint based on the router registration
         const response = await fetchAPI('client-profile/', 'GET');
@@ -101,8 +110,36 @@ async function fetchClientProfile() {
         }
     } catch (error) {
         console.error('Error fetching client profile:', error);
+        
+        // Check if this is an authentication error
+        if (error && error.status === 401) {
+            // Set the flag to prevent further attempts
+            authFailureDetected = true;
+            
+            // Show a login prompt
+            showLoginRequiredMessage();
+        }
+        
         throw error;
     }
+}
+
+/**
+ * Format activity level for display
+ */
+function formatActivityLevel(activityLevel) {
+    if (!activityLevel) return 'Not specified';
+    
+    // Convert snake_case to readable format
+    const activityMap = {
+        'sedentary': 'Sedentary (little to no exercise)',
+        'lightly_active': 'Lightly Active (1-3 days/week)',
+        'moderately_active': 'Moderately Active (3-5 days/week)',
+        'very_active': 'Very Active (6-7 days/week)',
+        'extremely_active': 'Extremely Active (physical job or 2x daily)'  
+    };
+    
+    return activityMap[activityLevel] || activityLevel;
 }
 
 /**
@@ -141,9 +178,15 @@ function populateProfileData(profile) {
     if (avatarContainer) {
         const avatar = profile.avatar || profile.profile_image || null;
         if (avatar) {
-            avatarContainer.innerHTML = `<img src="${avatar}" alt="${username}" class="avatar-image">`;
+            avatarContainer.innerHTML = `<img src="${avatar}" alt="${username}" class="avatar-image shadow">`;
         } else {
-            avatarContainer.innerHTML = `<div class="default-avatar"><i class="fas fa-user"></i></div>`;
+            avatarContainer.innerHTML = `<div class="default-avatar shadow"><i class="fas fa-user"></i></div>`;
+        }
+        
+        // Add hover effect class
+        const avatarElement = avatarContainer.querySelector('.avatar-image, .default-avatar');
+        if (avatarElement) {
+            avatarElement.classList.add('hover-effect');
         }
     }
     
@@ -153,7 +196,16 @@ function populateProfileData(profile) {
         const coverImage = profile.cover_image || profile.coverImage || null;
         if (coverImage) {
             coverContainer.innerHTML = `<img src="${coverImage}" alt="Cover Image" class="cover-image">`;
+        } else {
+            // Add a default gradient if no cover image
+            coverContainer.classList.add('default-cover');
         }
+    }
+    
+    // Update profile name in header
+    const profileNameElement = document.getElementById('profile-name');
+    if (profileNameElement) {
+        profileNameElement.textContent = `${firstName} ${lastName}`.trim() || username;
     }
     
     // Populate client info
@@ -164,57 +216,164 @@ function populateProfileData(profile) {
             ? `${profile.city.name || ''}${profile.city.region ? ', ' + profile.city.region.name : ''}`
             : 'Not specified';
             
-        infoContainer.innerHTML = `
-            <div class="info-item">
-                <i class="fas fa-user"></i>
-                <div>
-                    <h6>Full Name</h6>
-                    <p>${firstName} ${lastName}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-venus-mars"></i>
-                <div>
-                    <h6>Gender</h6>
-                    <p>${profile.gender || 'Not specified'}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-birthday-cake"></i>
-                <div>
-                    <h6>Age</h6>
-                    <p>${profile.age ? profile.age + ' years' : 'Not specified'}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-map-marker-alt"></i>
-                <div>
-                    <h6>Location</h6>
-                    <p>${location}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-phone"></i>
-                <div>
-                    <h6>Phone</h6>
-                    <p>${profile.phone || 'Not specified'}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-envelope"></i>
-                <div>
-                    <h6>Email</h6>
-                    <p>${email}</p>
-                </div>
-            </div>
-            <div class="info-item">
-                <i class="fas fa-calendar-plus"></i>
-                <div>
-                    <h6>Member Since</h6>
-                    <p>${profile.created_at ? formatDate(profile.created_at) : 'Not available'}</p>
+        // Create HTML for personal information section
+        let personalInfoHTML = `
+            <div class="profile-section">
+                <h5 class="section-title"><i class="fas fa-user-circle"></i> Personal Information</h5>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <i class="fas fa-user"></i>
+                        <div>
+                            <h6>Full Name</h6>
+                            <p>${firstName} ${lastName}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-venus-mars"></i>
+                        <div>
+                            <h6>Gender</h6>
+                            <p>${profile.gender || 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-birthday-cake"></i>
+                        <div>
+                            <h6>Age</h6>
+                            <p>${profile.age ? profile.age + ' years' : 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-ruler-combined"></i>
+                        <div>
+                            <h6>Height</h6>
+                            <p>${profile.height ? profile.height + ' cm' : 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-weight"></i>
+                        <div>
+                            <h6>Weight</h6>
+                            <p>${profile.weight ? profile.weight + ' kg' : 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-running"></i>
+                        <div>
+                            <h6>Activity Level</h6>
+                            <p>${formatActivityLevel(profile.activity_level)}</p>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
+        
+        // Create HTML for contact information section
+        let contactInfoHTML = `
+            <div class="profile-section">
+                <h5 class="section-title"><i class="fas fa-address-card"></i> Contact Information</h5>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h6>Location</h6>
+                            <p>${location}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-phone"></i>
+                        <div>
+                            <h6>Phone</h6>
+                            <p>${profile.phone || 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h6>Email</h6>
+                            <p>${email}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-home"></i>
+                        <div>
+                            <h6>Address</h6>
+                            <p>${profile.address || 'Not specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-calendar-plus"></i>
+                        <div>
+                            <h6>Member Since</h6>
+                            <p>${profile.created_at ? formatDate(profile.created_at) : 'Not available'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Create HTML for health information section
+        let healthInfoHTML = `
+            <div class="profile-section">
+                <h5 class="section-title"><i class="fas fa-heartbeat"></i> Health Information</h5>
+                <div class="info-grid">
+                    <div class="info-item full-width">
+                        <i class="fas fa-notes-medical"></i>
+                        <div>
+                            <h6>Health Conditions</h6>
+                            <p>${profile.health_conditions || 'None specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item full-width">
+                        <i class="fas fa-allergies"></i>
+                        <div>
+                            <h6>Allergies</h6>
+                            <p>${profile.allergies || 'None specified'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Create HTML for fitness goals section
+        let fitnessGoalsHTML = `
+            <div class="profile-section">
+                <h5 class="section-title"><i class="fas fa-bullseye"></i> Fitness Goals</h5>
+                <div class="info-grid">
+                    <div class="info-item full-width">
+                        <i class="fas fa-trophy"></i>
+                        <div>
+                            <h6>Goals</h6>
+                            <p>${profile.fitness_goals || 'None specified'}</p>
+                        </div>
+                    </div>
+                    <div class="info-item full-width">
+                        <i class="fas fa-utensils"></i>
+                        <div>
+                            <h6>Dietary Preferences</h6>
+                            <p>${profile.dietary_preferences || 'None specified'}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Create HTML for social media section if any social links exist
+        let socialMediaHTML = '';
+        if (profile.instagram || profile.facebook || profile.twitter) {
+            socialMediaHTML = `
+                <div class="profile-section">
+                    <h5 class="section-title"><i class="fas fa-share-alt"></i> Social Media</h5>
+                    <div class="social-links">
+                        ${profile.instagram ? `<a href="${profile.instagram}" target="_blank" class="social-link"><i class="fab fa-instagram"></i> Instagram</a>` : ''}
+                        ${profile.facebook ? `<a href="${profile.facebook}" target="_blank" class="social-link"><i class="fab fa-facebook"></i> Facebook</a>` : ''}
+                        ${profile.twitter ? `<a href="${profile.twitter}" target="_blank" class="social-link"><i class="fab fa-twitter"></i> Twitter</a>` : ''}
+                    </div>
+                </div>
+            `;
+        }
+        
+        // Combine all sections
+        infoContainer.innerHTML = personalInfoHTML + contactInfoHTML + healthInfoHTML + fitnessGoalsHTML + socialMediaHTML;
     }
 }
 
@@ -614,6 +773,15 @@ async function fetchAndDisplayProgressGallery() {
         
         if (beforeAfterContainer) beforeAfterContainer.innerHTML = errorHtml;
         if (allPhotosContainer) allPhotosContainer.innerHTML = errorHtml;
+        
+        // Check if this is an authentication error
+        if (error && error.status === 401) {
+            // Set the flag to prevent further attempts
+            authFailureDetected = true;
+            
+            // Show a login prompt
+            showLoginRequiredMessage();
+        }
     }
 }
 
@@ -630,19 +798,86 @@ function formatDate(dateString) {
  * Show error notification
  */
 function showErrorNotification(message) {
+    // Check if notification container exists
+    let notificationContainer = document.getElementById('notification-container');
+            
+    // Create container if it doesn't exist
+    if (!notificationContainer) {
+        notificationContainer = document.createElement('div');
+        notificationContainer.id = 'notification-container';
+        notificationContainer.className = 'notification-container';
+        document.body.appendChild(notificationContainer);
+    }
+            
     // Create notification element
     const notification = document.createElement('div');
-    notification.className = 'alert alert-danger alert-dismissible fade show notification-toast';
+    notification.className = 'notification notification-error';
     notification.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        <div class="notification-content">
+            <i class="fas fa-exclamation-circle"></i>
+            <span>${message}</span>
+        </div>
+        <button class="notification-close"><i class="fas fa-times"></i></button>
     `;
-    
-    // Append to body
-    document.body.appendChild(notification);
-    
-    // Remove after 5 seconds
-    setTimeout(function() {
+            
+    // Add to container
+    notificationContainer.appendChild(notification);
+            
+    // Add event listener for close button
+    const closeButton = notification.querySelector('.notification-close');
+    closeButton.addEventListener('click', function() {
+        notification.remove();
+    });
+            
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
         notification.remove();
     }, 5000);
+}
+
+/**
+ * Show login required message
+ */
+function showLoginRequiredMessage() {
+    // Create or get the message container
+    let loginMessageContainer = document.getElementById('login-message-container');
+            
+    if (!loginMessageContainer) {
+        // Create the container if it doesn't exist
+        loginMessageContainer = document.createElement('div');
+        loginMessageContainer.id = 'login-message-container';
+        loginMessageContainer.className = 'login-message-container';
+                
+        // Add it to the main content area
+        const mainContent = document.querySelector('.main-content') || document.body;
+        mainContent.prepend(loginMessageContainer);
+    }
+            
+    // Clear any existing content
+    loginMessageContainer.innerHTML = '';
+            
+    // Create the message
+    const messageElement = document.createElement('div');
+    messageElement.className = 'login-required-message';
+    messageElement.innerHTML = `
+        <div class="alert alert-warning" role="alert">
+            <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Authentication Required</h4>
+            <p>Your session has expired or you are not logged in. Please log in to view your profile.</p>
+            <hr>
+            <p class="mb-0">
+                <a href="/accounts/login/?next=/profiles/client-profile/" class="btn btn-primary">
+                    <i class="fas fa-sign-in-alt"></i> Log In
+                </a>
+            </p>
+        </div>
+    `;
+            
+    // Add to container
+    loginMessageContainer.appendChild(messageElement);
+            
+    // Hide the main profile content
+    const profileContent = document.querySelector('.profile-content');
+    if (profileContent) {
+        profileContent.style.display = 'none';
+    }
 }

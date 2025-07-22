@@ -180,7 +180,7 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
      * @param {Object} data - Request data (for POST, PUT, PATCH)
      * @returns {Promise} - Response data
      */
-    window.fetchAPI = async function(endpoint, method = 'GET', data = null) {
+    window.fetchAPI = async function(endpoint, method = 'GET', data = null, retried = false) {
         // Base API URL - need to include the app prefix
         const baseUrl = '/profiles/api/v1/';
         const url = `${baseUrl}${endpoint}`;
@@ -221,21 +221,21 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
                 
                 // Check if response was successful
                 if (!response.ok) {
-                    // Handle 401 unauthorized with token refresh
-                    if (response.status === 401 && typeof window.refreshToken === 'function') {
-                        try {
-                            await window.refreshToken();
-                            // Retry with fresh token
-                            return window.fetchAPI(endpoint, method, data);
-                        } catch (refreshError) {
-                            console.error('Token refresh failed during fetch:', refreshError);
-                            throw {
-                                status: response.status,
-                                message: 'Authentication failed',
-                                data: jsonData
-                            };
-                        }
-                    }
+                    // Token refresh mechanism disabled to prevent infinite loops
+                    // if (response.status === 401 && typeof window.refreshToken === 'function') {
+                    //     try {
+                    //         await window.refreshToken();
+                    //         // Retry with fresh token
+                    //         return window.fetchAPI(endpoint, method, data);
+                    //     } catch (refreshError) {
+                    //         console.error('Token refresh failed during fetch:', refreshError);
+                    //         throw {
+                    //             status: response.status,
+                    //             message: 'Authentication failed',
+                    //             data: jsonData
+                    //         };
+                    //     }
+                    // }
                     
                     throw {
                         status: response.status,

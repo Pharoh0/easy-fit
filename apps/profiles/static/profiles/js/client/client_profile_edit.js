@@ -199,14 +199,10 @@ async function loadCurrentProfile() {
             console.log('Using direct profile object');
             profileData = data;
         } else {
-            console.error('Unexpected data structure:', data);
-            console.error('Data type:', typeof data);
-            console.error('Is array:', Array.isArray(data));
-            console.error('Has results:', 'results' in data);
-            console.error('Has id:', 'id' in data);
-            throw new Error('Invalid profile data structure received from server.');
+            throw new Error('Unexpected API response format. Please contact support.');
         }
         
+        console.log('Profile data extracted:', profileData);
         console.log('Final profile data:', profileData);
         console.log('Profile ID:', profileData.id);
         
@@ -231,25 +227,40 @@ async function loadCurrentProfile() {
  * Populate form with profile data
  */
 function populateForm(profile) {
-    if (!profile) return;
+    if (!profile) {
+        console.error('No profile data provided to populateForm');
+        return;
+    }
     
     console.log('Populating form with profile data:', profile);
     
     // Basic fields
-    const fields = ['age', 'height', 'weight', 'phone', 'address', 'emergency_contact', 'emergency_phone'];
-    fields.forEach(field => {
+    const basicFields = ['age', 'height', 'weight'];
+    basicFields.forEach(field => {
         const input = document.getElementById(field);
         if (input && profile[field] !== null && profile[field] !== undefined) {
             input.value = profile[field];
+            console.log(`Set ${field} to ${profile[field]}`);
         }
     });
     
     // Dropdown fields
-    const dropdownFields = ['gender', 'activity_level', 'goals'];
+    const dropdownFields = ['gender', 'activity_level'];
     dropdownFields.forEach(field => {
         const select = document.getElementById(field);
         if (select && profile[field]) {
             select.value = profile[field];
+            console.log(`Set ${field} dropdown to ${profile[field]}`);
+        }
+    });
+    
+    // Health information fields (textareas)
+    const healthFields = ['health_conditions', 'fitness_goals', 'dietary_preferences', 'allergies'];
+    healthFields.forEach(field => {
+        const textarea = document.getElementById(field);
+        if (textarea && profile[field]) {
+            textarea.value = profile[field];
+            console.log(`Set ${field} textarea to ${profile[field]}`);
         }
     });
     
@@ -259,8 +270,70 @@ function populateForm(profile) {
         const input = document.getElementById(field);
         if (input && profile[field]) {
             input.value = profile[field];
+            console.log(`Set ${field} to ${profile[field]}`);
         }
     });
+    
+    // Display existing images
+    if (profile.avatar) {
+        displayImagePreview('avatar-preview', profile.avatar);
+        console.log('Set avatar preview to', profile.avatar);
+    }
+    
+    if (profile.cover_image) {
+        displayImagePreview('cover-preview', profile.cover_image);
+        console.log('Set cover image preview to', profile.cover_image);
+    }
+}
+
+/**
+ * Display image preview for existing profile images
+ */
+function displayImagePreview(previewId, imageUrl) {
+    const previewElement = document.getElementById(previewId);
+    if (!previewElement) {
+        console.error(`Preview element with ID ${previewId} not found`);
+        return;
+    }
+    
+    // Handle different preview element structures
+    if (previewId === 'avatar-preview') {
+        // For avatar preview
+        if (previewElement.tagName === 'IMG') {
+            // If it's already an img element
+            previewElement.src = imageUrl;
+            previewElement.style.display = 'block';
+            previewElement.classList.add('current-avatar');
+        } else {
+            // Clear any default content
+            previewElement.innerHTML = '';
+            // Create image element
+            const imgElement = document.createElement('img');
+            imgElement.src = imageUrl;
+            imgElement.alt = 'Profile avatar';
+            imgElement.className = 'current-avatar';
+            previewElement.appendChild(imgElement);
+        }
+    } else if (previewId === 'cover-preview') {
+        // For cover image preview
+        if (previewElement.tagName === 'IMG') {
+            // If it's already an img element
+            previewElement.src = imageUrl;
+            previewElement.style.display = 'block';
+            previewElement.classList.add('current-cover');
+        } else {
+            // Clear any default content
+            previewElement.innerHTML = '';
+            // Create image element
+            const imgElement = document.createElement('img');
+            imgElement.src = imageUrl;
+            imgElement.alt = 'Cover image';
+            imgElement.className = 'current-cover';
+            previewElement.appendChild(imgElement);
+        }
+    }
+    
+    console.log(`Image preview set for ${previewId}:`, imageUrl);
 }
 
 /**
