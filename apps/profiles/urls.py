@@ -45,6 +45,7 @@ urlpatterns = [
 
     # API-driven Client Profile URLs
     path('client-profile/', client_views_api.view_client_profile, name='client_profile'),
+    path('client/edit-profile/', client_views_api.edit_client_profile, name='edit_client_profile'),
     
     # API-driven Client Measurements URLs
     path('client/measurements/', client_views_api.client_measurements, name='client_measurements'),

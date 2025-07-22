@@ -64,7 +64,7 @@ class ClientMeasurementViewSet(viewsets.ModelViewSet):
     filter_backends = [filters.OrderingFilter, filters.SearchFilter]
     ordering_fields = ['date', 'weight', 'body_fat_percentage', 'height', 'muscle_mass']
     ordering = ['-date']
-    search_fields = ['notes']
+    search_fields = ['notes', 'date', 'weight', 'height', 'body_fat_percentage', 'muscle_mass']
     pagination_class = ClientMeasurementPagination
 
     def get_queryset(self):

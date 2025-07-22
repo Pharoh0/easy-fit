@@ -325,8 +325,8 @@ function setupEventListeners() {
     const editProfileBtn = document.getElementById('edit-profile-btn');
     if (editProfileBtn) {
         editProfileBtn.addEventListener('click', function() {
-            // TODO: Implement edit profile functionality
-            alert('Edit profile functionality will be implemented soon.');
+            // Redirect to edit profile page
+            window.location.href = '/profiles/client/edit-profile/';
         });
     }
     

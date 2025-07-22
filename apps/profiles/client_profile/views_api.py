@@ -35,6 +35,28 @@ def view_client_profile(request):
 
 
 @login_required
+def edit_client_profile(request):
+    """
+    Display the edit client profile page.
+    Profile data will be loaded and updated via API calls from JavaScript.
+    All form submissions should go through the API, not this view.
+    """
+    # Only allow GET requests - all updates go through API
+    if request.method != 'GET':
+        messages.error(request, 'Profile updates must be done through the API.')
+        return redirect('profiles:client_profile')
+    
+    try:
+        client = ClientProfile.objects.get(user=request.user)
+    except ClientProfile.DoesNotExist:
+        return redirect('profiles:create_client_profile')
+    
+    return render(request, 'profiles/client/client_profile_edit.html', {
+        'client': client
+    })
+
+
+@login_required
 def client_measurements(request):
     """
     Display client measurements page.

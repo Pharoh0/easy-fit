@@ -111,7 +111,22 @@ function setupEventListeners() {
                 saveBtn.textContent = 'Save';
             }
             
-            const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById('addMeasurementModal'));
+            const modalElement = document.getElementById('addMeasurementModal');
+            const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+            
+            // Add event listener for modal cleanup
+            modalElement.addEventListener('hidden.bs.modal', function() {
+                // Remove backdrop if it exists
+                const backdrop = document.querySelector('.modal-backdrop');
+                if (backdrop) {
+                    backdrop.remove();
+                }
+                // Ensure body classes are cleaned up
+                document.body.classList.remove('modal-open');
+                document.body.style.removeProperty('overflow');
+                document.body.style.removeProperty('padding-right');
+            }, { once: true });
+            
             modal.show();
         });
     }
@@ -228,7 +243,8 @@ function setupMeasurementActionListeners() {
  * Show the add measurement modal
  */
 function showAddMeasurementModal() {
-    const modal = new bootstrap.Modal(document.getElementById('addMeasurementModal'));
+    const modalElement = document.getElementById('addMeasurementModal');
+    const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
     const form = document.getElementById('add-measurement-form');
     
     if (form) {
@@ -242,6 +258,19 @@ function showAddMeasurementModal() {
             dateInput.value = today;
         }
     }
+    
+    // Add event listener for modal cleanup
+    modalElement.addEventListener('hidden.bs.modal', function() {
+        // Remove backdrop if it exists
+        const backdrop = document.querySelector('.modal-backdrop');
+        if (backdrop) {
+            backdrop.remove();
+        }
+        // Ensure body classes are cleaned up
+        document.body.classList.remove('modal-open');
+        document.body.style.removeProperty('overflow');
+        document.body.style.removeProperty('padding-right');
+    }, { once: true });
     
     modal.show();
 }
@@ -676,9 +705,7 @@ function displayMeasurements(measurements) {
         return;
     }
     
-    // Sort measurements by date (newest first)
-    measurements.sort((a, b) => new Date(b.date) - new Date(a.date));
-    
+    // Use measurements as returned by API (already sorted by backend)
     let html = '';
     measurements.forEach(measurement => {
         const bmi = calculateBmiFromMeasurement(measurement);
@@ -1031,8 +1058,23 @@ function editMeasurement(measurementId) {
         // Notes
         if (measurement.notes) document.getElementById('measurement-notes').value = measurement.notes;
         
-        // Show modal
-        const modal = new bootstrap.Modal(document.getElementById('addMeasurementModal'));
+        // Show modal with proper cleanup
+        const modalElement = document.getElementById('addMeasurementModal');
+        const modal = bootstrap.Modal.getOrCreateInstance(modalElement);
+        
+        // Add event listener for modal cleanup
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            // Remove backdrop if it exists
+            const backdrop = document.querySelector('.modal-backdrop');
+            if (backdrop) {
+                backdrop.remove();
+            }
+            // Ensure body classes are cleaned up
+            document.body.classList.remove('modal-open');
+            document.body.style.removeProperty('overflow');
+            document.body.style.removeProperty('padding-right');
+        }, { once: true });
+        
         modal.show();
     } catch (error) {
         console.error('Error editing measurement:', error);

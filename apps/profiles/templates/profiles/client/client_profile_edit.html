@@ -31,7 +31,7 @@
     </div>
     {% endif %}
 
-    <form method="post" enctype="multipart/form-data" class="profile-edit-form">
+    <form id="profile-edit-form" class="profile-edit-form" novalidate>
         {% csrf_token %}
         
         <div class="row">
@@ -56,8 +56,9 @@
                             <label for="gender" class="form-label">Gender</label>
                             <select class="form-select" id="gender" name="gender">
                                 <option value="" {% if not profile.gender %}selected{% endif %}>Prefer not to say</option>
-                                <option value="M" {% if profile.gender == 'M' %}selected{% endif %}>Male</option>
-                                <option value="F" {% if profile.gender == 'F' %}selected{% endif %}>Female</option>
+                                <option value="Male" {% if profile.gender == 'Male' %}selected{% endif %}>Male</option>
+                                <option value="Female" {% if profile.gender == 'Female' %}selected{% endif %}>Female</option>
+                                <option value="Other" {% if profile.gender == 'Other' %}selected{% endif %}>Other</option>
                             </select>
                             {% if errors.gender %}
                             <div class="text-danger">{{ errors.gender.0 }}</div>
