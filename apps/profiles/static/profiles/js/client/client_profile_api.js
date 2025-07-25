@@ -33,14 +33,53 @@ document.addEventListener('DOMContentLoaded', function() {
  */
 async function initializeProfilePage() {
     try {
+        // Check if user is authenticated
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            console.warn('No authentication token found, redirecting to login');
+            
+            // Show user-friendly message
+            const mainContent = document.querySelector('.client-profile-container');
+            if (mainContent) {
+                mainContent.innerHTML = `
+                    <div class="container mt-5">
+                        <div class="row justify-content-center">
+                            <div class="col-md-6">
+                                <div class="card text-center">
+                                    <div class="card-body py-5">
+                                        <i class="fas fa-lock fa-3x text-warning mb-3"></i>
+                                        <h4 class="card-title">Authentication Required</h4>
+                                        <p class="card-text text-muted mb-4">
+                                            You need to be logged in to view your profile.
+                                            <br>Redirecting to login page...
+                                        </p>
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            setTimeout(() => {
+                window.location.href = '/auth-users/login/';
+            }, 2000);
+            return;
+        }
         // Fetch client profile data
         const clientProfile = await fetchClientProfile();
         
         // Populate profile data
         populateProfileData(clientProfile);
         
-        // Fetch and display client measurements
+        // Fetch and display measurements
         await fetchAndDisplayMeasurements();
+        
+        // Populate Key Metrics with real data
+        await populateKeyMetrics();
         
         // Fetch and display progress gallery
         await fetchAndDisplayProgressGallery();
@@ -471,7 +510,9 @@ async function fetchAndDisplayMeasurements() {
                 </div>
             `;
             
-            lastMeasurement.innerHTML = '';
+            if (lastMeasurement) {
+                lastMeasurement.innerHTML = '';
+            }
         }
     } catch (error) {
         console.error('Error fetching measurements:', error);
@@ -544,6 +585,74 @@ function setupEventListeners() {
             }
         }
     });
+}
+
+/**
+ * Populate Key Metrics with real data
+ */
+async function populateKeyMetrics() {
+    try {
+        // Fetch latest measurements
+        const measurements = await fetchAPI('client-measurements/', 'GET');
+        
+        if (measurements && measurements.length > 0) {
+            // Get the most recent measurement
+            const latestMeasurement = measurements[0];
+            
+            // Update Current Weight
+            const currentWeightElement = document.getElementById('current-weight');
+            if (currentWeightElement && latestMeasurement.weight) {
+                currentWeightElement.textContent = `${latestMeasurement.weight} kg`;
+            }
+            
+            // Calculate and update BMI
+            const currentBmiElement = document.getElementById('current-bmi');
+            if (currentBmiElement && latestMeasurement.weight && latestMeasurement.height) {
+                const heightInMeters = latestMeasurement.height / 100;
+                const bmi = (latestMeasurement.weight / (heightInMeters * heightInMeters)).toFixed(1);
+                currentBmiElement.textContent = bmi;
+            }
+            
+            // Update Body Fat %
+            const bodyFatElement = document.getElementById('body-fat');
+            if (bodyFatElement && latestMeasurement.body_fat_percentage) {
+                bodyFatElement.textContent = `${latestMeasurement.body_fat_percentage}%`;
+            }
+            
+            // Calculate calories burned (placeholder calculation)
+            const caloriesBurnedElement = document.getElementById('calories-burned');
+            if (caloriesBurnedElement) {
+                // This is a placeholder calculation - you may want to implement a proper calculation
+                const estimatedCalories = Math.round(latestMeasurement.weight * 25); // Basic estimation
+                caloriesBurnedElement.textContent = `${estimatedCalories} cal`;
+            }
+        } else {
+            // Set default values if no measurements available
+            const elements = {
+                'current-weight': '--',
+                'current-bmi': '--',
+                'body-fat': '--',
+                'calories-burned': '--'
+            };
+            
+            Object.entries(elements).forEach(([id, value]) => {
+                const element = document.getElementById(id);
+                if (element) {
+                    element.textContent = value;
+                }
+            });
+        }
+    } catch (error) {
+        console.error('Error populating key metrics:', error);
+        // Set error state for all metrics
+        const elements = ['current-weight', 'current-bmi', 'body-fat', 'calories-burned'];
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) {
+                element.textContent = 'Error';
+            }
+        });
+    }
 }
 
 /**
@@ -1026,27 +1135,269 @@ function initializeCharts() {
 }
 
 /**
- * Load measurements table (placeholder)
+ * Load measurements table with real data
  */
-function loadMeasurementsTable() {
-    console.log('Loading measurements table...');
-    // Implementation for loading measurements table
+async function loadMeasurementsTable() {
+    try {
+        console.log('Loading measurements table...');
+
+        const measurementsTableBody = document.getElementById('measurements-tbody');
+        if (!measurementsTableBody) {
+            console.warn('Measurements table body not found');
+            return;
+        }
+
+        // Fetch measurements data
+        const measurements = await fetchAPI('client-measurements/', 'GET');
+
+        if (measurements && measurements.length > 0) {
+            measurementsTableBody.innerHTML = '';
+
+            measurements.forEach(measurement => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${formatDate(measurement.date)}</td>
+                    <td>${measurement.weight ? measurement.weight + ' kg' : '--'}</td>
+                    <td>${measurement.height ? measurement.height + ' cm' : '--'}</td>
+                    <td>${measurement.chest ? measurement.chest + ' cm' : '--'}</td>
+                    <td>${measurement.waist ? measurement.waist + ' cm' : '--'}</td>
+                    <td>${measurement.hips ? measurement.hips + ' cm' : '--'}</td>
+                    <td>${measurement.body_fat_percentage ? measurement.body_fat_percentage + '%' : '--'}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editMeasurement(${measurement.id})">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMeasurement(${measurement.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                measurementsTableBody.appendChild(row);
+            });
+        } else {
+            measurementsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-muted py-4">
+                        <i class="fas fa-ruler fa-2x mb-3 d-block"></i>
+                        No measurements recorded yet.
+                        <br>
+                        <button class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-plus me-1"></i> Add First Measurement
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading measurements table:', error);
+        const measurementsTableBody = document.getElementById('measurements-tbody');
+        if (measurementsTableBody) {
+            measurementsTableBody.innerHTML = `
+                <tr>
+                    <td colspan="8" class="text-center text-danger py-4">
+                        <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
+                        Failed to load measurements data.
+                        <br>
+                        <button class="btn btn-outline-primary btn-sm mt-2" onclick="loadMeasurementsTable()">
+                            <i class="fas fa-refresh me-1"></i> Try Again
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }
+    }
 }
 
 /**
- * Load progress reports (placeholder)
+ * Load progress reports with real data
  */
-function loadProgressReports() {
-    console.log('Loading progress reports...');
-    // Implementation for loading progress reports
+async function loadProgressReports() {
+    try {
+        console.log('Loading progress reports...');
+        
+        const progressReportsContainer = document.getElementById('progress-reports-container');
+        if (!progressReportsContainer) {
+            console.warn('Progress reports container not found');
+            return;
+        }
+        
+        // Fetch progress reports data
+        const progressReports = await fetchAPI('client-progress-reports/', 'GET');
+        
+        if (progressReports && progressReports.length > 0) {
+            progressReportsContainer.innerHTML = '';
+            
+            progressReports.forEach(report => {
+                const reportCard = document.createElement('div');
+                reportCard.className = 'card mb-3';
+                reportCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">${report.title || 'Progress Report'}</h6>
+                            <small class="text-muted">${formatDate(report.date)}</small>
+                        </div>
+                        <p class="card-text text-muted mb-2">${report.description || 'No description available'}</p>
+                        ${report.client_comment ? `<div class="alert alert-light p-2 mb-2"><small><strong>Your Comment:</strong> ${report.client_comment}</small></div>` : ''}
+                        ${report.coach_feedback ? `<div class="alert alert-info p-2 mb-2"><small><strong>Coach Feedback:</strong> ${report.coach_feedback}</small></div>` : ''}
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-primary" onclick="viewProgressReport(${report.id})">
+                                    <i class="fas fa-eye me-1"></i> View Details
+                                </button>
+                                ${!report.client_comment ? `<button class="btn btn-outline-success" onclick="addCommentToReport(${report.id})"><i class="fas fa-comment me-1"></i> Add Comment</button>` : ''}
+                            </div>
+                            <span class="badge bg-${report.status === 'completed' ? 'success' : 'warning'}">${report.status || 'pending'}</span>
+                        </div>
+                    </div>
+                `;
+                progressReportsContainer.appendChild(reportCard);
+            });
+        } else {
+            progressReportsContainer.innerHTML = `
+                <div class="text-center text-muted py-5">
+                    <i class="fas fa-chart-line fa-3x mb-3 d-block"></i>
+                    <h6>No Progress Reports Yet</h6>
+                    <p class="mb-3">Your coach will create progress reports to track your fitness journey.</p>
+                    <button class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Request Progress Review
+                    </button>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading progress reports:', error);
+        const progressReportsContainer = document.getElementById('progress-reports-container');
+        if (progressReportsContainer) {
+            progressReportsContainer.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <i class="fas fa-exclamation-triangle fa-3x mb-3 d-block"></i>
+                    <h6>Failed to Load Progress Reports</h6>
+                    <p class="mb-3">There was an error loading your progress reports.</p>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadProgressReports()">
+                        <i class="fas fa-refresh me-1"></i> Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
 }
 
 /**
- * Load plans and sessions (placeholder)
+ * Load plans and sessions with real data
  */
-function loadPlansAndSessions() {
-    console.log('Loading plans and sessions...');
-    // Implementation for loading plans and sessions
+async function loadPlansAndSessions() {
+    try {
+        console.log('Loading plans and sessions...');
+        
+        const plansContainer = document.getElementById('plans-container');
+        const sessionsContainer = document.getElementById('sessions-container');
+        
+        if (!plansContainer || !sessionsContainer) {
+            console.warn('Plans or sessions container not found');
+            return;
+        }
+        
+        // Fetch plans and sessions data (using subscriptions as plans for now)
+        const [subscriptions, sessions] = await Promise.all([
+            fetchAPI('client-subscriptions/', 'GET'),
+            fetchAPI('client-sessions/', 'GET') // This endpoint may need to be created
+        ]);
+        
+        // Load Plans
+        if (subscriptions && subscriptions.length > 0) {
+            plansContainer.innerHTML = '';
+            
+            subscriptions.forEach(subscription => {
+                const planCard = document.createElement('div');
+                planCard.className = 'card mb-3';
+                planCard.innerHTML = `
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <h6 class="card-title mb-0">${subscription.plan_name || 'Fitness Plan'}</h6>
+                            <span class="badge bg-${subscription.status === 'active' ? 'success' : 'secondary'}">${subscription.status || 'inactive'}</span>
+                        </div>
+                        <p class="card-text text-muted mb-2">${subscription.description || 'No description available'}</p>
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <small class="text-muted d-block">Duration</small>
+                                <strong>${subscription.duration_months || '--'} months</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">Start Date</small>
+                                <strong>${formatDate(subscription.start_date)}</strong>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted d-block">End Date</small>
+                                <strong>${formatDate(subscription.end_date)}</strong>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="btn-group btn-group-sm" role="group">
+                                <button class="btn btn-outline-primary" onclick="viewPlanDetails(${subscription.id})">
+                                    <i class="fas fa-eye me-1"></i> View Details
+                                </button>
+                                <button class="btn btn-outline-info" onclick="downloadPlan(${subscription.id})">
+                                    <i class="fas fa-download me-1"></i> Download
+                                </button>
+                            </div>
+                            <small class="text-muted">Coach: ${subscription.coach_name || 'Not assigned'}</small>
+                        </div>
+                    </div>
+                `;
+                plansContainer.appendChild(planCard);
+            });
+        } else {
+            plansContainer.innerHTML = `
+                <div class="text-center text-muted py-4">
+                    <i class="fas fa-dumbbell fa-2x mb-3 d-block"></i>
+                    <h6>No Active Plans</h6>
+                    <p class="mb-3">You don't have any active fitness plans yet.</p>
+                    <button class="btn btn-primary btn-sm">
+                        <i class="fas fa-plus me-1"></i> Browse Plans
+                    </button>
+                </div>
+            `;
+        }
+        
+        // Load Sessions (placeholder implementation)
+        sessionsContainer.innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-calendar-alt fa-2x mb-3 d-block"></i>
+                <h6>Sessions Coming Soon</h6>
+                <p class="mb-3">Session tracking functionality will be available soon.</p>
+                <button class="btn btn-outline-primary btn-sm">
+                    <i class="fas fa-calendar-plus me-1"></i> Schedule Session
+                </button>
+            </div>
+        `;
+        
+    } catch (error) {
+        console.error('Error loading plans and sessions:', error);
+        
+        if (plansContainer) {
+            plansContainer.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
+                    <h6>Failed to Load Plans</h6>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadPlansAndSessions()">
+                        <i class="fas fa-refresh me-1"></i> Try Again
+                    </button>
+                </div>
+            `;
+        }
+        
+        if (sessionsContainer) {
+            sessionsContainer.innerHTML = `
+                <div class="text-center text-danger py-4">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
+                    <h6>Failed to Load Sessions</h6>
+                    <button class="btn btn-outline-primary btn-sm" onclick="loadPlansAndSessions()">
+                        <i class="fas fa-refresh me-1"></i> Try Again
+                    </button>
+                </div>
+            `;
+        }
+    }
 }
 
 /**

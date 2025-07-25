@@ -221,21 +221,27 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
                 
                 // Check if response was successful
                 if (!response.ok) {
-                    // Token refresh mechanism disabled to prevent infinite loops
-                    // if (response.status === 401 && typeof window.refreshToken === 'function') {
-                    //     try {
-                    //         await window.refreshToken();
-                    //         // Retry with fresh token
-                    //         return window.fetchAPI(endpoint, method, data);
-                    //     } catch (refreshError) {
-                    //         console.error('Token refresh failed during fetch:', refreshError);
-                    //         throw {
-                    //             status: response.status,
-                    //             message: 'Authentication failed',
-                    //             data: jsonData
-                    //         };
-                    //     }
-                    // }
+                    // Handle 401 authentication errors specifically
+                    if (response.status === 401) {
+                        console.error('Authentication failed - redirecting to login');
+                        // Clear invalid token
+                        localStorage.removeItem('access_token');
+                        localStorage.removeItem('refresh_token');
+                        
+                        // Show user-friendly message
+                        const errorMessage = 'Your session has expired. Please log in again.';
+                        
+                        // Redirect to login page after a short delay
+                        setTimeout(() => {
+                            window.location.href = '/auth-users/login/';
+                        }, 2000);
+                        
+                        throw {
+                            status: response.status,
+                            message: errorMessage,
+                            data: jsonData
+                        };
+                    }
                     
                     throw {
                         status: response.status,
@@ -298,10 +304,9 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
     }
 }
 
-/**
- * Client API service for diet requests
- */
-class DietRequestService {
+    // Export DietRequestService as a window property to avoid duplicates
+    if (typeof window.DietRequestService === 'undefined') {
+        window.DietRequestService = class {
     constructor(apiClient) {
         this.apiClient = apiClient;
         this.endpoint = 'diet-requests/';
@@ -336,11 +341,13 @@ class DietRequestService {
     async cancelRequest(id) {
         return this.apiClient.post(`${this.endpoint}${id}/cancel/`);
     }
-}
+};
+    }
 
 /**
  * Client API service for subscriptions
  */
+if (!window.SubscriptionService) {
 class SubscriptionService {
     constructor(apiClient) {
         this.apiClient = apiClient;
@@ -371,6 +378,8 @@ class SubscriptionService {
     async cancelSubscription(id) {
         return this.apiClient.post(`${this.endpoint}${id}/cancel/`);
     }
+}
+    window.SubscriptionService = SubscriptionService;
 }
 
 // Initialize services
