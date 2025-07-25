@@ -263,7 +263,8 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
     };
     
     // Export ProgressReportService as a window property to avoid duplicates
-    window.ProgressReportService = class {
+    if (typeof window.ProgressReportService === 'undefined') {
+        window.ProgressReportService = class {
         constructor(apiClient) {
             this.apiClient = apiClient;
             this.endpoint = 'progress-reports/';
@@ -294,36 +295,6 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
             return this.apiClient.delete(`${this.endpoint}${id}/`);
         }
     };
-}
-
-
-/**
- * Client API service for progress reports
- */
-class ProgressReportService {
-    constructor(apiClient) {
-        this.apiClient = apiClient;
-        this.endpoint = 'progress-reports/';
-    }
-    
-    // Get all progress reports
-    async getAllReports() {
-        return this.apiClient.get(this.endpoint);
-    }
-    
-    // Get reports for a specific subscription
-    async getReportsBySubscription(subscriptionId) {
-        return this.apiClient.get(`${this.endpoint}by_subscription/`, { subscription_id: subscriptionId });
-    }
-    
-    // Get a single report
-    async getReport(id) {
-        return this.apiClient.get(`${this.endpoint}${id}/`);
-    }
-    
-    // Add a comment to a report
-    async addComment(id, comment) {
-        return this.apiClient.patch(`${this.endpoint}${id}/add_comment/`, { client_comment: comment });
     }
 }
 

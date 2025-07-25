@@ -1,354 +1,408 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Client Profile | Eazy Fit{% endblock %}
+{% block title %}Client Profile - {{ user.get_full_name }}{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
     <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_view.css' %}">
-    <!-- Add tippy.js for tooltips -->
-    <link rel="stylesheet" href="{% static 'vendor/tippy/scale.css' %}">
 {% endblock %}
 
 {% block content %}
-<div class="container-fluid client-profile-container p-0">
-    <!-- Profile Header Section with Cover Image -->
-    <div class="profile-cover-wrapper">
-        <div id="cover-image-container" class="profile-cover">
-            <!-- Cover image will be loaded by JS -->
-            <div class="cover-loading-placeholder"></div>
-        </div>
-        <div class="profile-cover-overlay"></div>
-    </div>
-    
-    <div class="container profile-main-container">
-        <!-- Profile Information Section -->
-        <div class="profile-header">
-            <div class="profile-avatar-container">
-                <div id="avatar-container" class="profile-avatar" aria-label="Profile photo" role="img">
-                    <!-- Avatar will be loaded by JS -->
-                    <div class="skeleton-avatar pulse-animation"></div>
-                </div>
-            </div>
-            
-            <div class="profile-header-content">
-                <div class="profile-info">
-                    <h1 class="profile-name" id="profile-name" aria-live="polite">Loading Profile...</h1>
-                    <p class="profile-email" id="email" aria-live="polite">
-                        <i class="fas fa-circle-notch fa-spin" aria-hidden="true"></i> Loading...
-                    </p>
-                </div>
-                
-                <div class="profile-actions" role="group" aria-label="Profile actions">
-                    <button class="btn btn-light rounded-pill shadow-sm" id="edit-profile-btn" data-tippy-content="Edit Profile" aria-label="Edit your profile">
-                        <i class="fas fa-pencil-alt me-2" aria-hidden="true"></i> Edit Profile
-                    </button>
-                    <button class="btn btn-primary rounded-pill shadow-sm ms-2" id="share-profile-btn" data-tippy-content="Share Profile" aria-label="Share your profile">
-                        <i class="fas fa-share-alt me-2" aria-hidden="true"></i> Share
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- Main Content Section -->
-    <div class="container content-container">
-        <div class="row g-4">
-            <!-- Left Column - Profile Info -->
-            <div class="col-lg-3">
-                <!-- Profile Info Card -->
-                <div class="card profile-card shadow-sm">
-                    <div class="card-header d-flex align-items-center">
-                        <i class="fas fa-user-circle me-2"></i>
-                        <h5 class="mb-0">Profile Information</h5>
-                    </div>
-                    <div class="card-body">
-                        <div class="client-info-details" id="client-info-container">
-                            <!-- Client info will be loaded by JS -->
-                            <div class="skeleton-loader"></div>
+<div class="container-fluid px-4 py-3">
+    <!-- Authentication Required Message (hidden by default) -->
+    <div id="login-message-container" class="d-none"></div>
+
+    <!-- Profile Content -->
+    <div class="profile-content">
+        <!-- Profile Header Section -->
+        <div class="profile-header mb-4">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <div class="d-flex align-items-center">
+                        <div class="profile-avatar me-4" id="avatar-container">
+                            <!-- Avatar will be loaded by JS -->
+                            <div class="skeleton-avatar"></div>
+                        </div>
+                        <div class="profile-info">
+                            <h2 class="profile-name mb-1" id="username">Loading...</h2>
+                            <p class="profile-email text-muted mb-2" id="email">Loading...</p>
+                            <div class="profile-badges">
+                                <span class="badge bg-primary me-2">Premium Member</span>
+                                <span class="badge bg-success">Active</span>
+                            </div>
                         </div>
                     </div>
                 </div>
-                
-                <!-- Community Badges -->
-                <div class="card badges-card shadow-sm mt-4">
-                    <div class="card-header d-flex align-items-center">
-                        <i class="fas fa-certificate me-2"></i>
-                        <h5 class="mb-0">Achievements</h5>
+                <div class="col-md-4 text-end">
+                    <a href="/profiles/client/edit-profile/" class="btn btn-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit Profile
+                    </a>
+                    <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-bell me-2"></i>Notifications</a></li>
+                        <li><a class="dropdown-item" href="#"><i class="fas fa-shield-alt me-2"></i>Privacy</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item text-danger" href="#"><i class="fas fa-trash me-2"></i>Delete Account</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row g-4">
+            <!-- Left Sidebar -->
+            <div class="col-lg-3">
+                <!-- Quick Stats Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line text-primary me-2"></i>Quick Stats</h6>
                     </div>
-                    <div class="card-body">
-                        <div class="badges-container">
-                            <div class="badge-item">
-                                <div class="badge-icon blue">
+                    <div class="card-body p-0">
+                        <div class="stats-grid" id="stats-container">
+                            <!-- Stats will be loaded by JS -->
+                            <div class="stat-item">
+                                <div class="stat-value skeleton-text"></div>
+                                <div class="stat-label skeleton-text"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Achievements Card -->
+                <div class="card shadow-sm mb-4">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-trophy text-warning me-2"></i>Achievements</h6>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="achievements-grid">
+                            <div class="achievement-item">
+                                <div class="achievement-icon bg-primary">
                                     <i class="fas fa-award"></i>
                                 </div>
-                                <span>Newcomer</span>
+                                <span class="achievement-name">Newcomer</span>
                             </div>
-                            <div class="badge-item">
-                                <div class="badge-icon yellow">
+                            <div class="achievement-item">
+                                <div class="achievement-icon bg-warning">
                                     <i class="fas fa-star"></i>
                                 </div>
-                                <span>Active</span>
+                                <span class="achievement-name">Active</span>
                             </div>
-                            <div class="badge-item">
-                                <div class="badge-icon green">
+                            <div class="achievement-item">
+                                <div class="achievement-icon bg-success">
                                     <i class="fas fa-trophy"></i>
                                 </div>
-                                <span>Fit Champ</span>
+                                <span class="achievement-name">Fit Champ</span>
                             </div>
-                            <div class="badge-item">
-                                <div class="badge-icon purple">
+                            <div class="achievement-item">
+                                <div class="achievement-icon bg-info">
                                     <i class="fas fa-crown"></i>
                                 </div>
-                                <span>Pro Member</span>
+                                <span class="achievement-name">Elite</span>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions Card -->
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white py-3">
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-bolt text-danger me-2"></i>Quick Actions</h6>
+                    </div>
+                    <div class="card-body p-3">
+                        <div class="d-grid gap-2">
+                            <button class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-plus me-1"></i> Add Measurement
+                            </button>
+                            <button class="btn btn-outline-success btn-sm">
+                                <i class="fas fa-camera me-1"></i> Upload Progress Photo
+                            </button>
+                            <button class="btn btn-outline-info btn-sm">
+                                <i class="fas fa-file-alt me-1"></i> Create Report
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Middle Column - Main Content -->
-            <div class="col-lg-6">
-                <!-- Stats Section -->
-                <div class="card stats-card shadow-sm">
-                    <div class="card-header bg-gradient-light d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-chart-line me-2 text-primary"></i>
-                            <h5 class="mb-0">Fitness Statistics</h5>
-                        </div>
-                        <button class="btn btn-primary rounded-pill" id="view-measurements-btn" data-tippy-content="See your complete measurement history">
-                            <i class="fas fa-weight me-2"></i> View All
-                        </button>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="stats-container fade-in" id="stats-container">
-                            <!-- Stats will be loaded by JS -->
-                            <div class="skeleton-loader pulse-animation"></div>
-                        </div>
-                        <div class="mt-4 pt-3 border-top">
-                            <h6 class="text-muted mb-3">Latest Measurements</h6>
-                            <div class="last-measurement" id="last-measurement">
-                                <!-- Last measurement info will be loaded by JS -->
-                                <div class="skeleton-loader pulse-animation"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Featured Content Card -->
-                <div class="card featured-card shadow-sm mt-4 overflow-hidden">
+            <!-- Main Content Area -->
+            <div class="col-lg-9">
+                <!-- Navigation Tabs -->
+                <div class="card shadow-sm mb-4">
                     <div class="card-body p-0">
-                        <div class="featured-content">
-                            <img src="{% static 'profiles/img/fitness-featured.jpg' %}" alt="Featured Content" class="featured-image" data-default-src="{% static 'profiles/img/default-featured.jpg' %}">
-                            <div class="featured-overlay">
-                                <h4 class="featured-title">Unlock Your Fitness Potential</h4>
-                                <p class="featured-description">Track your progress, set goals, and achieve your fitness dreams with our personalized coaching.</p>
-                                <a href="#" class="btn btn-light rounded-pill">Learn More</a>
-                            </div>
-                        </div>
+                        <nav class="nav nav-tabs border-0" id="profileTabs" role="tablist">
+                            <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab">
+                                <i class="fas fa-home me-2"></i>Overview
+                            </button>
+                            <button class="nav-link" id="personal-info-tab" data-bs-toggle="tab" data-bs-target="#personal-info" type="button" role="tab">
+                                <i class="fas fa-user me-2"></i>Personal Info
+                            </button>
+                            <button class="nav-link" id="fitness-data-tab" data-bs-toggle="tab" data-bs-target="#fitness-data" type="button" role="tab">
+                                <i class="fas fa-dumbbell me-2"></i>Fitness Data
+                            </button>
+                            <button class="nav-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#progress" type="button" role="tab">
+                                <i class="fas fa-chart-line me-2"></i>Progress
+                            </button>
+                            <button class="nav-link" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
+                                <i class="fas fa-calendar-alt me-2"></i>Plans & Sessions
+                            </button>
+                            <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#gallery" type="button" role="tab">
+                                <i class="fas fa-images me-2"></i>Gallery
+                            </button>
+                        </nav>
                     </div>
                 </div>
-                
-                <!-- Progress Posts Section -->
-                <div class="card posts-card shadow-sm mt-4">
-                    <div class="card-header d-flex justify-content-between align-items-center">
-                        <div class="d-flex align-items-center">
-                            <i class="fas fa-clipboard-list me-2 text-success"></i>
-                            <h5 class="mb-0">Progress Reports</h5>
-                        </div>
-                        <a href="#" class="btn btn-sm btn-outline-primary rounded-pill">
-                            <i class="fas fa-eye me-1"></i> View All
-                        </a>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="posts-grid" id="progress-reports-container">
-                            <!-- Progress reports will be loaded by JS -->
-                            <div class="skeleton-loader pulse-animation"></div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Progress Gallery -->
-                <div class="card gallery-card shadow-sm mt-4">
-                    <div class="card-header bg-light p-0 border-bottom-0">
-                        <ul class="nav nav-tabs card-header-tabs" id="galleryTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="before-after-tab" data-bs-toggle="tab" data-bs-target="#before-after" type="button" role="tab" aria-controls="before-after" aria-selected="true" data-tippy-content="View your progress transformation">
-                                    <i class="fas fa-sync-alt me-2"></i> Before & After
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="all-photos-tab" data-bs-toggle="tab" data-bs-target="#all-photos" type="button" role="tab" aria-controls="all-photos" aria-selected="false" data-tippy-content="Browse all your progress photos">
-                                    <i class="fas fa-images me-2"></i> All Photos
-                                    <span class="badge rounded-pill bg-primary ms-1" id="photos-count">0</span>
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="tab-content" id="galleryTabContent">
-                        <!-- Before & After Tab -->
-                        <div class="tab-pane fade show active" id="before-after" role="tabpanel" aria-labelledby="before-after-tab">
-                            <div class="card-body p-4">
-                                <div id="before-after-container" class="before-after-wrapper">
-                                    <!-- Before & After content will be loaded by JS -->
-                                    <div class="skeleton-loader pulse-animation"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- All Photos Tab -->
-                        <div class="tab-pane fade" id="all-photos" role="tabpanel" aria-labelledby="all-photos-tab">
-                            <div class="card-body p-4">
-                                <div id="all-photos-container" class="gallery-grid">
-                                    <!-- All photos will be loaded by JS -->
-                                    <div class="skeleton-loader pulse-animation"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Right Column - Plans & Activity -->
-            <div class="col-lg-3">
-                <!-- Active Plan / Diet Requests -->
-                <div class="card plans-card shadow-sm">
-                    <div class="card-header bg-light p-0 border-bottom-0">
-                        <ul class="nav nav-tabs card-header-tabs" id="plansTab" role="tablist">
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link active" id="active-plans-tab" data-bs-toggle="tab" data-bs-target="#active-plans" type="button" role="tab" aria-controls="active-plans" aria-selected="true" data-tippy-content="View your current active fitness and diet plans">
-                                    <i class="fas fa-clipboard-list me-2"></i> Plans
-                                    <span class="badge rounded-pill bg-primary ms-1" id="active-plans-count">0</span>
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link" id="diet-requests-tab" data-bs-toggle="tab" data-bs-target="#diet-requests" type="button" role="tab" aria-controls="diet-requests" aria-selected="false" data-tippy-content="Manage your diet consultation requests">
-                                    <i class="fas fa-utensils me-2"></i> Diet
-                                    <span class="badge rounded-pill bg-info ms-1" id="diet-requests-count">0</span>
-                                </button>
-                            </li>
-                        </ul>
-                    </div>
-                    <div class="tab-content" id="plansTabContent">
-                        <!-- Active Plans Tab -->
-                        <div class="tab-pane fade show active" id="active-plans" role="tabpanel" aria-labelledby="active-plans-tab">
-                            <div class="card-body p-4">
-                                <div id="active-subscriptions-container">
-                                    <!-- Active subscriptions will be loaded by JS -->
-                                    <div class="skeleton-loader pulse-animation"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <!-- Diet Requests Tab -->
-                        <div class="tab-pane fade" id="diet-requests" role="tabpanel" aria-labelledby="diet-requests-tab">
-                            <div class="card-body p-4">
-                                <div id="diet-requests-container">
-                                    <!-- Diet requests will be loaded by JS -->
-                                    <div class="skeleton-loader pulse-animation"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Upcoming Sessions Card -->
-                <div class="card sessions-card shadow-sm mt-4">
-                    <div class="card-header d-flex align-items-center">
-                        <i class="fas fa-calendar-check me-2 text-warning"></i>
-                        <h5 class="mb-0">Upcoming Sessions</h5>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="upcoming-sessions" id="upcoming-sessions">
-                            <!-- Will be populated by JS -->
-                            <div class="session-item">
-                                <div class="session-date bg-primary text-white">
-                                    <span class="day">15</span>
-                                    <span class="month">Jun</span>
-                                </div>
-                                <div class="session-info">
-                                    <h6 class="mb-1">Strength Training</h6>
-                                    <p class="mb-1 text-muted"><i class="fas fa-clock me-2"></i> 10:00 AM - 11:30 AM</p>
-                                    <p class="mb-0"><i class="fas fa-user me-2"></i> Coach Michael</p>
-                                </div>
-                            </div>
-                            <div class="session-item">
-                                <div class="session-date bg-success text-white">
-                                    <span class="day">18</span>
-                                    <span class="month">Jun</span>
-                                </div>
-                                <div class="session-info">
-                                    <h6 class="mb-1">Cardio & HIIT</h6>
-                                    <p class="mb-1 text-muted"><i class="fas fa-clock me-2"></i> 9:00 AM - 10:00 AM</p>
-                                    <p class="mb-0"><i class="fas fa-user me-2"></i> Coach Sarah</p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Activity Timeline -->
-                <div class="card activity-card shadow-sm mt-4">
-                    <div class="card-header d-flex align-items-center">
-                        <i class="fas fa-history me-2 text-info"></i>
-                        <h5 class="mb-0">Recent Activity</h5>
-                    </div>
-                    <div class="card-body p-4">
-                        <div class="activity-timeline" id="activity-container">
-                            <!-- Activities will be loaded by JS -->
-                            <div class="activity-item">
-                                <div class="activity-icon bg-light">
-                                    <i class="fas fa-weight text-primary"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <p class="mb-1">Updated weight measurement</p>
-                                    <span class="activity-time text-muted">3 hours ago</span>
-                                </div>
-                            </div>
-                            
-                            <div class="activity-item">
-                                <div class="activity-icon">
-                                    <i class="fas fa-running"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <p>Completed weekly fitness assessment</p>
-                                    <span class="activity-time">2 days ago</span>
-                                </div>
-                            </div>
-                            
-                            <div class="activity-item">
-                                <div class="activity-icon">
-                                    <i class="fas fa-trophy"></i>
-                                </div>
-                                <div class="activity-content">
-                                    <p>Earned "Consistency Champion" badge</p>
-                                    <span class="activity-time">1 week ago</span>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="text-center mt-3">
-                            <a href="#" class="btn btn-sm btn-outline-primary">See More Activities</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Lightbox Modal for Gallery Images -->
-<div class="modal fade" id="galleryLightbox" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Progress Photo</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body text-center">
-                <img src="" class="img-fluid" id="lightboxImage">
-                <p class="mt-2" id="lightboxCaption"></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-primary" id="prevImageBtn"><i class="fas fa-arrow-left"></i> Previous</button>
-                <span class="mx-3" id="imageCounter">1/1</span>
-                <button type="button" class="btn btn-primary" id="nextImageBtn">Next <i class="fas fa-arrow-right"></i></button>
+                <!-- Tab Content -->
+                <div class="tab-content" id="profileTabsContent">
+                    <!-- Overview Tab -->
+                    <div class="tab-pane fade show active" id="overview" role="tabpanel">
+                        <div class="row g-4">
+                            <!-- Fitness Progress Chart -->
+                            <div class="col-lg-8">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-area text-success me-2"></i>Fitness Progress</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="chart-container" style="height: 300px;">
+                                            <canvas id="fitnessProgressChart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Recent Activity -->
+                            <div class="col-lg-4">
+                                <div class="card shadow-sm h-100">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-clock text-info me-2"></i>Recent Activity</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="activity-timeline" id="recent-activity">
+                                            <!-- Activity items will be loaded by JS -->
+                                            <div class="activity-item">
+                                                <div class="activity-icon bg-primary">
+                                                    <i class="fas fa-weight"></i>
+                                                </div>
+                                                <div class="activity-content">
+                                                    <p class="mb-1 fw-bold">Updated weight measurement</p>
+                                                    <span class="text-muted small">3 hours ago</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Key Metrics -->
+                            <div class="col-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-tachometer-alt text-primary me-2"></i>Key Metrics</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-3">
+                                                <div class="metric-card text-center p-3 bg-light rounded">
+                                                    <i class="fas fa-weight fa-2x text-primary mb-2"></i>
+                                                    <h4 class="mb-1" id="current-weight">--</h4>
+                                                    <p class="mb-0 text-muted">Current Weight</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="metric-card text-center p-3 bg-light rounded">
+                                                    <i class="fas fa-calculator fa-2x text-success mb-2"></i>
+                                                    <h4 class="mb-1" id="current-bmi">--</h4>
+                                                    <p class="mb-0 text-muted">BMI</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="metric-card text-center p-3 bg-light rounded">
+                                                    <i class="fas fa-percentage fa-2x text-warning mb-2"></i>
+                                                    <h4 class="mb-1" id="body-fat">--</h4>
+                                                    <p class="mb-0 text-muted">Body Fat %</p>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-3">
+                                                <div class="metric-card text-center p-3 bg-light rounded">
+                                                    <i class="fas fa-fire fa-2x text-danger mb-2"></i>
+                                                    <h4 class="mb-1" id="calories-burned">--</h4>
+                                                    <p class="mb-0 text-muted">Calories Burned</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Personal Info Tab -->
+                    <div class="tab-pane fade" id="personal-info" role="tabpanel">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-user text-primary me-2"></i>Basic Information</h6>
+                                    </div>
+                                    <div class="card-body" id="client-info-container">
+                                        <!-- Client info will be loaded by JS -->
+                                        <div class="skeleton-loader"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-heartbeat text-danger me-2"></i>Health Information</h6>
+                                    </div>
+                                    <div class="card-body" id="health-info-container">
+                                        <!-- Health info will be loaded by JS -->
+                                        <div class="skeleton-loader"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Fitness Data Tab -->
+                    <div class="tab-pane fade" id="fitness-data" role="tabpanel">
+                        <div class="row g-4">
+                            <div class="col-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <h6 class="mb-0 fw-bold"><i class="fas fa-ruler text-info me-2"></i>Body Measurements</h6>
+                                            <button class="btn btn-sm btn-primary">
+                                                <i class="fas fa-plus me-1"></i> Add Measurement
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="table-responsive">
+                                            <table class="table table-hover" id="measurements-table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Date</th>
+                                                        <th>Weight</th>
+                                                        <th>Height</th>
+                                                        <th>Chest</th>
+                                                        <th>Waist</th>
+                                                        <th>Hips</th>
+                                                        <th>Body Fat %</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="measurements-tbody">
+                                                    <!-- Measurements will be loaded by JS -->
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Progress Tab -->
+                    <div class="tab-pane fade" id="progress" role="tabpanel">
+                        <div class="row g-4">
+                            <div class="col-lg-8">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line text-success me-2"></i>Progress Reports</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="progress-reports-container">
+                                            <!-- Progress reports will be loaded by JS -->
+                                            <div class="skeleton-loader"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-4">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-target text-warning me-2"></i>Goals</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="goals-list" id="goals-container">
+                                            <!-- Goals will be loaded by JS -->
+                                            <div class="skeleton-loader"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Plans & Sessions Tab -->
+                    <div class="tab-pane fade" id="plans" role="tabpanel">
+                        <div class="row g-4">
+                            <div class="col-lg-6">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-dumbbell text-primary me-2"></i>Workout Plans</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="workout-plans-container">
+                                            <!-- Workout plans will be loaded by JS -->
+                                            <div class="skeleton-loader"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-utensils text-success me-2"></i>Diet Plans</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="diet-plans-container">
+                                            <!-- Diet plans will be loaded by JS -->
+                                            <div class="skeleton-loader"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="card shadow-sm">
+                                    <div class="card-header bg-white py-3">
+                                        <h6 class="mb-0 fw-bold"><i class="fas fa-calendar text-info me-2"></i>Upcoming Sessions</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div id="upcoming-sessions-container">
+                                            <!-- Sessions will be loaded by JS -->
+                                            <div class="skeleton-loader"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Gallery Tab -->
+                    <div class="tab-pane fade" id="gallery" role="tabpanel">
+                        <div class="card shadow-sm">
+                            <div class="card-header bg-white py-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h6 class="mb-0 fw-bold"><i class="fas fa-images text-info me-2"></i>Progress Gallery</h6>
+                                    <button class="btn btn-sm btn-primary" id="upload-photo-btn">
+                                        <i class="fas fa-upload me-1"></i> Upload Photo
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="gallery-grid" id="gallery-container">
+                                    <!-- Gallery images will be loaded by JS -->
+                                    <div class="skeleton-loader"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -359,37 +413,17 @@
     <!-- Third-party libraries -->
     <script src="{% static 'vendor/popper/popper.min.js' %}"></script>
     <script src="{% static 'vendor/tippy/tippy-bundle.umd.min.js' %}"></script>
+    <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
     
     <!-- App scripts - Load API module first and only once -->
+    <script>
+        // Prevent duplicate loading of API services
+        if (typeof window.EazyFitAPILoaded === 'undefined') {
+            window.EazyFitAPILoaded = true;
+        }
+    </script>
     <script src="{% static 'profiles/js/api.js' %}"></script>
     
     <!-- JavaScript for API calls -->
     <script src="{% static 'profiles/js/client/client_profile_api.js' %}"></script>
-    
-    <!-- JavaScript for image fallbacks -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Handle featured image fallback
-            const featuredImages = document.querySelectorAll('.featured-image');
-            featuredImages.forEach(img => {
-                img.addEventListener('error', function() {
-                    const defaultSrc = this.getAttribute('data-default-src');
-                    if (defaultSrc) {
-                        this.src = defaultSrc;
-                    }
-                });
-            });
-            
-            // Initialize any loading placeholders
-            const loadingElements = document.querySelectorAll('.loading-placeholder');
-            if (loadingElements.length > 0) {
-                setTimeout(() => {
-                    loadingElements.forEach(el => {
-                        el.classList.remove('loading-placeholder');
-                    });
-                }, 1500);
-            }
-        });
-    </script>
-    <script src="{% static 'profiles/js/client/client_profile_view.js' %}"></script>
 {% endblock %}

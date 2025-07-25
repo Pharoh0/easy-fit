@@ -45,8 +45,15 @@ async function initializeProfilePage() {
         // Fetch and display progress gallery
         await fetchAndDisplayProgressGallery();
         
+        // Load additional tab content
+        await loadPersonalInfo(clientProfile);
+        await loadHealthInfo(clientProfile);
+        
         // Set up event listeners
         setupEventListeners();
+        
+        // Initialize charts
+        initializeCharts();
     } catch (error) {
         console.error('Error initializing profile page:', error);
         showErrorNotification('Failed to load profile data.');
@@ -386,6 +393,12 @@ async function fetchAndDisplayMeasurements() {
         const statsContainer = document.getElementById('stats-container');
         const lastMeasurement = document.getElementById('last-measurement');
         
+        // Check if containers exist before manipulating them
+        if (!statsContainer) {
+            console.warn('Stats container not found in the DOM');
+            return;
+        }
+        
         // Reset containers
         statsContainer.innerHTML = '';
         
@@ -432,20 +445,22 @@ async function fetchAndDisplayMeasurements() {
             `;
             
             // Display last measurement info
-            lastMeasurement.innerHTML = `
-                <p>
-                    <i class="fas fa-calendar-alt"></i>
-                    <strong>Last Measurement:</strong> ${formatDate(latest.date)}
-                </p>
-                <div class="measurement-details">
-                    <div>Chest: ${latest.chest || 'N/A'} cm</div>
-                    <div>Arms: ${latest.arms || 'N/A'} cm</div>
-                    <div>Waist: ${latest.waist || 'N/A'} cm</div>
-                    <div>Hips: ${latest.hips || 'N/A'} cm</div>
-                    <div>Thighs: ${latest.thighs || 'N/A'} cm</div>
-                    <div>Calves: ${latest.calves || 'N/A'} cm</div>
-                </div>
-            `;
+            if (lastMeasurement) {
+                lastMeasurement.innerHTML = `
+                    <p>
+                        <i class="fas fa-calendar-alt"></i>
+                        <strong>Last Measurement:</strong> ${formatDate(latest.date)}
+                    </p>
+                    <div class="measurement-details">
+                        <div>Chest: ${latest.chest || 'N/A'} cm</div>
+                        <div>Arms: ${latest.arms || 'N/A'} cm</div>
+                        <div>Waist: ${latest.waist || 'N/A'} cm</div>
+                        <div>Hips: ${latest.hips || 'N/A'} cm</div>
+                        <div>Thighs: ${latest.thighs || 'N/A'} cm</div>
+                        <div>Calves: ${latest.calves || 'N/A'} cm</div>
+                    </div>
+                `;
+            }
         } else {
             // No measurements found
             statsContainer.innerHTML = `
@@ -460,13 +475,16 @@ async function fetchAndDisplayMeasurements() {
         }
     } catch (error) {
         console.error('Error fetching measurements:', error);
-        document.getElementById('stats-container').innerHTML = `
-            <div class="col-12">
-                <div class="alert alert-danger">
-                    Failed to load measurement data. Please try again later.
+        const statsContainer = document.getElementById('stats-container');
+        if (statsContainer) {
+            statsContainer.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-danger">
+                        Failed to load measurement data. Please try again later.
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
+        }
     }
 }
 
@@ -786,12 +804,257 @@ async function fetchAndDisplayProgressGallery() {
 }
 
 /**
- * Format date string to locale format
+ * Format date string
  */
 function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString();
+    if (!dateString) return 'Not available';
+    
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('en-US', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (error) {
+        console.error('Error formatting date:', error);
+        return 'Invalid date';
+    }
+}
+
+/**
+ * Load personal information into the Personal Info tab
+ */
+async function loadPersonalInfo(profile) {
+    const container = document.getElementById('client-info-container');
+    if (!container) {
+        console.warn('Personal info container not found');
+        return;
+    }
+    
+    const personalInfoHTML = `
+        <div class="row g-3">
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-user text-primary me-2"></i>
+                    <strong>Full Name:</strong> ${profile.username || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-envelope text-primary me-2"></i>
+                    <strong>Email:</strong> ${profile.email || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-birthday-cake text-primary me-2"></i>
+                    <strong>Age:</strong> ${profile.age || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-venus-mars text-primary me-2"></i>
+                    <strong>Gender:</strong> ${profile.gender || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-ruler-vertical text-primary me-2"></i>
+                    <strong>Height:</strong> ${profile.height ? profile.height + ' cm' : 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-weight text-primary me-2"></i>
+                    <strong>Weight:</strong> ${profile.weight ? profile.weight + ' kg' : 'Not specified'}
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="info-item">
+                    <i class="fas fa-running text-primary me-2"></i>
+                    <strong>Activity Level:</strong> ${profile.activity_level || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="info-item">
+                    <i class="fas fa-bullseye text-primary me-2"></i>
+                    <strong>Fitness Goals:</strong> ${profile.fitness_goals || 'Not specified'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = personalInfoHTML;
+}
+
+/**
+ * Load health information into the Health Info section
+ */
+async function loadHealthInfo(profile) {
+    const container = document.getElementById('health-info-container');
+    if (!container) {
+        console.warn('Health info container not found');
+        return;
+    }
+    
+    const healthInfoHTML = `
+        <div class="row g-3">
+            <div class="col-12">
+                <div class="info-item">
+                    <i class="fas fa-heartbeat text-danger me-2"></i>
+                    <strong>Health Conditions:</strong>
+                    <p class="mt-2 mb-0">${profile.health_conditions || 'None specified'}</p>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="info-item">
+                    <i class="fas fa-allergies text-warning me-2"></i>
+                    <strong>Allergies:</strong>
+                    <p class="mt-2 mb-0">${profile.allergies || 'None specified'}</p>
+                </div>
+            </div>
+            <div class="col-12">
+                <div class="info-item">
+                    <i class="fas fa-utensils text-success me-2"></i>
+                    <strong>Dietary Preferences:</strong>
+                    <p class="mt-2 mb-0">${profile.dietary_preferences || 'None specified'}</p>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-calculator text-info me-2"></i>
+                    <strong>BMI:</strong> ${profile.bmi || 'Not calculated'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-percentage text-warning me-2"></i>
+                    <strong>Body Fat %:</strong> ${profile.body_fat_percentage || 'Not measured'}
+                </div>
+            </div>
+        </div>
+    `;
+    
+    container.innerHTML = healthInfoHTML;
+}
+
+/**
+ * Set up event listeners for the profile page
+ */
+function setupEventListeners() {
+    // Tab switching event listeners
+    const tabButtons = document.querySelectorAll('[data-bs-toggle="tab"]');
+    tabButtons.forEach(button => {
+        button.addEventListener('shown.bs.tab', function(event) {
+            const targetTab = event.target.getAttribute('data-bs-target');
+            console.log('Tab switched to:', targetTab);
+            
+            // Load content based on active tab
+            switch(targetTab) {
+                case '#fitness-data':
+                    loadMeasurementsTable();
+                    break;
+                case '#progress':
+                    loadProgressReports();
+                    break;
+                case '#plans':
+                    loadPlansAndSessions();
+                    break;
+                case '#gallery':
+                    loadGalleryImages();
+                    break;
+            }
+        });
+    });
+    
+    // Upload photo button
+    const uploadBtn = document.getElementById('upload-photo-btn');
+    if (uploadBtn) {
+        uploadBtn.addEventListener('click', function() {
+            // Handle photo upload
+            console.log('Upload photo clicked');
+        });
+    }
+}
+
+/**
+ * Initialize charts for the overview tab
+ */
+function initializeCharts() {
+    const chartCanvas = document.getElementById('fitnessProgressChart');
+    if (!chartCanvas) {
+        console.warn('Chart canvas not found');
+        return;
+    }
+    
+    // Initialize Chart.js if available
+    if (typeof Chart !== 'undefined') {
+        const ctx = chartCanvas.getContext('2d');
+        new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                datasets: [{
+                    label: 'Weight (kg)',
+                    data: [70, 69, 68, 67, 66, 65],
+                    borderColor: '#0d6efd',
+                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                    tension: 0.4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false
+                    }
+                }
+            }
+        });
+    } else {
+        console.warn('Chart.js not loaded');
+        chartCanvas.parentElement.innerHTML = '<p class="text-center text-muted">Chart library not available</p>';
+    }
+}
+
+/**
+ * Load measurements table (placeholder)
+ */
+function loadMeasurementsTable() {
+    console.log('Loading measurements table...');
+    // Implementation for loading measurements table
+}
+
+/**
+ * Load progress reports (placeholder)
+ */
+function loadProgressReports() {
+    console.log('Loading progress reports...');
+    // Implementation for loading progress reports
+}
+
+/**
+ * Load plans and sessions (placeholder)
+ */
+function loadPlansAndSessions() {
+    console.log('Loading plans and sessions...');
+    // Implementation for loading plans and sessions
+}
+
+/**
+ * Load gallery images (placeholder)
+ */
+function loadGalleryImages() {
+    console.log('Loading gallery images...');
+    // Implementation for loading gallery images
 }
 
 /**
