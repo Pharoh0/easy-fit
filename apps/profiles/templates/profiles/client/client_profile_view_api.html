@@ -415,15 +415,14 @@
     <script src="{% static 'vendor/tippy/tippy-bundle.umd.min.js' %}"></script>
     <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
     
-    <!-- App scripts - Load API module first and only once -->
+    <!-- App scripts - Client profile API -->
     <script>
         // Prevent duplicate loading of API services
         if (typeof window.EazyFitAPILoaded === 'undefined') {
             window.EazyFitAPILoaded = true;
         }
     </script>
-    <script src="{% static 'profiles/js/api.js' %}"></script>
     
-    <!-- JavaScript for API calls -->
+    <!-- JavaScript for API calls - api.js is already loaded in base.html -->
     <script src="{% static 'profiles/js/client/client_profile_api.js' %}"></script>
 {% endblock %}

@@ -88,11 +88,14 @@ async function initializeProfilePage() {
         await loadPersonalInfo(clientProfile);
         await loadHealthInfo(clientProfile);
         
+        // Load recent activity with real data
+        await loadRecentActivity();
+        
         // Set up event listeners
         setupEventListeners();
         
-        // Initialize charts
-        initializeCharts();
+        // Initialize charts with real data
+        await initializeCharts();
     } catch (error) {
         console.error('Error initializing profile page:', error);
         showErrorNotification('Failed to load profile data.');
@@ -424,6 +427,107 @@ function populateProfileData(profile) {
 }
 
 /**
+ * Populate Key Metrics section with real data
+ */
+async function populateKeyMetrics() {
+    try {
+        // Get elements
+        const currentWeightElement = document.getElementById('current-weight');
+        const currentBmiElement = document.getElementById('current-bmi');
+        const bodyFatElement = document.getElementById('body-fat');
+        const caloriesBurnedElement = document.getElementById('calories-burned');
+        
+        // Check if elements exist
+        if (!currentWeightElement || !currentBmiElement || !bodyFatElement || !caloriesBurnedElement) {
+            console.warn('Key Metrics elements not found in the DOM');
+            return;
+        }
+        
+        // Show loading state
+        currentWeightElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        currentBmiElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        bodyFatElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        caloriesBurnedElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        
+        // Fetch latest measurements
+        const measurements = await fetchAPI('client-measurements/', 'GET');
+        
+        // Fetch activity data for calories
+        let caloriesBurned = 0;
+        try {
+            const activityData = await fetchAPI('client-activity-summary/', 'GET')
+                .catch(err => {
+                    console.warn('Activity data not available, using default values');
+                    return { calories_burned_week: 0 };
+                });
+            
+            caloriesBurned = activityData.calories_burned_week || 0;
+        } catch (err) {
+            console.warn('Error fetching activity data:', err);
+        }
+        
+        if (measurements && measurements.length > 0) {
+            // Sort measurements by date (newest first)
+            measurements.sort((a, b) => new Date(b.date) - new Date(a.date));
+            const latest = measurements[0];
+            
+            // Calculate BMI if we have weight and height
+            let bmi = '--';
+            if (latest.weight && latest.height) {
+                // BMI = weight(kg) / (height(m))²
+                const heightInMeters = latest.height / 100;
+                bmi = (latest.weight / (heightInMeters * heightInMeters)).toFixed(1);
+            }
+            
+            // Update metrics
+            currentWeightElement.innerHTML = `${latest.weight || '--'} <small>kg</small>`;
+            currentBmiElement.innerHTML = bmi;
+            bodyFatElement.innerHTML = `${latest.body_fat_percentage || '--'} <small>%</small>`;
+            caloriesBurnedElement.innerHTML = `${caloriesBurned} <small>kcal</small>`;
+            
+            // Add color indicators based on values
+            if (bmi !== '--') {
+                if (bmi < 18.5) {
+                    currentBmiElement.classList.add('text-warning');
+                } else if (bmi >= 25) {
+                    currentBmiElement.classList.add('text-danger');
+                } else {
+                    currentBmiElement.classList.add('text-success');
+                }
+            }
+            
+            if (latest.body_fat_percentage) {
+                // Different ranges for men and women
+                const gender = latest.gender || 'male';
+                const bodyFat = parseFloat(latest.body_fat_percentage);
+                
+                if ((gender === 'male' && bodyFat < 8) || (gender === 'female' && bodyFat < 15)) {
+                    bodyFatElement.classList.add('text-warning'); // Too low
+                } else if ((gender === 'male' && bodyFat > 25) || (gender === 'female' && bodyFat > 32)) {
+                    bodyFatElement.classList.add('text-danger'); // Too high
+                } else {
+                    bodyFatElement.classList.add('text-success'); // Healthy range
+                }
+            }
+        } else {
+            // No measurements found
+            currentWeightElement.textContent = '--';
+            currentBmiElement.textContent = '--';
+            bodyFatElement.textContent = '--';
+            caloriesBurnedElement.textContent = `${caloriesBurned} kcal`;
+        }
+    } catch (error) {
+        console.error('Error populating key metrics:', error);
+        // Set default values on error
+        const elements = ['current-weight', 'current-bmi', 'body-fat', 'calories-burned'];
+        elements.forEach(id => {
+            const element = document.getElementById(id);
+            if (element) element.textContent = '--';
+        });
+    }
+}
+
+/**
  * Fetch and display client measurements
  */
 async function fetchAndDisplayMeasurements() {
@@ -588,43 +692,117 @@ function setupEventListeners() {
 }
 
 /**
- * Populate Key Metrics with real data
+ * Populate Key Metrics with real data from the measurements API
  */
 async function populateKeyMetrics() {
     try {
+        // Show loading state
+        setKeyMetricsLoadingState(true);
+
         // Fetch latest measurements
         const measurements = await fetchAPI('client-measurements/', 'GET');
         
-        if (measurements && measurements.length > 0) {
+        // Fetch profile data for activity level
+        const profileData = await fetchClientProfile();
+        
+        if (measurements && Array.isArray(measurements) && measurements.length > 0) {
             // Get the most recent measurement
-            const latestMeasurement = measurements[0];
+            const latestMeasurement = measurements[0]; // API returns most recent first
             
-            // Update Current Weight
+            // Update Current Weight with trend indicator
             const currentWeightElement = document.getElementById('current-weight');
             if (currentWeightElement && latestMeasurement.weight) {
-                currentWeightElement.textContent = `${latestMeasurement.weight} kg`;
+                // Check if we have previous measurement to show trend
+                let trendHtml = '';
+                if (measurements.length > 1 && measurements[1].weight) {
+                    const weightDiff = latestMeasurement.weight - measurements[1].weight;
+                    const trendIcon = weightDiff < 0 ? 
+                        '<i class="fas fa-arrow-down text-success"></i>' : 
+                        (weightDiff > 0 ? '<i class="fas fa-arrow-up text-danger"></i>' : '');
+                    trendHtml = trendIcon ? ` ${trendIcon} ${Math.abs(weightDiff).toFixed(1)}` : '';
+                }
+                currentWeightElement.innerHTML = `${latestMeasurement.weight} kg${trendHtml}`;
             }
             
-            // Calculate and update BMI
+            // Calculate and update BMI with health indicator
             const currentBmiElement = document.getElementById('current-bmi');
             if (currentBmiElement && latestMeasurement.weight && latestMeasurement.height) {
                 const heightInMeters = latestMeasurement.height / 100;
                 const bmi = (latestMeasurement.weight / (heightInMeters * heightInMeters)).toFixed(1);
-                currentBmiElement.textContent = bmi;
+                
+                // Add BMI category
+                let bmiCategory = '';
+                let bmiCategoryClass = '';
+                
+                if (bmi < 18.5) {
+                    bmiCategory = 'Underweight';
+                    bmiCategoryClass = 'text-warning';
+                } else if (bmi >= 18.5 && bmi < 25) {
+                    bmiCategory = 'Normal';
+                    bmiCategoryClass = 'text-success';
+                } else if (bmi >= 25 && bmi < 30) {
+                    bmiCategory = 'Overweight';
+                    bmiCategoryClass = 'text-warning';
+                } else {
+                    bmiCategory = 'Obese';
+                    bmiCategoryClass = 'text-danger';
+                }
+                
+                currentBmiElement.innerHTML = `${bmi} <span class="${bmiCategoryClass}">(${bmiCategory})</span>`;
             }
             
-            // Update Body Fat %
+            // Update Body Fat % with healthy range indicator
             const bodyFatElement = document.getElementById('body-fat');
             if (bodyFatElement && latestMeasurement.body_fat_percentage) {
-                bodyFatElement.textContent = `${latestMeasurement.body_fat_percentage}%`;
+                // Determine if body fat percentage is in healthy range (approximate ranges)
+                const gender = profileData?.gender || 'male'; // Default to male if not specified
+                const age = profileData?.age || 30; // Default to 30 if not specified
+                let isHealthy = false;
+                
+                if (gender.toLowerCase() === 'male') {
+                    // Rough male healthy ranges
+                    if (age < 40 && latestMeasurement.body_fat_percentage >= 8 && latestMeasurement.body_fat_percentage <= 19) isHealthy = true;
+                    if (age >= 40 && latestMeasurement.body_fat_percentage >= 11 && latestMeasurement.body_fat_percentage <= 21) isHealthy = true;
+                } else {
+                    // Rough female healthy ranges
+                    if (age < 40 && latestMeasurement.body_fat_percentage >= 21 && latestMeasurement.body_fat_percentage <= 32) isHealthy = true;
+                    if (age >= 40 && latestMeasurement.body_fat_percentage >= 23 && latestMeasurement.body_fat_percentage <= 33) isHealthy = true;
+                }
+                
+                const healthyIndicator = isHealthy ? '<i class="fas fa-check-circle text-success"></i>' : '';
+                bodyFatElement.innerHTML = `${latestMeasurement.body_fat_percentage}% ${healthyIndicator}`;
             }
             
-            // Calculate calories burned (placeholder calculation)
+            // Calculate calories burned based on weight, height, age, gender and activity level
             const caloriesBurnedElement = document.getElementById('calories-burned');
             if (caloriesBurnedElement) {
-                // This is a placeholder calculation - you may want to implement a proper calculation
-                const estimatedCalories = Math.round(latestMeasurement.weight * 25); // Basic estimation
-                caloriesBurnedElement.textContent = `${estimatedCalories} cal`;
+                // Get activity level multiplier
+                const activityMultipliers = {
+                    'sedentary': 1.2,
+                    'lightly_active': 1.375,
+                    'moderately_active': 1.55,
+                    'very_active': 1.725,
+                    'extremely_active': 1.9
+                };
+                
+                const weight = latestMeasurement.weight || 70; // kg
+                const height = latestMeasurement.height || 170; // cm
+                const age = profileData?.age || 30;
+                const gender = profileData?.gender?.toLowerCase() || 'male';
+                const activityLevel = profileData?.activity_level || 'moderately_active';
+                const activityMultiplier = activityMultipliers[activityLevel] || 1.55;
+                
+                // Basal Metabolic Rate (BMR) using Mifflin-St Jeor Equation
+                let bmr;
+                if (gender === 'male') {
+                    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+                } else {
+                    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+                }
+                
+                // Total Daily Energy Expenditure (TDEE)
+                const caloriesBurned = Math.round(bmr * activityMultiplier);
+                caloriesBurnedElement.textContent = `${caloriesBurned} cal`;
             }
         } else {
             // Set default values if no measurements available
@@ -649,10 +827,32 @@ async function populateKeyMetrics() {
         elements.forEach(id => {
             const element = document.getElementById(id);
             if (element) {
-                element.textContent = 'Error';
+                element.textContent = 'Error loading data';
+                element.classList.add('text-danger');
             }
         });
+    } finally {
+        // Hide loading state
+        setKeyMetricsLoadingState(false);
     }
+}
+
+/**
+ * Set loading state for key metrics section
+ */
+function setKeyMetricsLoadingState(isLoading) {
+    const elements = ['current-weight', 'current-bmi', 'body-fat', 'calories-burned'];
+    elements.forEach(id => {
+        const element = document.getElementById(id);
+        if (element) {
+            if (isLoading) {
+                element.textContent = 'Loading...';
+                element.classList.add('text-muted');
+            } else {
+                element.classList.remove('text-muted');
+            }
+        }
+    });
 }
 
 /**
@@ -1088,49 +1288,142 @@ function setupEventListeners() {
 }
 
 /**
- * Initialize charts for the overview tab
+ * Initialize charts for the overview tab with real data from measurements
  */
-function initializeCharts() {
-    const chartCanvas = document.getElementById('fitnessProgressChart');
-    if (!chartCanvas) {
-        console.warn('Chart canvas not found');
-        return;
-    }
-    
-    // Initialize Chart.js if available
-    if (typeof Chart !== 'undefined') {
-        const ctx = chartCanvas.getContext('2d');
-        new Chart(ctx, {
-            type: 'line',
-            data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-                datasets: [{
-                    label: 'Weight (kg)',
-                    data: [70, 69, 68, 67, 66, 65],
-                    borderColor: '#0d6efd',
-                    backgroundColor: 'rgba(13, 110, 253, 0.1)',
-                    tension: 0.4
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        display: true,
-                        position: 'top'
-                    }
+async function initializeCharts() {
+    try {
+        const chartCanvas = document.getElementById('fitnessProgressChart');
+        if (!chartCanvas || !chartCanvas.parentElement) {
+            console.warn('Chart canvas or parent container not found');
+            return;
+        }
+        
+        // Safely check container exists before setting innerHTML
+        const chartContainer = chartCanvas.parentElement;
+        
+        // Show loading state
+        chartContainer.innerHTML = `
+            <div class="d-flex justify-content-center align-items-center" style="height: 250px">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        // Fetch measurements data for chart
+        const measurements = await fetchAPI('client-measurements/', 'GET');
+        
+        // Make sure the container still exists after the async operation
+        if (!document.body.contains(chartContainer)) {
+            console.warn('Chart container no longer exists in the DOM');
+            return;
+        }
+        
+        // Restore the canvas
+        chartContainer.innerHTML = '';
+        const newCanvas = document.createElement('canvas');
+        newCanvas.id = 'fitnessProgressChart';
+        chartContainer.appendChild(newCanvas);
+        
+        // Process measurements data
+        let labels = [];
+        let weightData = [];
+        let bodyFatData = [];
+        
+        if (measurements && Array.isArray(measurements) && measurements.length > 0) {
+            // Sort by date ascending (oldest first)
+            const sortedMeasurements = [...measurements].sort((a, b) => {
+                return new Date(a.date_recorded) - new Date(b.date_recorded);
+            });
+            
+            // Get last 6 measurements or all if less than 6
+            const displayMeasurements = sortedMeasurements.slice(-6);
+            
+            // Extract data points
+            displayMeasurements.forEach(measurement => {
+                const date = new Date(measurement.date_recorded);
+                labels.push(date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+                
+                if (measurement.weight) {
+                    weightData.push(measurement.weight);
+                }
+                
+                if (measurement.body_fat_percentage) {
+                    bodyFatData.push(measurement.body_fat_percentage);
+                }
+            });
+        }
+        
+        // If no data, use placeholder
+        if (labels.length === 0) {
+            labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+            weightData = [70, 69, 68, 67, 66, 65];
+            bodyFatData = [20, 19, 18, 17, 16, 15];
+        }
+        
+        // Initialize Chart.js if available
+        if (typeof Chart !== 'undefined') {
+            const ctx = newCanvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Weight (kg)',
+                            data: weightData,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4,
+                            fill: true
+                        },
+                        {
+                            label: 'Body Fat %',
+                            data: bodyFatData,
+                            borderColor: '#ff6384',
+                            backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            hidden: bodyFatData.length === 0 // Hide if no data
+                        }
+                    ]
                 },
-                scales: {
-                    y: {
-                        beginAtZero: false
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            grace: '5%' // Add 5% padding to the top
+                        }
                     }
                 }
-            }
-        });
-    } else {
-        console.warn('Chart.js not loaded');
-        chartCanvas.parentElement.innerHTML = '<p class="text-center text-muted">Chart library not available</p>';
+            });
+        } else {
+            console.warn('Chart.js not loaded');
+            newCanvas.parentElement.innerHTML = '<p class="text-center text-muted">Chart library not available</p>';
+        }
+    } catch (error) {
+        console.error('Error initializing charts:', error);
+        
+        // Safely find the chart container again in case it was lost in context
+        const chartContainer = document.getElementById('fitnessProgressChart');
+        if (chartContainer && chartContainer.parentElement) {
+            chartContainer.parentElement.innerHTML = '<p class="text-center text-danger">Failed to load chart data</p>';
+        }
+        
+        // Don't let this error block other page components
+        // Just log it and continue with page initialization
     }
 }
 
@@ -1406,6 +1699,185 @@ async function loadPlansAndSessions() {
 function loadGalleryImages() {
     console.log('Loading gallery images...');
     // Implementation for loading gallery images
+}
+
+/**
+ * Load recent activity with real data
+ * Combines data from various endpoints to show recent activity
+ */
+async function loadRecentActivity() {
+    console.log('Loading recent activity...');
+    
+    const activityContainer = document.getElementById('recent-activity');
+    if (!activityContainer) {
+        console.warn('Recent activity container not found');
+        return;
+    }
+    
+    try {
+        // Show loading state
+        activityContainer.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+                <p class="mt-2 text-muted">Loading activity...</p>
+            </div>
+        `;
+        
+        // Collect activity data from various endpoints
+        let activityItems = [];
+        
+        // 1. Get measurements (newest first)
+        try {
+            const measurements = await fetchAPI('client-measurements/', 'GET');
+            if (measurements && Array.isArray(measurements)) {
+                measurements.slice(0, 3).forEach(measurement => {
+                    activityItems.push({
+                        type: 'measurement',
+                        icon: 'fas fa-weight',
+                        iconBg: 'bg-primary',
+                        title: 'Updated measurements',
+                        details: `Weight: ${measurement.weight} kg${measurement.body_fat_percentage ? ', Body Fat: ' + measurement.body_fat_percentage + '%' : ''}`,
+                        date: new Date(measurement.date_recorded || measurement.date),
+                        timestamp: new Date(measurement.date_recorded || measurement.date).getTime()
+                    });
+                });
+            }
+        } catch (err) {
+            console.warn('Error fetching measurements for activity:', err);
+        }
+        
+        // 2. Get progress reports
+        try {
+            const reports = await fetchAPI('client-progress-reports/', 'GET');
+            if (reports && Array.isArray(reports)) {
+                reports.slice(0, 3).forEach(report => {
+                    activityItems.push({
+                        type: 'progress',
+                        icon: 'fas fa-chart-line',
+                        iconBg: 'bg-success',
+                        title: 'New progress report',
+                        details: report.title || 'Progress update recorded',
+                        date: new Date(report.created_at || report.date),
+                        timestamp: new Date(report.created_at || report.date).getTime()
+                    });
+                });
+            }
+        } catch (err) {
+            console.warn('Error fetching progress reports for activity:', err);
+        }
+        
+        // 3. Get workout sessions (if endpoint exists)
+        // Note: This endpoint may not be implemented yet, so we handle the 404 gracefully
+        try {
+            // Try to fetch sessions but don't let a 404 break the entire activity feed
+            const fetchSessionsPromise = fetchAPI('client-sessions/', 'GET');
+            
+            // Set a timeout to avoid waiting too long for a non-existent endpoint
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Sessions fetch timed out')), 3000);
+            });
+            
+            // Race between actual fetch and timeout
+            const sessions = await Promise.race([fetchSessionsPromise, timeoutPromise])
+                .catch(err => {
+                    // If 404 or timeout, just return empty array (don't break the activity feed)
+                    console.log('Sessions endpoint not available, skipping this data source');
+                    return [];
+                });
+                
+            if (sessions && Array.isArray(sessions)) {
+                sessions.slice(0, 3).forEach(session => {
+                    activityItems.push({
+                        type: 'session',
+                        icon: 'fas fa-dumbbell',
+                        iconBg: 'bg-danger',
+                        title: 'Completed workout session',
+                        details: session.title || session.workout_plan || 'Workout session',
+                        date: new Date(session.date || session.created_at),
+                        timestamp: new Date(session.date || session.created_at).getTime()
+                    });
+                });
+            }
+        } catch (err) {
+            // Just log and continue - don't let this stop the activity feed
+            console.warn('Error fetching sessions for activity:', err);
+        }
+        
+        // Sort all activity items by date (newest first)
+        activityItems.sort((a, b) => b.timestamp - a.timestamp);
+        
+        // Display activity items
+        if (activityItems.length > 0) {
+            // Take only the 5 most recent items
+            const recentItems = activityItems.slice(0, 5);
+            
+            activityContainer.innerHTML = recentItems.map(item => `
+                <div class="activity-item">
+                    <div class="activity-icon ${item.iconBg}">
+                        <i class="${item.icon}"></i>
+                    </div>
+                    <div class="activity-content">
+                        <p class="mb-1 fw-bold">${item.title}</p>
+                        <p class="mb-1 small">${item.details}</p>
+                        <span class="text-muted small">${formatTimeAgo(item.date)}</span>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            // No activity found
+            activityContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-calendar-check text-muted mb-3" style="font-size: 2rem;"></i>
+                    <p class="text-muted">No recent activity found.</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading recent activity:', error);
+        activityContainer.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-exclamation-circle text-danger mb-3" style="font-size: 2rem;"></i>
+                <p class="text-danger">Failed to load recent activity.</p>
+                <button class="btn btn-sm btn-outline-primary mt-2" onclick="loadRecentActivity()">Try Again</button>
+            </div>
+        `;
+    }
+}
+
+/**
+ * Format a date as a time ago string (e.g., "3 hours ago")
+ */
+function formatTimeAgo(date) {
+    const now = new Date();
+    const secondsAgo = Math.floor((now - date) / 1000);
+    
+    // Less than a minute
+    if (secondsAgo < 60) {
+        return 'Just now';
+    }
+    
+    // Less than an hour
+    const minutesAgo = Math.floor(secondsAgo / 60);
+    if (minutesAgo < 60) {
+        return minutesAgo === 1 ? '1 minute ago' : `${minutesAgo} minutes ago`;
+    }
+    
+    // Less than a day
+    const hoursAgo = Math.floor(minutesAgo / 60);
+    if (hoursAgo < 24) {
+        return hoursAgo === 1 ? '1 hour ago' : `${hoursAgo} hours ago`;
+    }
+    
+    // Less than a week
+    const daysAgo = Math.floor(hoursAgo / 24);
+    if (daysAgo < 7) {
+        return daysAgo === 1 ? 'Yesterday' : `${daysAgo} days ago`;
+    }
+    
+    // Otherwise, return the date
+    return date.toLocaleDateString();
 }
 
 /**
