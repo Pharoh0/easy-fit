@@ -449,8 +449,10 @@ async function populateKeyMetrics() {
         bodyFatElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
         caloriesBurnedElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
         
+        // Fetch measurements data
         // Fetch latest measurements
         const measurements = await fetchAPI('client-measurements/', 'GET');
+        console.log('Measurements data received:', measurements);
         
         // Fetch activity data for calories
         let caloriesBurned = 0;
@@ -693,44 +695,133 @@ function setupEventListeners() {
 
 /**
  * Populate Key Metrics with real data from the measurements API
+ * This function has been completely rewritten to fix data display issues
  */
 async function populateKeyMetrics() {
+    console.log('Starting populateKeyMetrics function...');
     try {
-        // Show loading state
-        setKeyMetricsLoadingState(true);
-
-        // Fetch latest measurements
-        const measurements = await fetchAPI('client-measurements/', 'GET');
+        // Get DOM elements for key metrics
+        const currentWeightElement = document.getElementById('current-weight');
+        const currentBmiElement = document.getElementById('current-bmi');
+        const bodyFatElement = document.getElementById('body-fat');
+        const caloriesBurnedElement = document.getElementById('calories-burned');
         
-        // Fetch profile data for activity level
-        const profileData = await fetchClientProfile();
+        // Verify DOM elements exist
+        if (!currentWeightElement || !currentBmiElement || !bodyFatElement || !caloriesBurnedElement) {
+            console.error('Error: One or more key metrics elements not found in DOM');
+            return;
+        }
         
+        // Set loading state
+        currentWeightElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        currentBmiElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        bodyFatElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        caloriesBurnedElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        
+        // Get JWT token
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            console.error('Error: No authentication token found');
+            setErrorState();
+            return;
+        }
+        
+        // Fetch measurements data
+        let measurements;
+        try {
+            const response = await fetch('/profiles/api/v1/client-measurements/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API returned ${response.status}: ${response.statusText}`);
+            }
+            
+            const responseData = await response.json();
+            console.log('Raw API response:', responseData);
+            
+            // Handle both paginated and non-paginated responses
+            if (responseData.results && Array.isArray(responseData.results)) {
+                // Paginated response
+                measurements = responseData.results;
+                console.log('Using paginated results:', measurements);
+            } else if (Array.isArray(responseData)) {
+                // Direct array response
+                measurements = responseData;
+                console.log('Using direct array results:', measurements);
+            } else {
+                // Unexpected format
+                console.error('Unexpected API response format:', responseData);
+                measurements = [];
+            }
+            
+            console.log('Processed measurements data:', measurements);
+        } catch (error) {
+            console.error('Error fetching measurements:', error);
+            setErrorState();
+            return;
+        }
+        
+        // Fetch profile data
+        let profileData;
+        try {
+            const profileResponse = await fetch('/profiles/api/v1/client-profile/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!profileResponse.ok) {
+                throw new Error(`Profile API returned ${profileResponse.status}`);
+            }
+            
+            profileData = await profileResponse.json();
+            console.log('Profile data received:', profileData);
+        } catch (error) {
+            console.error('Error fetching profile data:', error);
+            // Use default profile data
+            profileData = {
+                gender: 'male',
+                age: 30,
+                activity_level: 'moderately_active'
+            };
+        }
+        
+        // Process measurements data
         if (measurements && Array.isArray(measurements) && measurements.length > 0) {
             // Get the most recent measurement
             const latestMeasurement = measurements[0]; // API returns most recent first
             
             // Update Current Weight with trend indicator
-            const currentWeightElement = document.getElementById('current-weight');
-            if (currentWeightElement && latestMeasurement.weight) {
+            if (latestMeasurement.weight) {
                 // Check if we have previous measurement to show trend
                 let trendHtml = '';
                 if (measurements.length > 1 && measurements[1].weight) {
                     const weightDiff = latestMeasurement.weight - measurements[1].weight;
-                    const trendIcon = weightDiff < 0 ? 
-                        '<i class="fas fa-arrow-down text-success"></i>' : 
-                        (weightDiff > 0 ? '<i class="fas fa-arrow-up text-danger"></i>' : '');
+                    const trendIcon = weightDiff > 0 ? '<i class="fas fa-arrow-up text-danger"></i>' : 
+                                    weightDiff < 0 ? '<i class="fas fa-arrow-down text-success"></i>' : '';
                     trendHtml = trendIcon ? ` ${trendIcon} ${Math.abs(weightDiff).toFixed(1)}` : '';
                 }
                 currentWeightElement.innerHTML = `${latestMeasurement.weight} kg${trendHtml}`;
+            } else {
+                currentWeightElement.innerHTML = 'No data';
             }
             
             // Calculate and update BMI with health indicator
-            const currentBmiElement = document.getElementById('current-bmi');
-            if (currentBmiElement && latestMeasurement.weight && latestMeasurement.height) {
-                const heightInMeters = latestMeasurement.height / 100;
-                const bmi = (latestMeasurement.weight / (heightInMeters * heightInMeters)).toFixed(1);
+            if (latestMeasurement.weight && latestMeasurement.height) {
+                console.log('Calculating BMI with weight:', latestMeasurement.weight, 'and height:', latestMeasurement.height);
+                const heightInMeters = parseFloat(latestMeasurement.height) / 100;
+                console.log('Height in meters:', heightInMeters);
+                const bmi = (parseFloat(latestMeasurement.weight) / (heightInMeters * heightInMeters)).toFixed(1);
+                console.log('Calculated BMI:', bmi);
                 
-                // Add BMI category
+                // Determine BMI category and class for styling
                 let bmiCategory = '';
                 let bmiCategoryClass = '';
                 
@@ -738,7 +829,7 @@ async function populateKeyMetrics() {
                     bmiCategory = 'Underweight';
                     bmiCategoryClass = 'text-warning';
                 } else if (bmi >= 18.5 && bmi < 25) {
-                    bmiCategory = 'Normal';
+                    bmiCategory = 'Healthy';
                     bmiCategoryClass = 'text-success';
                 } else if (bmi >= 25 && bmi < 30) {
                     bmiCategory = 'Overweight';
@@ -749,11 +840,12 @@ async function populateKeyMetrics() {
                 }
                 
                 currentBmiElement.innerHTML = `${bmi} <span class="${bmiCategoryClass}">(${bmiCategory})</span>`;
+            } else {
+                currentBmiElement.innerHTML = 'No data';
             }
             
             // Update Body Fat % with healthy range indicator
-            const bodyFatElement = document.getElementById('body-fat');
-            if (bodyFatElement && latestMeasurement.body_fat_percentage) {
+            if (latestMeasurement.body_fat_percentage) {
                 // Determine if body fat percentage is in healthy range (approximate ranges)
                 const gender = profileData?.gender || 'male'; // Default to male if not specified
                 const age = profileData?.age || 30; // Default to 30 if not specified
@@ -771,69 +863,52 @@ async function populateKeyMetrics() {
                 
                 const healthyIndicator = isHealthy ? '<i class="fas fa-check-circle text-success"></i>' : '';
                 bodyFatElement.innerHTML = `${latestMeasurement.body_fat_percentage}% ${healthyIndicator}`;
+            } else {
+                bodyFatElement.innerHTML = 'No data';
             }
             
             // Calculate calories burned based on weight, height, age, gender and activity level
-            const caloriesBurnedElement = document.getElementById('calories-burned');
-            if (caloriesBurnedElement) {
+            if (latestMeasurement.weight && latestMeasurement.height && profileData) {
                 // Get activity level multiplier
                 const activityMultipliers = {
                     'sedentary': 1.2,
                     'lightly_active': 1.375,
                     'moderately_active': 1.55,
                     'very_active': 1.725,
-                    'extremely_active': 1.9
+                    'extra_active': 1.9
                 };
                 
-                const weight = latestMeasurement.weight || 70; // kg
-                const height = latestMeasurement.height || 170; // cm
-                const age = profileData?.age || 30;
-                const gender = profileData?.gender?.toLowerCase() || 'male';
                 const activityLevel = profileData?.activity_level || 'moderately_active';
-                const activityMultiplier = activityMultipliers[activityLevel] || 1.55;
+                const activityMultiplier = activityMultipliers[activityLevel] || 1.55; // Default to moderately active
                 
-                // Basal Metabolic Rate (BMR) using Mifflin-St Jeor Equation
+                // Calculate BMR using the Mifflin-St Jeor Equation
                 let bmr;
-                if (gender === 'male') {
-                    bmr = 10 * weight + 6.25 * height - 5 * age + 5;
+                const gender = profileData.gender?.toLowerCase() || 'male';
+                const age = profileData.age || 30;
+                
+                if (gender === 'female') {
+                    bmr = 10 * latestMeasurement.weight + 6.25 * latestMeasurement.height - 5 * age - 161;
                 } else {
-                    bmr = 10 * weight + 6.25 * height - 5 * age - 161;
+                    bmr = 10 * latestMeasurement.weight + 6.25 * latestMeasurement.height - 5 * age + 5;
                 }
                 
                 // Total Daily Energy Expenditure (TDEE)
                 const caloriesBurned = Math.round(bmr * activityMultiplier);
-                caloriesBurnedElement.textContent = `${caloriesBurned} cal`;
+                caloriesBurnedElement.innerHTML = `${caloriesBurned} cal`;
+            } else {
+                caloriesBurnedElement.innerHTML = 'No data';
             }
         } else {
-            // Set default values if no measurements available
-            const elements = {
-                'current-weight': '--',
-                'current-bmi': '--',
-                'body-fat': '--',
-                'calories-burned': '--'
-            };
-            
-            Object.entries(elements).forEach(([id, value]) => {
-                const element = document.getElementById(id);
-                if (element) {
-                    element.textContent = value;
-                }
-            });
+            // No measurements found, set default values
+            currentWeightElement.innerHTML = 'No data';
+            currentBmiElement.innerHTML = 'No data';
+            bodyFatElement.innerHTML = 'No data';
+            caloriesBurnedElement.innerHTML = 'No data';
         }
-    } catch (error) {
-        console.error('Error populating key metrics:', error);
-        // Set error state for all metrics
-        const elements = ['current-weight', 'current-bmi', 'body-fat', 'calories-burned'];
-        elements.forEach(id => {
-            const element = document.getElementById(id);
-            if (element) {
-                element.textContent = 'Error loading data';
-                element.classList.add('text-danger');
-            }
-        });
     } finally {
         // Hide loading state
         setKeyMetricsLoadingState(false);
+        // Key metrics population completed
     }
 }
 
@@ -1330,7 +1405,9 @@ async function initializeCharts() {
         let weightData = [];
         let bodyFatData = [];
         
+        // Process measurements data
         if (measurements && Array.isArray(measurements) && measurements.length > 0) {
+            // Valid measurements found
             // Sort by date ascending (oldest first)
             const sortedMeasurements = [...measurements].sort((a, b) => {
                 return new Date(a.date_recorded) - new Date(b.date_recorded);
