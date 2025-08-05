@@ -49,6 +49,16 @@
                                 <i class="bi bi-search app-icon"></i>
                                 <span class="app-name">Search Coaches</span>
                             </a>
+                            {% if request.user.is_coach %}
+                            <a href="{% url 'plan_management:coach_plan_management' %}" class="app-item">
+                                <i class="bi bi-clipboard-check app-icon"></i>
+                                <span class="app-name">Plan Management</span>
+                            </a>
+                            <a href="{% url 'plan_management:coach_client_measurements' %}" class="app-item">
+                                <i class="bi bi-graph-up app-icon"></i>
+                                <span class="app-name">Client Progress</span>
+                            </a>
+                            {% endif %}
                             <a href="#" class="app-item">
                                 <i class="bi bi-clipboard-data app-icon"></i>
                                 <span class="app-name">Analytics</span>
@@ -58,10 +68,31 @@
                                 <i class="bi bi-person app-icon"></i>
                                 <span class="app-name">My Profile</span>
                             </a>
+                            <a href="{% url 'plan_management:client_dashboard' %}" class="app-item">
+                                <i class="bi bi-calendar-check app-icon"></i>
+                                <span class="app-name">My Plans</span>
+                            </a>
+                            <a href="{% url 'plan_management:client_plan_browser' %}" class="app-item">
+                                <i class="bi bi-search app-icon"></i>
+                                <span class="app-name">Browse Plans</span>
+                            </a>
+                            {% elif request.user.is_coach %}
+                            <a href="{% url 'profiles:view_coach_profile' request.user.id %}" class="app-item">
+                                <i class="bi bi-person-badge app-icon"></i>
+                                <span class="app-name">My Profile</span>
+                            </a>
+                            <a href="{% url 'plan_management:coach_plan_management' %}" class="app-item">
+                                <i class="bi bi-people app-icon"></i>
+                                <span class="app-name">My Clients</span>
+                            </a>
+                            <a href="{% url 'plan_management:coach_plan_creation' %}" class="app-item">
+                                <i class="bi bi-plus-circle app-icon"></i>
+                                <span class="app-name">Create Plan</span>
+                            </a>
                             {% else %}
                             <a href="#" class="app-item">
                                 <i class="bi bi-people app-icon"></i>
-                                <span class="app-name">Clients</span>
+                                <span class="app-name">Users</span>
                             </a>
                             {% endif %}
                             <a href="#" class="app-item">
@@ -96,6 +127,37 @@
                         <span class="d-lg-none ms-2">Email</span>
                     </a>
                 </li>
+                <!-- Plan Management Link (Coach Only) -->
+                {% if request.user.is_coach %}
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="planManagementDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-clipboard-check nav-icon"></i>
+                        <span class="d-lg-none ms-2">Plans</span>
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="planManagementDropdown">
+                        <li><a class="dropdown-item" href="{% url 'plan_management:coach_plan_management' %}">
+                            <i class="bi bi-clipboard-check me-2"></i>Plan Management
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'plan_management:coach_plan_creation' %}">
+                            <i class="bi bi-plus-circle me-2"></i>Create Plan
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'plan_management:coach_client_measurements' %}">
+                            <i class="bi bi-graph-up me-2"></i>Client Progress
+                        </a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="#" onclick="showPlanAnalytics()">
+                            <i class="bi bi-bar-chart me-2"></i>Analytics
+                        </a></li>
+                    </ul>
+                </li>
+                {% elif request.user.is_client %}
+                <li class="nav-item">
+                    <a class="nav-link" href="#" title="My Plans">
+                        <i class="bi bi-calendar-check nav-icon"></i>
+                        <span class="d-lg-none ms-2">My Plans</span>
+                    </a>
+                </li>
+                {% endif %}
             </ul>
 
             <!-- Right Side Navigation -->

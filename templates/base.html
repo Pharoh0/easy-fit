@@ -46,15 +46,23 @@
     {% include 'components/footer.html' %}
 
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
-    <!-- Load our authentication utilities -->
+    <!-- Load our API base and utilities -->
+    <script src="{% static 'js/api/api_base.js' %}"></script>
+    <script src="{% static 'js/api/pagination_utils.js' %}"></script>
     <script src="{% static 'js/auth_jwt.js' %}"></script>
     <script src="{% static 'profiles/js/auth.js' %}"></script>
-    <!-- Load the profiles API -->
+    <!-- Load API modules -->
+    <script src="{% static 'js/api/client_profile_api.js' %}"></script>
+    <script src="{% static 'js/api/measurements_api.js' %}"></script>
+    <script src="{% static 'js/api/subscriptions_api.js' %}"></script>
+    <script src="{% static 'js/api/plan_management_api.js' %}"></script>
+    <script src="{% static 'js/api/coach_analytics_api.js' %}"></script>
+    <!-- Legacy API support -->
     <script src="{% static 'profiles/js/api.js' %}"></script>
-    <script src="{% static 'js/scripts.js' %}"></script>
+    <!-- Main navbar functionality -->
     <script src="{% static 'js/navbar.js' %}"></script>
-
-    <!-- The logout button event listener is now handled in auth_jwt.js -->
+    <!-- Other scripts -->
+    <script src="{% static 'js/scripts.js' %}"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

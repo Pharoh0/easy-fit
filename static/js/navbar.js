@@ -1,13 +1,9 @@
 /**
  * Eazy Fit Navbar JavaScript
- * Handles navbar functionality including dark mode toggle, search, and notifications
+ * Consolidated navbar functionality including dropdowns, dark mode, and plan management
  */
 
-/**
- * Generate a local avatar using canvas based on user initials
- * @param {string} name - User's name
- * @returns {string} - Data URL of the generated avatar
- */
+// Generate a local avatar using canvas based on user initials
 function generateLocalAvatar(name) {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -48,22 +44,77 @@ function generateLocalAvatar(name) {
     return canvas.toDataURL();
 }
 
+// Initialize all Bootstrap dropdowns
+function initializeDropdowns() {
+    if (typeof bootstrap === 'undefined') {
+        console.error('Bootstrap is not loaded!');
+        return;
+    }
+    
+    const dropdowns = document.querySelectorAll('.dropdown-toggle');
+    
+    dropdowns.forEach(dropdown => {
+        // Initialize only if not already initialized
+        if (!dropdown.hasAttribute('data-bs-initialized')) {
+            try {
+                new bootstrap.Dropdown(dropdown, {
+                    autoClose: true
+                });
+                dropdown.setAttribute('data-bs-initialized', 'true');
+            } catch (e) {
+                console.error('Error initializing dropdown:', e);
+            }
+        }
+    });
+}
+
+// Handle logout functionality
+function handleLogout() {
+    const logoutButton = document.getElementById('logoutButton');
+    if (logoutButton) {
+        logoutButton.addEventListener('click', function(e) {
+            e.preventDefault();
+            // Clear any stored tokens
+            localStorage.removeItem('jwt_token');
+            sessionStorage.removeItem('jwt_token');
+            window.location.href = '/accounts/logout/';
+        });
+    }
+}
+
+// Plan Management Functions
+function showPlanAnalytics() {
+    const modal = document.getElementById('analyticsModal');
+    if (!modal) {
+        console.warn('Analytics modal not found');
+        return;
+    }
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
+}
+
+// Initialize all navbar functionality
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize dropdowns first
+    initializeDropdowns();
+    
+    // Reinitialize dropdowns when modals are shown/hidden
+    document.addEventListener('shown.bs.modal', initializeDropdowns);
+    document.addEventListener('hidden.bs.modal', initializeDropdowns);
+    
     // Handle image fallbacks
     const navbarLogo = document.querySelector('.navbar-logo');
     if (navbarLogo) {
         navbarLogo.onerror = function() {
-            // Use a default logo if the main logo fails to load
             this.onerror = null;
             this.src = '/static/images/default-logo.png';
         };
     }
     
     // Handle profile avatar fallbacks
-    const profileAvatars = document.querySelectorAll('.profile-avatar');
+    const profileAvatars = document.querySelectorAll('.profile-avatar, .navbar-profile-avatar');
     profileAvatars.forEach(avatar => {
         avatar.onerror = function() {
-            // Generate local avatar based on user initials
             this.onerror = null;
             const userName = this.getAttribute('data-username') || 'User';
             this.src = generateLocalAvatar(userName);
@@ -74,12 +125,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const darkModeToggle = document.getElementById('darkModeToggle');
     const darkModeIcon = darkModeToggle ? darkModeToggle.querySelector('i') : null;
     
-    // Check for saved dark mode preference or respect OS preference
     const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
     const storedTheme = localStorage.getItem('theme');
     
-    // Function to set theme based on preference
-    const setTheme = (isDark) => {
+    function setTheme(isDark) {
         if (isDark) {
             document.body.classList.add('dark-mode');
             if (darkModeIcon) {
@@ -93,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 darkModeIcon.classList.add('bi-moon');
             }
         }
-    };
+    }
     
     // Set initial theme
     if (storedTheme === 'dark' || (!storedTheme && prefersDarkScheme.matches)) {
@@ -102,31 +151,65 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Toggle dark mode when button is clicked
     if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', () => {
-            const isDarkMode = document.body.classList.contains('dark-mode');
-            setTheme(!isDarkMode);
-            localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light');
+        darkModeToggle.addEventListener('click', function() {
+            const isDark = !document.body.classList.contains('dark-mode');
+            setTheme(isDark);
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
         });
     }
     
-    // Search functionality
+    // Handle search functionality
     const searchInput = document.querySelector('.navbar-search input');
     if (searchInput) {
-        searchInput.addEventListener('keyup', function(e) {
+        searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                // Perform search action
-                const searchTerm = this.value.trim();
-                if (searchTerm) {
-                    console.log('Searching for:', searchTerm);
+                const query = this.value.trim();
+                if (query) {
+                    console.log('Searching for:', query);
                     // Here you would typically redirect to a search results page
-                    // window.location.href = `/search?q=${encodeURIComponent(searchTerm)}`;
-                    
-                    // For now, just show an alert
-                    alert(`Search functionality will be implemented for: ${searchTerm}`);
+                    window.location.href = `/search/?q=${encodeURIComponent(query)}`;
                 }
             }
         });
     }
+    
+    // Handle notifications dropdown
+    const notificationBell = document.querySelector('.nav-link[data-bs-toggle="dropdown"]');
+    if (notificationBell) {
+        notificationBell.addEventListener('shown.bs.dropdown', function() {
+            // Mark notifications as read when dropdown is shown
+            const unreadBadge = this.querySelector('.notification-badge');
+            if (unreadBadge) {
+                unreadBadge.style.display = 'none';
+                // Here you would typically make an API call to mark notifications as read
+            }
+        });
+    }
+    
+    // Plan management keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Only activate when not in an input field
+        if (document.activeElement.tagName === 'INPUT' || 
+            document.activeElement.tagName === 'TEXTAREA' ||
+            document.activeElement.isContentEditable) {
+            return;
+        }
+        
+        // Ctrl/Cmd + Shift + P for Plan Management
+        if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'P') {
+            e.preventDefault();
+            const planManagementLink = document.querySelector('a[href*="plan-management"]');
+            if (planManagementLink) {
+                window.location.href = planManagementLink.href;
+            }
+        }
+    });
+    
+    // Initialize logout handler
+    handleLogout();
+    
+    // Make showPlanAnalytics available globally
+    window.showPlanAnalytics = showPlanAnalytics;
     
     // Make navbar sticky on scroll
     const navbar = document.querySelector('.modern-navbar');
