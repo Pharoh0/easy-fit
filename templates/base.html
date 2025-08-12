@@ -34,7 +34,7 @@
     </style>
 
 </head>
-<body>
+<body data-user-role="{% if request.user.is_authenticated %}{% if request.user.is_coach %}coach{% elif request.user.is_client %}client{% elif request.user.is_staff %}admin{% else %}user{% endif %}{% else %}anonymous{% endif %}" data-user-id="{% if request.user.is_authenticated %}{{ request.user.id }}{% endif %}">
     <!-- Include the navbar -->
     {% include 'components/navbar.html' %}
 
@@ -49,8 +49,197 @@
     <!-- Load our API base and utilities -->
     <script src="{% static 'js/api/api_base.js' %}"></script>
     <script src="{% static 'js/api/pagination_utils.js' %}"></script>
+    <script>
+        // Centralized login URL for the whole frontend
+        window.LOGIN_URL = window.LOGIN_URL || '/auth-users/login/';
+    </script>
     <script src="{% static 'js/auth_jwt.js' %}"></script>
-    <script src="{% static 'profiles/js/auth.js' %}"></script>
+    <script>
+        // Compatibility shim: provide legacy globals via APIBase/auth_jwt.js
+        (function() {
+            // authManager shim for code expecting window.authManager.apiCall()
+            if (typeof window.authManager === 'undefined') {
+                window.authManager = {
+                    async apiCall(url, options = {}) {
+                        return await APIBase.request(url, options);
+                    },
+                    isAuthenticated() {
+                        return !!APIBase.getJWTToken();
+                    },
+                    logout() {
+                        if (typeof window.logout === 'function') {
+                            window.logout();
+                        } else {
+                            localStorage.removeItem('access_token');
+                            localStorage.removeItem('refresh_token');
+                            const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+                            const nextUrl = encodeURIComponent(window.location.href);
+                            window.location.href = `${loginUrl}?next=${nextUrl}`;
+                        }
+                    },
+                    getUser() {
+                        try {
+                            const legacy = localStorage.getItem('eazyfit_user') || sessionStorage.getItem('eazyfit_user');
+                            if (legacy) return JSON.parse(legacy);
+                        } catch (e) { /* ignore */ }
+
+                        const token = APIBase.getJWTToken();
+                        if (token) {
+                            try {
+                                const payload = JSON.parse(atob(token.split('.')[1]));
+                                const user = {
+                                    id: payload.user_id || payload.sub || null,
+                                    is_staff: !!payload.is_staff,
+                                    is_coach: !!payload.is_coach,
+                                    is_client: !!payload.is_client
+                                };
+                                if (!user.is_coach && !user.is_client) {
+                                    const role = document.body && document.body.dataset ? document.body.dataset.userRole : null;
+                                    if (role === 'coach') user.is_coach = true;
+                                    if (role === 'client') user.is_client = true;
+                                    if (role === 'admin') user.is_staff = true;
+                                }
+                                if (!user.id && document.body && document.body.dataset && document.body.dataset.userId) {
+                                    const id = parseInt(document.body.dataset.userId, 10);
+                                    if (!isNaN(id)) user.id = id;
+                                }
+                                return user;
+                            } catch (e) { /* ignore */ }
+                        }
+
+                        if (document.body && document.body.dataset) {
+                            const role = document.body.dataset.userRole;
+                            const idStr = document.body.dataset.userId;
+                            const id = idStr ? parseInt(idStr, 10) : null;
+                            return {
+                                id: (isNaN(id) ? null : id),
+                                is_staff: role === 'admin',
+                                is_coach: role === 'coach',
+                                is_client: role === 'client'
+                            };
+                        }
+                        return null;
+                    },
+                    getUserRole() {
+                        const user = this.getUser();
+                        if (user) {
+                            if (user.is_staff) return 'admin';
+                            if (user.is_coach) return 'coach';
+                            if (user.is_client) return 'client';
+                        }
+                        const role = document.body && document.body.dataset ? document.body.dataset.userRole : null;
+                        if (role && role !== 'anonymous') return role;
+                        return null;
+                    }
+                };
+            }
+
+            // api shim returning native fetch Response objects (for existing modules)
+            if (typeof window.api === 'undefined') {
+                const buildHeaders = async (method, headers = {}) => {
+                    let token = APIBase.getJWTToken();
+                    if (token && APIBase.tokenNeedsRefresh(token)) {
+                        const newToken = await APIBase.refreshToken();
+                        if (newToken) token = newToken;
+                    }
+                    const h = { 'Content-Type': 'application/json', ...headers };
+                    if (token) h['Authorization'] = `Bearer ${token}`;
+                    if (method && method.toUpperCase() !== 'GET') {
+                        const csrf = APIBase.getCSRFToken();
+                        if (csrf) h['X-CSRFToken'] = csrf;
+                    }
+                    return h;
+                };
+                window.api = {
+                    async get(url, options = {}) {
+                        const headers = await buildHeaders('GET', options.headers);
+                        return fetch(url, { ...options, method: 'GET', headers });
+                    },
+                    async post(url, data, options = {}) {
+                        const headers = await buildHeaders('POST', options.headers);
+                        const isForm = (typeof FormData !== 'undefined') && (data instanceof FormData);
+                        if (isForm) {
+                            // Let the browser set the correct multipart boundary
+                            delete headers['Content-Type'];
+                        }
+                        const opts = { ...options, method: 'POST', headers };
+                        if (!isForm) opts.body = JSON.stringify(data);
+                        else opts.body = data;
+                        return fetch(url, opts);
+                    },
+                    async patch(url, data, options = {}) {
+                        const headers = await buildHeaders('PATCH', options.headers);
+                        return fetch(url, { ...options, method: 'PATCH', headers, body: JSON.stringify(data) });
+                    },
+                    async delete(url, options = {}) {
+                        const headers = await buildHeaders('DELETE', options.headers);
+                        return fetch(url, { ...options, method: 'DELETE', headers });
+                    }
+                };
+            }
+
+            // utils shim for minimal functionality used by existing modules
+            if (typeof window.utils === 'undefined') {
+                window.utils = {
+                    showLoading(id) {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.innerHTML = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+                        }
+                    },
+                    hideLoading(id) {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.innerHTML = '';
+                        }
+                    },
+                    handleApiError(err, msg) {
+                        console.error(msg, err);
+                        const text = (err && err.message) ? err.message : (err && err.status ? `Error ${err.status}` : 'Request failed');
+                        this.showToast(`${msg}: ${text}`, 'danger');
+                    },
+                    formatCurrency(v) {
+                        const n = Number(v || 0);
+                        try {
+                            return new Intl.NumberFormat(undefined, { style: 'currency', currency: 'USD' }).format(n);
+                        } catch (e) {
+                            return `$${n.toFixed(2)}`;
+                        }
+                    },
+                    formatDate(iso) {
+                        if (!iso) return '';
+                        try {
+                            const d = new Date(iso);
+                            return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+                        } catch (e) { return String(iso); }
+                    },
+                    formatDateTime(iso) {
+                        if (!iso) return '';
+                        try {
+                            const d = new Date(iso);
+                            return d.toLocaleString(undefined, { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                        } catch (e) { return String(iso); }
+                    },
+                    showToast(message, type = 'info') {
+                        try {
+                            const toastEl = document.getElementById('globalToast');
+                            if (toastEl) {
+                                const body = toastEl.querySelector('.toast-body');
+                                if (body) body.textContent = message;
+                                toastEl.classList.remove('text-bg-success','text-bg-danger','text-bg-warning','text-bg-info');
+                                toastEl.classList.add(`text-bg-${type}`);
+                                new bootstrap.Toast(toastEl).show();
+                            } else {
+                                alert(message);
+                            }
+                        } catch (e) {
+                            alert(message);
+                        }
+                    }
+                };
+            }
+        })();
+    </script>
     <!-- Load API modules -->
     <script src="{% static 'js/api/client_profile_api.js' %}"></script>
     <script src="{% static 'js/api/measurements_api.js' %}"></script>

@@ -27,80 +27,30 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
      * Base API client for making authenticated requests to the backend
      */
     window.ApiClient = class {
-        constructor(baseUrl, csrfToken) {
+        constructor(baseUrl = '/profiles/api/v1/') {
             this.baseUrl = baseUrl;
-            this.csrfToken = csrfToken;
         }
 
         /**
-         * Make a fetch request with appropriate headers and error handling
+         * Make a request via unified APIBase (handles JWT, CSRF, refresh, redirects)
          * @param {string} endpoint - API endpoint
          * @param {Object} options - Fetch options
-         * @returns {Promise} - Response data or error
+         * @returns {Promise} - Parsed JSON data
          */
         async request(endpoint, options = {}) {
             const url = `${this.baseUrl}${endpoint}`;
-            
-            // Set default headers
-            const headers = {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': this.csrfToken,
-                'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`,
-                ...(options.headers || {})
+            const method = (options.method || 'GET').toUpperCase();
+            const reqOptions = {
+                method,
+                headers: { ...(options.headers || {}) },
             };
-            
-            try {
-                const response = await fetch(url, {
-                    ...options,
-                    headers
-                });
-                
-                // Check if the response is JSON
-                const contentType = response.headers.get('content-type');
-                if (contentType && contentType.includes('application/json')) {
-                    const data = await response.json();
-                    
-                    // Check if the request was successful
-                    if (!response.ok) {
-                        // Check for 401 to handle token refresh
-                        if (response.status === 401 && typeof window.refreshToken === 'function') {
-                            try {
-                                await window.refreshToken();
-                                // Retry the request with new token
-                                return this.request(endpoint, options);
-                            } catch (refreshError) {
-                                console.error('Token refresh failed:', refreshError);
-                                throw {
-                                    status: response.status,
-                                    message: 'Authentication failed',
-                                    data
-                                };
-                            }
-                        }
-                        
-                        throw {
-                            status: response.status,
-                            message: data.error || data.detail || 'An error occurred',
-                            data
-                        };
-                    }
-                    
-                    return data;
-                } else {
-                    // Handle non-JSON responses
-                    if (!response.ok) {
-                        throw {
-                            status: response.status,
-                            message: 'An error occurred'
-                        };
-                    }
-                    
-                    return await response.text();
-                }
-            } catch (error) {
-                console.error('API request failed:', error);
-                throw error;
+            if (options.body !== undefined) {
+                reqOptions.body = options.body;
             }
+
+            const result = await APIBase.request(url, reqOptions);
+            if (result && result.success) return result.data;
+            throw { status: 400, message: result && result.error ? result.error : 'Request failed' };
         }
         
         // GET request
@@ -181,91 +131,16 @@ if (typeof window.EazyFitAPILoaded === 'undefined') {
      * @returns {Promise} - Response data
      */
     window.fetchAPI = async function(endpoint, method = 'GET', data = null, retried = false) {
-        // Base API URL - need to include the app prefix
         const baseUrl = '/profiles/api/v1/';
-        const url = `${baseUrl}${endpoint}`;
-        
-        // Get JWT token from localStorage
-        const token = localStorage.getItem('access_token');
-        if (!token && typeof window.refreshToken === 'function') {
-            try {
-                await window.refreshToken();
-            } catch (e) {
-                console.error('Failed to refresh token:', e);
-            }
+        const url = (endpoint.startsWith('http') || endpoint.startsWith('/')) ? endpoint : `${baseUrl}${endpoint}`;
+        const opts = { method: method.toUpperCase(), headers: { 'Accept': 'application/json' } };
+        if (data && ['POST', 'PUT', 'PATCH'].includes(opts.method)) {
+            opts.headers['Content-Type'] = 'application/json';
+            opts.body = JSON.stringify(data);
         }
-        
-        // Request options with authentication headers
-        const options = {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json',
-                'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${localStorage.getItem('access_token') || ''}`
-            }
-        };
-        
-        // Add request body for non-GET requests
-        if (data && ['POST', 'PUT', 'PATCH'].includes(method)) {
-            options.body = JSON.stringify(data);
-        }
-        
-        try {
-            const response = await fetch(url, options);
-            
-            // Check if the response is JSON
-            const contentType = response.headers.get('content-type');
-            if (contentType && contentType.includes('application/json')) {
-                const jsonData = await response.json();
-                
-                // Check if response was successful
-                if (!response.ok) {
-                    // Handle 401 authentication errors specifically
-                    if (response.status === 401) {
-                        console.error('Authentication failed - redirecting to login');
-                        // Clear invalid token
-                        localStorage.removeItem('access_token');
-                        localStorage.removeItem('refresh_token');
-                        
-                        // Show user-friendly message
-                        const errorMessage = 'Your session has expired. Please log in again.';
-                        
-                        // Redirect to login page after a short delay
-                        setTimeout(() => {
-                            window.location.href = '/auth-users/login/';
-                        }, 2000);
-                        
-                        throw {
-                            status: response.status,
-                            message: errorMessage,
-                            data: jsonData
-                        };
-                    }
-                    
-                    throw {
-                        status: response.status,
-                        message: jsonData.error || jsonData.detail || 'An error occurred',
-                        data: jsonData
-                    };
-                }
-                
-                return jsonData;
-            } else {
-                // Handle non-JSON responses
-                if (!response.ok) {
-                    throw {
-                        status: response.status,
-                        message: 'An error occurred'
-                    };
-                }
-                
-                return await response.text();
-            }
-        } catch (error) {
-            console.error('API request failed:', error);
-            throw error;
-        }
+        const result = await APIBase.request(url, opts);
+        if (result && result.success) return result.data;
+        throw { status: 400, message: result && result.error ? result.error : 'Request failed' };
     };
     
     // Export ProgressReportService as a window property to avoid duplicates

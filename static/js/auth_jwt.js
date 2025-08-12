@@ -43,7 +43,9 @@ function logout() {
     if (!refreshToken || !accessToken) {
         console.log('No tokens found, redirecting to login page');
         alert("Session has already expired. Please log in again.");
-        window.location.href = "/auth-users/login/";  // Redirect to login page
+        const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
+        const nextUrl = encodeURIComponent(window.location.href);
+        window.location.href = `${loginUrl}?next=${nextUrl}`;  // Redirect to login page with next
         return;
     }
 
@@ -66,14 +68,20 @@ function logout() {
         
         if (response.ok) {
             console.log('Successful logout, redirecting to login page');
-            window.location.href = "/auth-users/login/";  // Redirect to login page
+            const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
+            const nextUrl = encodeURIComponent(window.location.href);
+            window.location.href = `${loginUrl}?next=${nextUrl}`;  // Redirect to login page with next
         } else if (response.status === 401) {
             console.error('Unauthorized request. Possibly due to expired token.');
             // Still redirect to login page
-            window.location.href = "/auth-users/login/";
+            const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
+            const nextUrl = encodeURIComponent(window.location.href);
+            window.location.href = `${loginUrl}?next=${nextUrl}`;
         } else {
             console.error('Failed to logout but tokens removed, redirecting to login page.');
-            window.location.href = "/auth-users/login/";
+            const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
+            const nextUrl = encodeURIComponent(window.location.href);
+            window.location.href = `${loginUrl}?next=${nextUrl}`;
         }
     })
     .catch(error => {
@@ -81,7 +89,9 @@ function logout() {
         // Still remove tokens and redirect on error
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
-        window.location.href = "/auth-users/login/";
+        const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
+        const nextUrl = encodeURIComponent(window.location.href);
+        window.location.href = `${loginUrl}?next=${nextUrl}`;
     });
 }
 
@@ -92,7 +102,13 @@ function handleTokenExpiry() {
 
     // Notify the user and redirect to the login page
     alert("Your session has expired. Please log in again.");
-    window.location.href = "/auth-users/login/";
+    try {
+        const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+        const nextUrl = encodeURIComponent(window.location.href);
+        window.location.href = `${loginUrl}?next=${nextUrl}`;
+    } catch (e) {
+        window.location.href = '/auth-users/login/';
+    }
 }
 
 // Automatically refresh the token before it expires
