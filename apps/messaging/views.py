@@ -1,8 +1,10 @@
 from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
-from django.db.models import Q, Prefetch
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
+from django.db.models import Q, Prefetch, Count
 from django.utils import timezone
+from rest_framework.pagination import PageNumberPagination
 from .models import Conversation, Message, MessageReadReceipt, ConversationParticipant
 from .serializers import (
     ConversationListSerializer, ConversationDetailSerializer, ConversationCreateSerializer,
@@ -27,12 +29,36 @@ class ConversationViewSet(viewsets.ModelViewSet):
     
     def get_queryset(self):
         """Get conversations for current user"""
-        return Conversation.objects.filter(
+        qs = Conversation.objects.filter(
             participants=self.request.user
         ).prefetch_related(
             'participants',
-            Prefetch('messages', queryset=Message.objects.select_related('sender').order_by('-sent_at')[:20])
+            # Do not slice here; slicing a queryset used in Prefetch causes errors when Django applies filters.
+            Prefetch('messages', queryset=Message.objects.select_related('sender').order_by('-sent_at'))
         ).distinct().order_by('-last_message_at')
+
+        # For detail views/actions, always allow accessing the conversation regardless of archived state
+        # so users can view, mark_read, archive/unarchive, mute, etc.
+        detail_actions = {
+            'retrieve', 'archive', 'unarchive', 'mark_read', 'mute', 'unmute', 'send_message'
+        }
+        if getattr(self, 'action', None) in detail_actions:
+            return qs
+
+        include_archived = self.request.query_params.get('include_archived')
+        archived_only = self.request.query_params.get('archived_only')
+
+        truthy = {"1", "true", "True", "yes", "on"}
+        if archived_only in truthy:
+            qs = qs.filter(is_archived=True)
+        elif include_archived in truthy:
+            # include both archived and non-archived
+            pass
+        else:
+            # default: exclude archived
+            qs = qs.filter(is_archived=False)
+
+        return qs
     
     def retrieve(self, request, *args, **kwargs):
         """Get conversation details and mark messages as read"""
@@ -55,7 +81,141 @@ class ConversationViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(conversation)
         return Response(serializer.data)
-    
+
+    @action(detail=False, methods=["post"], url_path="start_conversation")
+    def start_conversation(self, request):
+        """Start or fetch a 1:1 conversation between the current user and another participant.
+
+        Accepts:
+        - participant_id: int (required) - User ID of the other participant
+        - plan_subscription_id: int (optional) - Related subscription context
+        - subject: str (optional) - Conversation subject
+        - initial_message: str (optional) - First message to send
+        """
+        participant_id = request.data.get("participant_id")
+        subscription_id = request.data.get("plan_subscription_id")
+        subject = request.data.get("subject", "")
+        initial_message = request.data.get("initial_message", "")
+
+        if not participant_id:
+            return Response({"error": "participant_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Ensure target user exists
+        try:
+            other_user = User.objects.get(id=participant_id)
+        except User.DoesNotExist:
+            return Response({"error": "Participant not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+        # Validate subscription if provided
+        if subscription_id:
+            try:
+                from apps.plan_management.client.models import PlanSubscription
+                subscription = PlanSubscription.objects.get(id=subscription_id)
+                
+                # Verify the current user is either the client or the coach of this subscription
+                is_client = subscription.client_id == request.user.id
+                
+                # Get coach user ID - handle different possible paths
+                coach_user_id = None
+                if hasattr(subscription, 'product_plan') and subscription.product_plan:
+                    if hasattr(subscription.product_plan, 'coach') and subscription.product_plan.coach:
+                        if hasattr(subscription.product_plan.coach, 'user') and subscription.product_plan.coach.user:
+                            coach_user_id = subscription.product_plan.coach.user.id
+                        else:
+                            # Coach might be directly a user
+                            coach_user_id = getattr(subscription.product_plan.coach, 'id', None)
+                
+                is_coach = coach_user_id == request.user.id
+                
+                # Ensure the other user is the counterpart in this subscription
+                if is_client and other_user.id != coach_user_id:
+                    return Response({"error": "The participant is not the coach of this subscription"}, 
+                                    status=status.HTTP_400_BAD_REQUEST)
+                elif is_coach and other_user.id != subscription.client_id:
+                    return Response({"error": "The participant is not the client of this subscription"}, 
+                                    status=status.HTTP_400_BAD_REQUEST)
+                elif not (is_client or is_coach):
+                    return Response({"error": "You are not associated with this subscription"}, 
+                                    status=status.HTTP_403_FORBIDDEN)
+                
+            except PlanSubscription.DoesNotExist:
+                return Response({"error": "Subscription not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Try to find existing 1:1 conversation robustly (participants pair, optional subscription)
+        base_qs = (
+            Conversation.objects.filter(participants=request.user)
+            .filter(participants=other_user)
+            .filter(is_active=True)
+            .annotate(participant_count=Count('participants', distinct=True))
+            .filter(participant_count=2)
+        )
+
+        qs = base_qs
+        if subscription_id:
+            qs = qs.filter(related_subscription_id=subscription_id)
+
+        conversation = qs.order_by('-last_message_at', '-id').first()
+
+        # Fallback: if not found with subscription constraint, reuse any existing pair conversation
+        if not conversation:
+            conversation = base_qs.order_by('-last_message_at', '-id').first()
+
+        if not conversation:
+            # Create new conversation
+            conversation = Conversation.objects.create(
+                subject=subject or "",
+                related_subscription_id=subscription_id if subscription_id else None,
+            )
+            conversation.participants.set([request.user, other_user])
+            # Create ConversationParticipant settings
+            for u in [request.user, other_user]:
+                ConversationParticipant.objects.get_or_create(conversation=conversation, user=u)
+
+            # Optional initial message
+            if initial_message:
+                Message.objects.create(
+                    conversation=conversation,
+                    sender=request.user,
+                    content=initial_message,
+                    message_type="text",
+                )
+        else:
+            # If an existing conversation is archived, unarchive it so it reappears
+            if getattr(conversation, 'is_archived', False):
+                conversation.is_archived = False
+                conversation.save()
+            # Optionally attach subscription context if provided and not set
+            if subscription_id and not conversation.related_subscription_id:
+                conversation.related_subscription_id = subscription_id
+                conversation.save()
+
+        serializer = ConversationDetailSerializer(conversation, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"], url_path="mark_read")
+    def mark_read(self, request, pk=None):
+        """Mark all messages in this conversation as read for the current user."""
+        conversation = self.get_object()
+        # Ensure the user is a participant
+        if not conversation.participants.filter(id=request.user.id).exists():
+            return Response({"error": "Not a participant"}, status=status.HTTP_403_FORBIDDEN)
+
+        unread_messages = conversation.messages.exclude(read_by=request.user)
+        for message in unread_messages:
+            message.mark_as_read(request.user)
+
+        # Update last seen
+        participant_setting, created = ConversationParticipant.objects.get_or_create(
+            conversation=conversation,
+            user=request.user,
+            defaults={"last_seen_at": timezone.now()},
+        )
+        if not created:
+            participant_setting.last_seen_at = timezone.now()
+            participant_setting.save()
+
+        return Response({"status": "marked_read"}, status=status.HTTP_200_OK)
+
     @action(detail=True, methods=['post'])
     def send_message(self, request, pk=None):
         """Send a message in this conversation"""
@@ -121,10 +281,18 @@ class ConversationViewSet(viewsets.ModelViewSet):
         return Response({'status': 'unmuted'})
 
 
+class MessagePagination(PageNumberPagination):
+    page_size = 25
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
 class MessageViewSet(viewsets.ModelViewSet):
     """ViewSet for managing messages"""
     serializer_class = MessageSerializer
     permission_classes = [IsAuthenticated]
+    parser_classes = (MultiPartParser, FormParser, JSONParser)
+    pagination_class = MessagePagination
     
     def get_queryset(self):
         """Get messages for conversations user participates in"""
@@ -166,6 +334,24 @@ class MessageViewSet(viewsets.ModelViewSet):
             
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def partial_update(self, request, *args, **kwargs):
+        """Allow editing only by sender; support PATCH on /messages/<id>/"""
+        message = self.get_object()
+        if message.sender != request.user:
+            return Response({"error": "You can only edit your own messages"}, status=status.HTTP_403_FORBIDDEN)
+
+        new_content = request.data.get("content")
+        if not new_content:
+            return Response({"error": "Content is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+        message.content = new_content
+        message.is_edited = True
+        message.edited_at = timezone.now()
+        message.save()
+
+        serializer = self.get_serializer(message)
+        return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -200,6 +386,13 @@ class MessageViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(message)
         return Response(serializer.data)
+
+    def destroy(self, request, *args, **kwargs):
+        """Only sender can delete their message"""
+        message = self.get_object()
+        if message.sender != request.user:
+            return Response({"error": "You can only delete your own messages"}, status=status.HTTP_403_FORBIDDEN)
+        return super().destroy(request, *args, **kwargs)
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):

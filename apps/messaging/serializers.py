@@ -19,7 +19,7 @@ class UserBasicSerializer(serializers.ModelSerializer):
     
     def get_avatar_url(self, obj):
         # You can implement avatar logic here
-        return f"/static/images/default-avatar.png"
+        return f"/static/images/default-avatar.svg"
 
 
 class MessageSerializer(serializers.ModelSerializer):
