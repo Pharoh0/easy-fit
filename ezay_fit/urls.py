@@ -18,7 +18,7 @@ from django.contrib import admin
 from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf import settings
-
+from django.views.generic import TemplateView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -26,11 +26,16 @@ urlpatterns = [
     path("profiles/", include("apps.profiles.urls", namespace="profiles")),
     
     path("plan-management/", include("apps.plan_management.urls", namespace="plan_management")),
+    # Messaging app (API + UI)
+    path("messaging/", include("apps.messaging.urls", namespace="messaging")),
     
     path("search/", include("apps.search.urls", namespace="search")),
 
     path("user-friendship/", include("apps.user_friendship.urls", namespace="user_friendship")),
-
+    
+    # Test routes for development and testing
+    path("test/analytics/", TemplateView.as_view(template_name="test_analytics.html"), name="test_analytics"),
+    path("test/navbar/", TemplateView.as_view(template_name="test_navbar.html"), name="test_navbar"),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

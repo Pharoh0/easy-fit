@@ -54,6 +54,7 @@ LOCAL_INSTALLED_APPS = [
     "apps.auth_users.apps.AuthUsersConfig",
     "apps.profiles.apps.ProfilesConfig",
     "apps.plan_management.apps.PlanManagementConfig",
+    "apps.messaging.apps.MessagingConfig",
     "apps.search.apps.SearchConfig",
     ]
 
@@ -169,6 +170,9 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
+    # Pagination defaults
+    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
+    "PAGE_SIZE": 25,
     # other settings
 }
 
@@ -184,6 +188,10 @@ USE_I18N = True
 USE_TZ = True
 
 AUTH_USER_MODEL = 'auth_users.CustomUser'
+
+# Authentication redirects
+LOGIN_URL = '/auth-users/login/'
+LOGIN_REDIRECT_URL = '/auth-users/dashboard/'
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
