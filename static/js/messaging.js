@@ -11,48 +11,20 @@ class MessagingManager {
         this.messagesState = { nextUrl: null, loading: false, conversationId: null };
         this.conversations = [];
         this.searchTerm = '';
+        // WebSocket state
+        this.ws = null;
+        this.wsConversationId = null;
+        this.wsBackoff = 1000; // ms
+        this.wsMaxBackoff = 30000; // ms
+        this.wsReconnectTimer = null;
+        this.wsForcedClose = false;
+        this.wsPingTimer = null;
         this.init();
-        this.api = {
-            get: async (url) => {
-                const token = localStorage.getItem('access_token');
-                return fetch(url, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    }
-                });
-            },
-            post: async (url, data) => {
-                const token = localStorage.getItem('access_token');
-                return fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: typeof data === 'string' ? data : JSON.stringify(data)
-                });
-            }
-        };
-        
-        this.utils = {
-            formatDateTime: (dateStr) => {
-                const date = new Date(dateStr);
-                return date.toLocaleString();
-            },
-            showToast: (message, type = 'info') => {
-                // Simple alert fallback
-                alert(message);
-            },
-            handleApiError: (error, defaultMessage) => {
-                console.error(error);
-                alert(defaultMessage || 'An error occurred');
-            }
-        };
     }
 
     init() {
         this.bindEvents();
+        this.bindUnloadCleanup();
         // Restore archived toggle from localStorage before loading conversations
         const archivedToggle = document.getElementById('showArchivedToggle');
         if (archivedToggle) {
@@ -139,18 +111,24 @@ class MessagingManager {
         });
     }
 
+    bindUnloadCleanup() {
+        window.addEventListener('beforeunload', () => {
+            try { this.disconnectWebSocket(); } catch (e) {}
+        });
+    }
+
     async loadConversations() {
         try {
             const includeArchived = document.getElementById('showArchivedToggle')?.checked;
             const url = includeArchived ? '/messaging/api/v1/conversations/?include_archived=true' : '/messaging/api/v1/conversations/';
-            const response = await api.get(url);
-            
-            if (response.ok) {
-                const data = await response.json();
-                this.conversations = data.results || data;
+            const { success, data, error } = await APIBase.request(url);
+            if (success) {
+                const payload = data || [];
+                this.conversations = payload.results || payload;
                 this.renderConversations(this.conversations);
             } else {
-                utils.handleApiError(response, 'Failed to load conversations');
+                console.error('Failed to load conversations:', error);
+                utils.showToast('Failed to load conversations', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to load conversations');
@@ -165,9 +143,9 @@ class MessagingManager {
             let participantId = params.get('participant_id') || params.get('coach_id') || params.get('coach_user_id') || params.get('user_id');
 
             if (conversationId) {
-                const resp = await api.get(`/messaging/api/v1/conversations/${conversationId}/`);
-                if (resp.ok) {
-                    const convo = await resp.json();
+                const resp = await APIBase.request(`/messaging/api/v1/conversations/${conversationId}/`);
+                if (resp.success) {
+                    const convo = resp.data;
                     await this.loadConversations();
                     this.selectConversation(convo);
                 }
@@ -179,9 +157,9 @@ class MessagingManager {
             // If subscription is provided but no participant, try to infer participant (coach) from subscription
             if (!participantId && subscriptionId) {
                 try {
-                    const subResp = await api.get(`/plan-management/api/v1/plan-subscriptions/${subscriptionId}/`);
-                    if (subResp.ok) {
-                        const sub = await subResp.json();
+                    const subResp = await APIBase.request(`/plan-management/api/v1/plan-subscriptions/${subscriptionId}/`);
+                    if (subResp.success) {
+                        const sub = subResp.data;
                         if (sub.product_plan && sub.product_plan.coach && sub.product_plan.coach.user) {
                             participantId = sub.product_plan.coach.user.id;
                         } else if (sub.product_plan && sub.product_plan.coach) {
@@ -215,14 +193,16 @@ class MessagingManager {
                     plan_subscription_id: subscriptionId,
                     initial_message: ''
                 };
-                const startResp = await api.post('/messaging/api/v1/conversations/start_conversation/', payload);
-                if (startResp.ok) {
-                    const convo = await startResp.json();
+                const startResp = await APIBase.request('/messaging/api/v1/conversations/start_conversation/', {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                if (startResp.success) {
+                    const convo = startResp.data;
                     await this.loadConversations();
                     this.selectConversation(convo);
                 } else {
-                    const err = await startResp.clone().json().catch(() => null);
-                    utils.showToast((err && (err.error || err.detail)) || 'Failed to start conversation from link', 'danger');
+                    utils.showToast('Failed to start conversation from link', 'danger');
                 }
             } else if (participantId) {
                 // Do not auto-create empty conversation; prompt user to start one
@@ -329,9 +309,10 @@ class MessagingManager {
     async selectConversation(conversation) {
         // Always fetch fresh conversation details to get subscription info and latest state
         try {
-            const detailResp = await api.get(`/messaging/api/v1/conversations/${conversation.id}/`);
-            if (detailResp.ok) {
-                this.currentConversation = await detailResp.json();
+            const resp = await APIBase.request(`/messaging/api/v1/conversations/${conversation.id}/`);
+            if (resp.success) {
+                const convo = resp.data;
+                this.currentConversation = convo;
             } else {
                 // Fallback to the list item data
                 this.currentConversation = conversation;
@@ -384,6 +365,9 @@ class MessagingManager {
                 sidebarCol.classList.add('d-none');
             }
         }
+
+        // Connect WebSocket for real-time updates
+        this.connectWebSocket(conversation.id);
     }
 
     async loadMessages(conversationId, reset = true) {
@@ -397,16 +381,15 @@ class MessagingManager {
                 }
             }
 
-            const response = await api.get(`/messaging/api/v1/messages/?conversation=${conversationId}`);
-            
-            if (response.ok) {
-                const data = await response.json();
+            const response = await APIBase.request(`/messaging/api/v1/messages/?conversation=${conversationId}`);
+            if (response.success) {
+                const data = response.data || [];
                 const messages = data.results || data;
                 this.renderMessages(messages);
                 this.messagesState.nextUrl = data.next || null;
                 this.attachMessageScroll();
             } else {
-                utils.handleApiError(response, 'Failed to load messages');
+                utils.showToast('Failed to load messages', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to load messages');
@@ -452,9 +435,9 @@ class MessagingManager {
         const prevScrollHeight = container.scrollHeight;
         const prevScrollTop = container.scrollTop;
         try {
-            const resp = await api.get(this.messagesState.nextUrl);
-            if (resp.ok) {
-                const data = await resp.json();
+            const resp = await APIBase.request(this.messagesState.nextUrl);
+            if (resp.success) {
+                const data = resp.data || [];
                 const messages = data.results || data;
                 this.prependMessages(messages);
                 this.messagesState.nextUrl = data.next || null;
@@ -593,9 +576,8 @@ class MessagingManager {
         }
 
         try {
-            const response = await api.post('/messaging/api/v1/messages/', payload);
-            
-            if (response.ok) {
+            const response = await APIBase.request('/messaging/api/v1/messages/', { method: 'POST', body: payload });
+            if (response.success) {
                 // Clear form
                 formEl.reset();
                 this.attachments = [];
@@ -603,12 +585,8 @@ class MessagingManager {
                 this.replyToMessageId = null;
                 const input = formEl.querySelector('input[name="content"]');
                 if (input) input.placeholder = 'Type your message...';
-                
-                // Reload messages
-                await this.loadMessages(this.currentConversation.id);
             } else {
-                const errorData = await response.clone().json().catch(() => null);
-                utils.showToast((errorData && (errorData.error || errorData.detail)) || 'Failed to send message', 'danger');
+                utils.showToast('Failed to send message', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to send message');
@@ -678,7 +656,7 @@ class MessagingManager {
 
     async markConversationAsRead(conversationId) {
         try {
-            await api.post(`/messaging/api/v1/conversations/${conversationId}/mark_read/`);
+            await APIBase.request(`/messaging/api/v1/conversations/${conversationId}/mark_read/`, { method: 'POST' });
         } catch (error) {
             console.error('Failed to mark conversation as read:', error);
         }
@@ -694,67 +672,43 @@ class MessagingManager {
 
     async loadContactsAndPlans() {
         try {
-            // Load contacts (coaches or clients based on user role)
             const userRole = authManager.getUserRole();
-            
-            // Ensure we have a valid token before making requests
-            const token = localStorage.getItem('access_token');
+            const token = APIBase.getJWTToken();
             if (!token) {
                 console.error('No access token found for API calls');
                 utils.showToast('Authentication error. Please log in again.', 'danger');
                 return;
             }
-            
-            // Use subscriptions for both roles to unify shape
-            const contactsResponse = await fetch('/plan-management/api/v1/plan-subscriptions/', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (contactsResponse.ok) {
-                const contactsData = await contactsResponse.json();
+
+            let contactsLoaded = false;
+            const contactsResponse = await APIBase.request('/plan-management/api/v1/plan-subscriptions/');
+            if (contactsResponse.success) {
+                const contactsData = contactsResponse.data;
                 this.renderContactOptions(contactsData.results || contactsData, userRole);
+                contactsLoaded = true;
             } else {
-                console.error('Failed to load contacts:', contactsResponse.status, contactsResponse.statusText);
-                // Fallback: If client, load coaches directly
+                console.error('Failed to load contacts via subscriptions:', contactsResponse.error);
+            }
+
+            if (!contactsLoaded) {
                 if (userRole === 'client') {
-                    const coachesResponse = await fetch('/plan-management/api/v1/coach-profiles/', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (coachesResponse.ok) {
-                        const coachesData = await coachesResponse.json();
+                    const coachesResponse = await APIBase.request('/plan-management/api/v1/coach-profiles/');
+                    if (coachesResponse.success) {
+                        const coachesData = coachesResponse.data;
                         this.renderCoachOptions(coachesData.results || coachesData);
                     }
                 } else if (userRole === 'coach') {
-                    // For coach, get their client list
-                    const clientsResponse = await fetch('/plan-management/api/v1/coach-client-access/my_clients/', {
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        }
-                    });
-                    if (clientsResponse.ok) {
-                        const clientsData = await clientsResponse.json();
-                        this.renderClientOptions(clientsData.clients || []);
+                    const clientsResponse = await APIBase.request('/plan-management/api/v1/coach-client-access/my_clients/');
+                    if (clientsResponse.success) {
+                        const clientsData = clientsResponse.data;
+                        this.renderClientOptions(clientsData.clients || clientsData.results || []);
                     }
                 }
             }
 
-            // Load user's plans
-            const plansResponse = await fetch('/plan-management/api/v1/plan-subscriptions/', {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-            
-            if (plansResponse.ok) {
-                const plansData = await plansResponse.json();
+            const plansResponse = await APIBase.request('/plan-management/api/v1/plan-subscriptions/');
+            if (plansResponse.success) {
+                const plansData = plansResponse.data;
                 this.renderPlanOptions(plansData.results || plansData);
             }
         } catch (error) {
@@ -788,7 +742,7 @@ class MessagingManager {
                 else if (item.coach && item.coach.user) {
                     coachUser = item.coach.user;
                     id = coachUser.id;
-                    name = coachUser.full_name || coachUser.username || 'Coach';
+                    name = coachUser.full_name || coachUser.username || coachUser.name || 'Coach';
                     role = 'Coach';
                 }
                 // Path 3: product_plan.coach (coach might be directly a user)
@@ -938,25 +892,20 @@ class MessagingManager {
         }
 
         try {
-            const response = await api.post('/messaging/api/v1/conversations/start_conversation/', conversationData);
-            
-            if (response.ok) {
-                const conversation = await response.json();
-                
+            const response = await APIBase.request('/messaging/api/v1/conversations/start_conversation/', {
+                method: 'POST',
+                body: JSON.stringify(conversationData)
+            });
+            if (response.success) {
+                const conversation = response.data;
                 utils.showToast('Conversation started successfully!', 'success');
-                
-                // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('newConversationModal'));
                 modal.hide();
-                
-                // Reset form
                 e.target.reset();
-                
-                // Reload conversations and select the new one
                 await this.loadConversations();
                 this.selectConversation(conversation);
             } else {
-                utils.handleApiError(response, 'Failed to start conversation');
+                utils.showToast('Failed to start conversation', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to start conversation');
@@ -967,11 +916,12 @@ class MessagingManager {
         if (!this.currentConversation) return;
 
         try {
-            const response = await api.post(`/messaging/api/v1/conversations/${this.currentConversation.id}/archive/`);
-            
-            if (response.ok) {
+            const response = await APIBase.request(`/messaging/api/v1/conversations/${this.currentConversation.id}/archive/`, { method: 'POST' });
+            if (response.success) {
                 utils.showToast('Conversation archived', 'success');
                 await this.loadConversations();
+                // Disconnect real-time updates for archived conversation
+                this.disconnectWebSocket();
                 
                 // Clear chat interface
                 this.currentConversation = null;
@@ -980,7 +930,7 @@ class MessagingManager {
                 document.getElementById('messagesContainer').style.display = 'none';
                 document.getElementById('messageInput').style.display = 'none';
             } else {
-                utils.handleApiError(response, 'Failed to archive conversation');
+                utils.showToast('Failed to archive conversation', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to archive conversation');
@@ -991,20 +941,19 @@ class MessagingManager {
         if (!this.currentConversation) return;
 
         try {
-            const response = await api.post(`/messaging/api/v1/conversations/${this.currentConversation.id}/unarchive/`);
-            
-            if (response.ok) {
+            const response = await APIBase.request(`/messaging/api/v1/conversations/${this.currentConversation.id}/unarchive/`, { method: 'POST' });
+            if (response.success) {
                 utils.showToast('Conversation unarchived', 'success');
                 // Reload conversations respecting current filter
                 await this.loadConversations();
                 // Refresh details and header actions
-                const detailResp = await api.get(`/messaging/api/v1/conversations/${this.currentConversation.id}/`);
-                if (detailResp.ok) {
-                    const convo = await detailResp.json();
+                const detailResp = await APIBase.request(`/messaging/api/v1/conversations/${this.currentConversation.id}/`);
+                if (detailResp.success) {
+                    const convo = detailResp.data;
                     await this.selectConversation(convo);
                 }
             } else {
-                utils.handleApiError(response, 'Failed to unarchive conversation');
+                utils.showToast('Failed to unarchive conversation', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to unarchive conversation');
@@ -1015,12 +964,11 @@ class MessagingManager {
         if (!this.currentConversation) return;
 
         try {
-            const response = await api.post(`/messaging/api/v1/conversations/${this.currentConversation.id}/mute/`);
-            
-            if (response.ok) {
+            const response = await APIBase.request(`/messaging/api/v1/conversations/${this.currentConversation.id}/mute/`, { method: 'POST' });
+            if (response.success) {
                 utils.showToast('Conversation muted', 'success');
             } else {
-                utils.handleApiError(response, 'Failed to mute conversation');
+                utils.showToast('Failed to mute conversation', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to mute conversation');
@@ -1050,21 +998,18 @@ class MessagingManager {
         const content = formData.get('content');
 
         try {
-            const response = await api.patch(`/messaging/api/v1/messages/${this.selectedMessage.id}/`, {
-                content: content
+            const response = await APIBase.request(`/messaging/api/v1/messages/${this.selectedMessage.id}/`, {
+                method: 'PATCH',
+                body: JSON.stringify({ content })
             });
-            
-            if (response.ok) {
+            if (response.success) {
                 utils.showToast('Message updated', 'success');
                 
                 // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('editMessageModal'));
                 modal.hide();
-                
-                // Reload messages
-                await this.loadMessages(this.currentConversation.id);
             } else {
-                utils.handleApiError(response, 'Failed to update message');
+                utils.showToast('Failed to update message', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to update message');
@@ -1075,13 +1020,11 @@ class MessagingManager {
         if (!confirm('Are you sure you want to delete this message?')) return;
 
         try {
-            const response = await api.delete(`/messaging/api/v1/messages/${messageId}/`);
-            
-            if (response.ok) {
+            const response = await APIBase.request(`/messaging/api/v1/messages/${messageId}/`, { method: 'DELETE' });
+            if (response.success) {
                 utils.showToast('Message deleted', 'success');
-                await this.loadMessages(this.currentConversation.id);
             } else {
-                utils.handleApiError(response, 'Failed to delete message');
+                utils.showToast('Failed to delete message', 'danger');
             }
         } catch (error) {
             utils.handleApiError(error, 'Failed to delete message');
@@ -1096,6 +1039,284 @@ class MessagingManager {
         
         // Store reply context (you might want to add a hidden input for this)
         this.replyToMessageId = message.id;
+    }
+
+    // WebSocket management
+    async connectWebSocket(conversationId) {
+        try {
+            const current = this.currentConversation;
+            if (!current || current.id !== conversationId) return;
+            const statusEl = document.getElementById('chatStatus');
+            if (statusEl) statusEl.textContent = 'Connecting...';
+
+            // Ensure we have a fresh token before connecting
+            let token = APIBase.getJWTToken();
+            if (!token || APIBase.tokenNeedsRefresh(token)) {
+                try {
+                    token = await APIBase.refreshToken();
+                } catch (e) {
+                    token = null;
+                }
+            }
+            if (!token) {
+                console.warn('No JWT token available for WebSocket');
+                if (statusEl) statusEl.textContent = 'Not authorized';
+                return;
+            }
+
+            // If already connected to this conversation, do nothing
+            if (this.ws && this.ws.readyState === WebSocket.OPEN && this.wsConversationId === conversationId) {
+                if (statusEl) statusEl.textContent = 'Online';
+                return;
+            }
+
+            // If connected to a different conversation, disconnect first
+            if (this.ws) {
+                this.disconnectWebSocket();
+            }
+
+            this.wsForcedClose = false;
+
+            // Normalize token: strip accidental prefixes and whitespace
+            token = (token || '').trim();
+            const lower = token.toLowerCase();
+            if (lower.startsWith('bearer ')) {
+                token = token.slice(7).trim();
+            } else if (lower.startsWith('jwt ')) {
+                token = token.slice(4).trim();
+            }
+
+            // Make sure token is properly passed - remove any URL encoding that might already be in the token
+            token = token.replace(/%20/g, ' ').replace(/%2F/g, '/').replace(/%2B/g, '+');
+            
+            const scheme = (window.location.protocol === 'https:') ? 'wss' : 'ws';
+            const masked = token ? `${token.slice(0, 4)}..${token.slice(-4)}` : '';
+            console.debug('[WS] Opening', { conv: conversationId, token_length: token.length, token: masked });
+            // Encode the token to ensure special characters are properly handled
+            const url = `${scheme}://${window.location.host}/ws/messaging/conversations/${conversationId}/?token=${encodeURIComponent(token)}`;
+            const ws = new WebSocket(url);
+            this.ws = ws;
+            this.wsConversationId = conversationId;
+
+            ws.onopen = () => {
+                // Reset backoff and start keepalive ping
+                this.wsBackoff = 1000;
+                if (this.wsPingTimer) clearInterval(this.wsPingTimer);
+                this.wsPingTimer = setInterval(() => {
+                    try {
+                        if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                            this.ws.send(JSON.stringify({ action: 'ping' }));
+                        }
+                    } catch (e) {}
+                }, 30000);
+                if (statusEl) statusEl.textContent = 'Online';
+                console.debug('[WS] Connection opened successfully');
+            };
+
+            ws.onmessage = (ev) => {
+                try {
+                    console.debug('[WS] Message received:', ev.data.substring(0, 100));
+                    this.handleWebSocketMessage(ev);
+                } catch (e) {
+                    console.error('[WS] Error handling message:', e);
+                }
+            };
+
+            ws.onerror = (ev) => {
+                console.warn('[WS] error', ev);
+                if (statusEl && (!this.wsForcedClose)) {
+                    statusEl.textContent = 'Connection error';
+                }
+            };
+
+            ws.onclose = async (ev) => {
+                if (this.wsPingTimer) { clearInterval(this.wsPingTimer); this.wsPingTimer = null; }
+                if (this.wsReconnectTimer) { clearTimeout(this.wsReconnectTimer); this.wsReconnectTimer = null; }
+
+                const wasForced = this.wsForcedClose;
+                const closedConv = this.wsConversationId;
+                this.ws = null;
+                this.wsConversationId = null;
+                
+                console.debug('[WS] Connection closed', { code: ev?.code, reason: ev?.reason });
+
+                if (wasForced) {
+                    if (statusEl) statusEl.textContent = 'Disconnected';
+                    return;
+                }
+
+                // If auth error, try single refresh then immediate retry
+                if (ev && ev.code === 4001) {
+                    if (statusEl) statusEl.textContent = 'Auth error, retrying...';
+                    try {
+                        const newToken = await APIBase.refreshToken();
+                        if (newToken && this.currentConversation && this.currentConversation.id === closedConv) {
+                            this.wsBackoff = 1000;
+                            return this.connectWebSocket(closedConv);
+                        }
+                    } catch (e) {}
+                }
+
+                // Do not reconnect on permanent errors
+                if (ev && (ev.code === 4002 || ev.code === 4003)) {
+                    if (statusEl) statusEl.textContent = ev.code === 4002 ? 'Invalid conversation' : 'Not authorized';
+                    return;
+                }
+
+                // Reconnect with exponential backoff if still viewing the same conversation
+                const delay = this.wsBackoff;
+                this.wsBackoff = Math.min(this.wsBackoff * 2, this.wsMaxBackoff);
+                if (statusEl) statusEl.textContent = `Reconnecting in ${Math.round(delay / 1000)}s...`;
+                this.wsReconnectTimer = setTimeout(() => {
+                    if (this.currentConversation && this.currentConversation.id === conversationId) {
+                        this.connectWebSocket(conversationId);
+                    }
+                }, delay);
+            };
+        } catch (e) {
+            console.error('Failed to open WebSocket', e);
+            const statusEl = document.getElementById('chatStatus');
+            if (statusEl) statusEl.textContent = 'Disconnected';
+        }
+    }
+
+    disconnectWebSocket() {
+        try {
+            this.wsForcedClose = true;
+            if (this.wsReconnectTimer) { clearTimeout(this.wsReconnectTimer); this.wsReconnectTimer = null; }
+            if (this.wsPingTimer) { clearInterval(this.wsPingTimer); this.wsPingTimer = null; }
+            if (this.ws) {
+                try { this.ws.close(); } catch (e) {}
+            }
+        } finally {
+            this.ws = null;
+            this.wsConversationId = null;
+            this.wsBackoff = 1000;
+        }
+    }
+
+    handleWebSocketMessage(ev) {
+        try {
+            const data = JSON.parse(ev.data);
+            if (data && data.event) {
+                console.debug(`[WS] Event received: ${data.event}`, data);
+                this.handleWebSocketEvent(data);
+            }
+        } catch (e) {
+            console.warn('Failed to parse WS message', e, ev?.data);
+        }
+    }
+
+    handleWebSocketEvent(payload) {
+        const evt = payload.event;
+        switch (evt) {
+            case 'message.created': {
+                if (payload.message) this.addMessageToDOM(payload.message);
+                break;
+            }
+            case 'message.updated': {
+                if (payload.message) this.updateMessageInDOM(payload.message);
+                break;
+            }
+            case 'message.deleted': {
+                if (payload.message_id) this.removeMessageFromDOM(payload.message_id);
+                break;
+            }
+            case 'conversation.updated': {
+                const conv = payload.conversation;
+                if (conv && this.currentConversation && conv.id === this.currentConversation.id) {
+                    this.currentConversation = conv;
+                    const archiveBtn = document.getElementById('archiveConversationBtn');
+                    const unarchiveBtn = document.getElementById('unarchiveConversationBtn');
+                    if (archiveBtn && unarchiveBtn) {
+                        if (conv.is_archived) {
+                            archiveBtn.style.display = 'none';
+                            unarchiveBtn.style.display = 'block';
+                        } else {
+                            archiveBtn.style.display = 'block';
+                            unarchiveBtn.style.display = 'none';
+                        }
+                    }
+                }
+                // Refresh list to reflect last message/unread badges
+                this.loadConversations();
+                break;
+            }
+            case 'conversation.archived':
+            case 'conversation.unarchived': {
+                // Refresh list and header buttons
+                this.loadConversations();
+                break;
+            }
+            case 'conversation.read': {
+                // Hook for future read-receipt UI
+                break;
+            }
+            default:
+                break;
+        }
+    }
+
+    addMessageToDOM(message) {
+        try {
+            console.debug('[WS] Adding message to DOM:', message.id);
+            // Make sure we only add messages for the current conversation
+            if (!this.currentConversation || !message) return;
+            
+            // Verify the message belongs to this conversation
+            const convRef = message.conversation;
+            const messageConvId = (convRef && typeof convRef === 'object') ? convRef.id : convRef;
+            if (messageConvId && messageConvId !== this.currentConversation.id) {
+                console.debug('[WS] Ignoring message for different conversation:', messageConvId);
+                return;
+            }
+            
+            const container = document.getElementById('messagesContainer');
+            if (!container) {
+                console.warn('[WS] No message container found');
+                return;
+            }
+            
+            // Check for duplicates
+            if (container.querySelector(`[data-message-id="${message.id}"]`)) {
+                console.debug('[WS] Duplicate message, not adding:', message.id);
+                return;
+            }
+            
+            const currentUserId = authManager.getUser()?.id;
+            const el = this.createMessageElement(message, currentUserId);
+            container.appendChild(el);
+            container.scrollTop = container.scrollHeight;
+            console.debug('[WS] Message added successfully:', message.id);
+        } catch (e) {
+            console.warn('Failed to append message', e);
+        }
+    }
+
+    updateMessageInDOM(message) {
+        try {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            const existing = container.querySelector(`[data-message-id="${message.id}"]`);
+            if (!existing) return this.addMessageToDOM(message);
+            
+            const currentUserId = authManager.getUser()?.id;
+            const replacement = this.createMessageElement(message, currentUserId);
+            existing.parentNode.replaceChild(replacement, existing);
+        } catch (e) {
+            console.warn('Failed to update message', e);
+        }
+    }
+
+    removeMessageFromDOM(messageId) {
+        try {
+            const container = document.getElementById('messagesContainer');
+            if (!container) return;
+            const existing = container.querySelector(`[data-message-id="${messageId}"]`);
+            if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+        } catch (e) {
+            console.warn('Failed to remove message', e);
+        }
     }
 }
 
