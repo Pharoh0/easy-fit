@@ -12,8 +12,27 @@ from .serializers import (
 )
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 User = get_user_model()
+
+
+def broadcast_to_conversation(conversation_id: int, type_name: str, payload=None) -> None:
+    """Send a Channels group event to a conversation group.
+
+    type_name must map to a handler in `apps.messaging.consumers.MessagingConsumer`.
+    """
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f"conversation_{conversation_id}",
+                {"type": type_name, **(payload or {})},
+            )
+    except Exception:
+        # Avoid failing the HTTP request path if WebSocket layer is unavailable
+        pass
 
 
 class ConversationViewSet(viewsets.ModelViewSet):
@@ -78,7 +97,25 @@ class ConversationViewSet(viewsets.ModelViewSet):
         if not created:
             participant_setting.last_seen_at = timezone.now()
             participant_setting.save()
-        
+        # Broadcast read receipt to other participant(s)
+        try:
+            last_read_msg = (
+                conversation.messages.filter(read_by=request.user)
+                .order_by('-sent_at', '-id')
+                .first()
+            )
+            broadcast_to_conversation(
+                conversation.id,
+                "conversation_read",
+                {
+                    "by_user_id": request.user.id,
+                    "timestamp": timezone.now().isoformat(),
+                    "last_read_message_id": last_read_msg.id if last_read_msg else None,
+                },
+            )
+        except Exception:
+            pass
+
         serializer = self.get_serializer(conversation)
         return Response(serializer.data)
 
@@ -190,7 +227,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
                 conversation.save()
 
         serializer = ConversationDetailSerializer(conversation, context={"request": request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        conv_data = serializer.data
+        # Broadcast conversation state (new or reused/unarchived)
+        try:
+            broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+        except Exception:
+            pass
+        return Response(conv_data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"], url_path="mark_read")
     def mark_read(self, request, pk=None):
@@ -214,6 +257,25 @@ class ConversationViewSet(viewsets.ModelViewSet):
             participant_setting.last_seen_at = timezone.now()
             participant_setting.save()
 
+        # Broadcast read receipt
+        try:
+            last_read_msg = (
+                conversation.messages.filter(read_by=request.user)
+                .order_by('-sent_at', '-id')
+                .first()
+            )
+            broadcast_to_conversation(
+                conversation.id,
+                "conversation_read",
+                {
+                    "by_user_id": request.user.id,
+                    "timestamp": timezone.now().isoformat(),
+                    "last_read_message_id": last_read_msg.id if last_read_msg else None,
+                },
+            )
+        except Exception:
+            pass
+
         return Response({"status": "marked_read"}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
@@ -236,8 +298,16 @@ class ConversationViewSet(viewsets.ModelViewSet):
             conversation.last_message_at = timezone.now()
             conversation.save()
             
-            return Response(MessageSerializer(message, context={'request': request}).data,
-                          status=status.HTTP_201_CREATED)
+            out_data = MessageSerializer(message, context={'request': request}).data
+            conv_data = ConversationDetailSerializer(conversation, context={'request': request}).data
+            # Broadcast new message and updated conversation state
+            try:
+                broadcast_to_conversation(conversation.id, "message_created", {"message": out_data})
+                broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+            except Exception:
+                pass
+
+            return Response(out_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
@@ -246,6 +316,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = self.get_object()
         conversation.is_archived = True
         conversation.save()
+        # Broadcast archive event and updated conversation state
+        try:
+            conv_data = ConversationDetailSerializer(conversation, context={'request': request}).data
+            broadcast_to_conversation(conversation.id, "conversation_archived", {"conversation_id": conversation.id})
+            broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+        except Exception:
+            pass
         return Response({'status': 'archived'})
     
     @action(detail=True, methods=['post'])
@@ -254,6 +331,13 @@ class ConversationViewSet(viewsets.ModelViewSet):
         conversation = self.get_object()
         conversation.is_archived = False
         conversation.save()
+        # Broadcast unarchive event and updated conversation state
+        try:
+            conv_data = ConversationDetailSerializer(conversation, context={'request': request}).data
+            broadcast_to_conversation(conversation.id, "conversation_unarchived", {"conversation_id": conversation.id})
+            broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+        except Exception:
+            pass
         return Response({'status': 'unarchived'})
     
     @action(detail=True, methods=['post'])
@@ -332,7 +416,15 @@ class MessageViewSet(viewsets.ModelViewSet):
             conversation.last_message_at = timezone.now()
             conversation.save()
             
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            out_data = MessageSerializer(message, context={'request': request}).data
+            conv_data = ConversationDetailSerializer(conversation, context={'request': request}).data
+            try:
+                broadcast_to_conversation(conversation.id, "message_created", {"message": out_data})
+                broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+            except Exception:
+                pass
+
+            return Response(out_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def partial_update(self, request, *args, **kwargs):
@@ -351,6 +443,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.save()
 
         serializer = self.get_serializer(message)
+        # Broadcast edited message
+        try:
+            out_data = MessageSerializer(message, context={'request': request}).data
+            broadcast_to_conversation(message.conversation_id, "message_updated", {"message": out_data})
+        except Exception:
+            pass
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     @action(detail=True, methods=['post'])
@@ -385,6 +483,12 @@ class MessageViewSet(viewsets.ModelViewSet):
         message.save()
         
         serializer = self.get_serializer(message)
+        # Broadcast edited message
+        try:
+            out_data = MessageSerializer(message, context={'request': request}).data
+            broadcast_to_conversation(message.conversation_id, "message_updated", {"message": out_data})
+        except Exception:
+            pass
         return Response(serializer.data)
 
     def destroy(self, request, *args, **kwargs):
@@ -392,7 +496,15 @@ class MessageViewSet(viewsets.ModelViewSet):
         message = self.get_object()
         if message.sender != request.user:
             return Response({"error": "You can only delete your own messages"}, status=status.HTTP_403_FORBIDDEN)
-        return super().destroy(request, *args, **kwargs)
+        # Capture IDs before deletion for event broadcast
+        conversation_id = message.conversation_id
+        message_id = message.id
+        resp = super().destroy(request, *args, **kwargs)
+        try:
+            broadcast_to_conversation(conversation_id, "message_deleted", {"message_id": message_id})
+        except Exception:
+            pass
+        return resp
     
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
