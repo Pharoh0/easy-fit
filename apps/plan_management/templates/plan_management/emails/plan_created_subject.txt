@@ -1,0 +1,1 @@
+🎉 Your {{ plan_name }} is Ready - Start Your Fitness Journey!
