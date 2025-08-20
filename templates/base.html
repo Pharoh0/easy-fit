@@ -45,6 +45,8 @@
     <!-- Include the footer -->
     {% include 'components/footer.html' %}
 
+    <!-- jQuery first, then Bootstrap JS -->
+    <script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
     <!-- Load our API base and utilities -->
     <script src="{% static 'js/api/api_base.js' %}"></script>
@@ -54,6 +56,7 @@
         window.LOGIN_URL = window.LOGIN_URL || '/auth-users/login/';
     </script>
     <script src="{% static 'js/auth_jwt.js' %}"></script>
+    <script src="{% static 'js/avatar_generator.js' %}"></script>
     <script>
         // Compatibility shim: provide legacy globals via APIBase/auth_jwt.js
         (function() {

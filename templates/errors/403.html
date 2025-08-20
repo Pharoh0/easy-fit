@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}403 - Forbidden | Eazy Fit{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="text-center p-4">
+        <div class="display-4 fw-bold text-warning mb-2">403</div>
+        <h2 class="mb-3">Access Denied</h2>
+        <p class="lead text-muted mb-4">
+          {{ error_message|default:"You don’t have permission to access this page." }}
+        </p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <a href="{% url 'plan_management:coach_plan_management' %}" class="btn btn-primary">
+            Go to Coach Plan Management
+          </a>
+          <a href="/auth-users/login/" class="btn btn-outline-secondary">
+            Login
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

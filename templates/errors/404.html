@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}404 - Not Found | Eazy Fit{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="text-center p-4">
+        <div class="display-4 fw-bold text-danger mb-2">404</div>
+        <h2 class="mb-3">Page Not Found</h2>
+        <p class="lead text-muted mb-4">
+          {{ error_message|default:"The page you’re looking for doesn’t exist or may have been moved." }}
+        </p>
+        <div class="d-flex justify-content-center gap-2 flex-wrap">
+          <a href="{% url 'plan_management:coach_plan_management' %}" class="btn btn-primary">
+            Go to Coach Plan Management
+          </a>
+          <a href="/" class="btn btn-outline-secondary">
+            Back to Home
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
