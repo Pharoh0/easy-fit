@@ -68,18 +68,35 @@ function initializeDropdowns() {
     });
 }
 
-// Handle logout functionality
+// Handle logout functionality (unified)
 function handleLogout() {
-    const logoutButton = document.getElementById('logoutButton');
-    if (logoutButton) {
-        logoutButton.addEventListener('click', function(e) {
+    const candidates = [
+        document.getElementById('logout-button'), // current id in navbar.html
+        document.getElementById('logoutButton')   // legacy id just in case
+    ].filter(Boolean);
+
+    candidates.forEach((btn) => {
+        if (btn.getAttribute('data-bound') === 'true') return;
+        btn.setAttribute('data-bound', 'true');
+        btn.addEventListener('click', function(e) {
             e.preventDefault();
-            // Clear any stored tokens
-            localStorage.removeItem('jwt_token');
-            sessionStorage.removeItem('jwt_token');
-            window.location.href = '/accounts/logout/';
+            if (typeof window.logout === 'function') {
+                // Use unified logout from auth_jwt.js
+                window.logout();
+            } else {
+                // Fallback: clear tokens and redirect to unified login
+                try {
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('jwt_token');
+                    sessionStorage.removeItem('jwt_token');
+                } catch (err) {}
+                const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+                const nextUrl = encodeURIComponent(window.location.href);
+                window.location.href = `${loginUrl}?next=${nextUrl}`;
+            }
         });
-    }
+    });
 }
 
 // Plan Management Functions
@@ -208,8 +225,17 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize logout handler
     handleLogout();
     
-    // Make showPlanAnalytics available globally
+    // Make showPlanAnalytics available globally and bind navbar Analytics link
     window.showPlanAnalytics = showPlanAnalytics;
+
+    const analyticsLink = document.getElementById('navPlanAnalytics');
+    if (analyticsLink && analyticsLink.getAttribute('data-bound') !== 'true') {
+        analyticsLink.setAttribute('data-bound', 'true');
+        analyticsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            showPlanAnalytics();
+        });
+    }
     
     // Make navbar sticky on scroll
     const navbar = document.querySelector('.modern-navbar');
