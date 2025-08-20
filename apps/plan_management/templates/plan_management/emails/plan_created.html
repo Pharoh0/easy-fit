@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Plan is Ready!</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+        .content { background: #f9f9f9; padding: 30px; border-radius: 0 0 10px 10px; }
+        .button { display: inline-block; background: #667eea; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; margin: 20px 0; }
+        .plan-details { background: white; padding: 20px; border-radius: 5px; margin: 20px 0; }
+        .footer { text-align: center; margin-top: 30px; color: #666; font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎉 Your Custom Plan is Ready!</h1>
+            <p>{{ coach_name }} has created your personalized fitness plan</p>
+        </div>
+        
+        <div class="content">
+            <p>Hi {{ client_name }},</p>
+            
+            <p>Great news! Your coach <strong>{{ coach_name }}</strong> has created your personalized plan and it's ready for you to start your fitness journey.</p>
+            
+            <div class="plan-details">
+                <h3>📋 Plan Details</h3>
+                <p><strong>Plan Name:</strong> {{ plan_name }}</p>
+                <p><strong>Plan Type:</strong> {{ subscription.product_plan.get_plan_type_display }}</p>
+                <p><strong>Duration:</strong> {{ subscription.product_plan.session_count }} sessions</p>
+                <p><strong>Start Date:</strong> {{ subscription.product_plan.start_date }}</p>
+                <p><strong>End Date:</strong> {{ subscription.product_plan.end_date }}</p>
+            </div>
+            
+            <p>Your plan includes:</p>
+            <ul>
+                <li>Daily structured activities</li>
+                <li>Personalized meal plans (if diet plan)</li>
+                <li>Detailed workout routines (if workout plan)</li>
+                <li>Progress tracking and analytics</li>
+                <li>Direct messaging with your coach</li>
+            </ul>
+            
+            <div style="text-align: center;">
+                <a href="{{ plan_link }}" class="button">🚀 Start Your Plan Now</a>
+            </div>
+            
+            <p>If you have any questions or need support, don't hesitate to message your coach directly through the platform.</p>
+            
+            <p>Best of luck on your fitness journey!</p>
+            
+            <p>The {{ site_name }} Team</p>
+        </div>
+        
+        <div class="footer">
+            <p>This link expires in 30 days. If you need a new link, please contact support.</p>
+            <p>© {{ site_name }} - Your Fitness Journey Starts Here</p>
+        </div>
+    </div>
+</body>
+</html>

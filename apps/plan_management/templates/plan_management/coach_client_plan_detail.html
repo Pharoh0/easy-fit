@@ -1,0 +1,494 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - Eazy Fit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/datatables/datatables.min.css' %}">
+<style>
+.progress-circle {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    background: conic-gradient(#28a745 0deg 75%, #e9ecef 75% 360deg);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+.progress-circle::before {
+    content: '';
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: white;
+    position: absolute;
+}
+.progress-text {
+    position: relative;
+    z-index: 1;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+.day-card {
+    transition: all 0.3s ease;
+    border-left: 4px solid #dee2e6;
+}
+.day-card.completed {
+    border-left-color: #28a745;
+    background-color: #f8fff9;
+}
+.day-card.in-progress {
+    border-left-color: #ffc107;
+    background-color: #fffdf5;
+}
+.day-card.overdue {
+    border-left-color: #dc3545;
+    background-color: #fff5f5;
+}
+.client-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.measurement-badge {
+    font-size: 0.9rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Breadcrumb -->
+    <nav aria-label="breadcrumb" class="mb-4">
+        <ol class="breadcrumb">
+            {% for crumb in breadcrumbs %}
+                {% if crumb.url %}
+                    <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.name }}</a></li>
+                {% else %}
+                    <li class="breadcrumb-item active">{{ crumb.name }}</li>
+                {% endif %}
+            {% endfor %}
+        </ol>
+    </nav>
+
+    <!-- Client Overview -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-2 text-center">
+                            <canvas class="client-avatar" data-initials="{{ client.first_name.0 }}{{ client.last_name.0 }}"></canvas>
+                        </div>
+                        <div class="col-md-6">
+                            <h4 class="mb-1">{{ client.get_full_name }}</h4>
+                            <p class="text-muted mb-2">{{ client.email }}</p>
+                            <div class="d-flex gap-3">
+                                <span class="badge bg-primary">{{ subscription.product_plan.get_plan_type_display }}</span>
+                                <span class="badge bg-success">{{ subscription.get_status_display }}</span>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    Started {{ subscription.subscribed_at|date:"M d, Y" }}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-4 text-center">
+                            <div class="progress-circle mx-auto" data-progress="{{ progress.progress_percentage|floatformat:0 }}">
+                                <div class="progress-text">{{ progress.progress_percentage|floatformat:0 }}%</div>
+                            </div>
+                            <p class="mt-2 mb-0 text-muted">
+                                {{ progress.completed_days }}/{{ progress.total_days }} days completed
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Details and Recent Measurements -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Plan: {{ subscription.product_plan.name }}</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="sendMessage()">
+                            <i class="fas fa-comment me-1"></i>Message Client
+                        </button>
+                        <a class="btn btn-sm btn-primary" href="{% url 'plan_management:coach_plan_customization' %}?subscription_id={{ subscription.id }}">
+                            <i class="fas fa-edit me-1"></i>Customize Plan
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">{{ subscription.product_plan.description }}</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Plan Details</h6>
+                            <ul class="list-unstyled">
+                                <li><strong>Duration:</strong> {{ subscription.product_plan.start_date }} - {{ subscription.product_plan.end_date }}</li>
+                                <li><strong>Sessions:</strong> {{ subscription.product_plan.session_count }}</li>
+                                <li><strong>Price:</strong> ${{ subscription.product_plan.price }}</li>
+                                <li><strong>Renewal:</strong> {{ subscription.product_plan.get_renewal_period_display }}</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Progress Summary</h6>
+                            <div class="progress mb-2" style="height: 8px;">
+                                <div class="progress-bar bg-success" style="width: 75%"></div>
+                            </div>
+                            <small class="text-muted">{{ progress.progress_percentage|floatformat:1 }}% complete</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Recent Measurements</h6>
+                    <a href="{% url 'plan_management:coach_client_measurements' %}?client_id={{ client.id }}" 
+                       class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-chart-line me-1"></i>View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if measurements %}
+                        {% for measurement in measurements %}
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <div>
+                                <div class="fw-bold">{{ measurement.date|date:"M d" }}</div>
+                                <small class="text-muted">{{ measurement.date|date:"Y" }}</small>
+                            </div>
+                            <div class="text-end">
+                                {% if measurement.weight %}
+                                    <span class="badge bg-primary measurement-badge">{{ measurement.weight }}kg</span>
+                                {% endif %}
+                                {% if measurement.body_fat_percentage %}
+                                    <span class="badge bg-info measurement-badge">{{ measurement.body_fat_percentage }}% BF</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-3">
+                            <i class="fas fa-chart-line fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No measurements recorded</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Plan Days -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Plan Days</h5>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary me-2" onclick="filterDays('all')">All</button>
+                        <button class="btn btn-sm btn-outline-warning me-2" onclick="filterDays('pending')">Pending</button>
+                        <button class="btn btn-sm btn-outline-primary me-2" onclick="filterDays('in_progress')">In Progress</button>
+                        <button class="btn btn-sm btn-outline-success" onclick="filterDays('completed')">Completed</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="planDaysTable" class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Title</th>
+                                    <th>Scheduled Date</th>
+                                    <th>Status</th>
+                                    <th>Progress</th>
+                                    <th>Rating</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for day in plan_days %}
+                                <tr class="day-row" data-status="{{ day.completion_status }}">
+                                    <td>
+                                        <span class="fw-bold">{{ day.day_number }}</span>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <div class="fw-bold">{{ day.day_title }}</div>
+                                            {% if day.day_theme %}
+                                                <small class="text-muted">{{ day.day_theme }}</small>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div>{{ day.scheduled_date|date:"M d, Y" }}</div>
+                                        {% if day.actual_date and day.actual_date != day.scheduled_date %}
+                                            <small class="text-muted">Completed: {{ day.actual_date|date:"M d" }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if day.completion_status == 'completed' %}
+                                            <span class="badge bg-success">Completed</span>
+                                        {% elif day.completion_status == 'in_progress' %}
+                                            <span class="badge bg-warning">In Progress</span>
+                                        {% elif day.completion_status == 'skipped' %}
+                                            <span class="badge bg-secondary">Skipped</span>
+                                        {% elif day.is_overdue %}
+                                            <span class="badge bg-danger">Overdue</span>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">Not Started</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 6px;">
+                                            <div class="progress-bar bg-success" data-progress="{{ day.completion_percentage }}"></div>
+                                        </div>
+                                        <small class="text-muted">{{ day.completion_percentage|floatformat:0 }}%</small>
+                                    </td>
+                                    <td>
+                                        {% if day.client_rating %}
+                                            <div class="text-warning">
+                                                {% for i in "12345" %}
+                                                    {% if forloop.counter <= day.client_rating %}
+                                                        <i class="fas fa-star"></i>
+                                                    {% else %}
+                                                        <i class="far fa-star"></i>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" onclick="viewDayDetails('{{ day.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" onclick="editDay('{{ day.id }}')">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Day Details Modal -->
+<div class="modal fade" id="dayDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Day Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="dayDetailsContent">
+                <!-- Content loaded dynamically -->
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- DataTables is needed for plan day management -->
+<script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Generate client avatar
+    const avatar = document.querySelector('.client-avatar');
+    const initials = avatar.dataset.initials;
+    generateLocalAvatar(avatar, initials);
+
+    // Set progress bars with actual values
+    const progressBars = document.querySelectorAll('[data-progress]');
+    progressBars.forEach(bar => {
+        const progress = bar.dataset.progress;
+        bar.style.width = progress + '%';
+    });
+
+    // Set main progress bar
+    const mainProgressBar = document.querySelector('.progress-bar.bg-success');
+    if (mainProgressBar && !mainProgressBar.dataset.progress) {
+        const progressValue = '{{ progress.progress_percentage|floatformat:1 }}';
+        mainProgressBar.style.width = progressValue + '%';
+    }
+
+    // Set progress circle background
+    const progressCircle = document.querySelector('.progress-circle');
+    if (progressCircle) {
+        const progressValue = progressCircle.dataset.progress || 0;
+        const progressDeg = (progressValue / 100) * 360;
+        progressCircle.style.background = `conic-gradient(#28a745 0deg ${progressDeg}deg, #e9ecef ${progressDeg}deg 360deg)`;
+    }
+
+    // Initialize DataTable
+    $('#planDaysTable').DataTable({
+        pageLength: 25,
+        order: [[0, 'asc']],
+        columnDefs: [
+            { orderable: false, targets: [6] }
+        ]
+    });
+});
+
+function filterDays(status) {
+    const table = $('#planDaysTable').DataTable();
+    
+    if (status === 'all') {
+        table.search('').draw();
+    } else {
+        table.column(3).search(status, true, false).draw();
+    }
+}
+
+function viewDayDetails(dayId) {
+    // Load day details via secure APIBase with correct base path
+    const url = `/plan-management/api/v1/plan-days/${dayId}/`;
+    APIBase.request(url)
+        .then(response => {
+            if (!response.success) {
+                throw new Error(response.error || 'Failed to load day details');
+            }
+            renderDayDetails(response.data);
+            new bootstrap.Modal(document.getElementById('dayDetailsModal')).show();
+        })
+        .catch(error => {
+            console.error('Error loading day details:', error);
+            // Fallback alert if a global alert helper is not present
+            const el = document.createElement('div');
+            el.className = 'alert alert-danger';
+            el.textContent = 'Failed to load day details';
+            document.body.prepend(el);
+        });
+}
+
+function renderDayDetails(dayData) {
+    const content = document.getElementById('dayDetailsContent');
+    
+    let nutritionHtml = '';
+    if (dayData.nutrition_plan) {
+        nutritionHtml = `
+            <div class="col-md-6">
+                <h6>Nutrition Plan</h6>
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>Target Calories:</strong> ${dayData.nutrition_plan.target_calories}</p>
+                        <p><strong>Protein:</strong> ${dayData.nutrition_plan.target_protein_grams}g</p>
+                        <p><strong>Carbs:</strong> ${dayData.nutrition_plan.target_carbs_grams}g</p>
+                        <p><strong>Fats:</strong> ${dayData.nutrition_plan.target_fats_grams}g</p>
+                        <h6 class="mt-3">Meals (${dayData.nutrition_plan.meals.length})</h6>
+                        ${dayData.nutrition_plan.meals.map(meal => `
+                            <div class="border-bottom py-2">
+                                <strong>${meal.meal_name}</strong> (${meal.meal_type})
+                                <br><small class="text-muted">${meal.calories_per_serving} calories</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    let workoutHtml = '';
+    if (dayData.workout_plan) {
+        workoutHtml = `
+            <div class="col-md-6">
+                <h6>Workout Plan</h6>
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>Workout:</strong> ${dayData.workout_plan.workout_name}</p>
+                        <p><strong>Type:</strong> ${dayData.workout_plan.workout_type}</p>
+                        <p><strong>Duration:</strong> ${dayData.workout_plan.total_duration_minutes} minutes</p>
+                        <p><strong>Intensity:</strong> ${dayData.workout_plan.intensity_level}</p>
+                        <h6 class="mt-3">Exercise Blocks (${dayData.workout_plan.exercise_blocks.length})</h6>
+                        ${dayData.workout_plan.exercise_blocks.map(block => `
+                            <div class="border-bottom py-2">
+                                <strong>${block.block_name}</strong> (${block.block_type})
+                                <br><small class="text-muted">${block.exercises.length} exercises</small>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    content.innerHTML = `
+        <div class="row mb-3">
+            <div class="col-12">
+                <h5>Day ${dayData.day_number}: ${dayData.day_title}</h5>
+                <p class="text-muted">${dayData.day_description || 'No description provided'}</p>
+                <div class="d-flex gap-2 mb-3">
+                    <span class="badge bg-primary">${dayData.day_theme || 'General'}</span>
+                    <span class="badge bg-secondary">${dayData.planned_difficulty}</span>
+                    <span class="badge bg-info">${dayData.estimated_duration_minutes} min</span>
+                </div>
+            </div>
+        </div>
+        <div class="row">
+            ${nutritionHtml}
+            ${workoutHtml}
+        </div>
+        ${dayData.client_feedback ? `
+            <div class="row mt-3">
+                <div class="col-12">
+                    <h6>Client Feedback</h6>
+                    <div class="alert alert-light">
+                        ${dayData.client_feedback}
+                        ${dayData.client_rating ? `
+                            <div class="mt-2">
+                                <strong>Rating:</strong>
+                                <span class="text-warning">
+                                    ${'★'.repeat(dayData.client_rating)}${'☆'.repeat(5 - dayData.client_rating)}
+                                </span>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        ` : ''}
+    `;
+}
+
+function editDay(dayId) {
+    // Redirect to day editing page
+    window.location.href = `/plan-management/days/${dayId}/edit/`;
+}
+
+function sendMessage() {
+    // Redirect to messaging with client
+    const clientId = '{{ client.id }}';
+    window.location.href = `/messaging/conversation/?client_id=${clientId}`;
+}
+
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.querySelector('.container-fluid').insertBefore(alertDiv, document.querySelector('.container-fluid').firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+</script>
+{% endblock %}

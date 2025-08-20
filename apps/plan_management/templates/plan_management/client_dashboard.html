@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - Eazy Fit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
+<style>
+  .status-badge { font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+      <h1 class="h4 mb-1">My Plans Dashboard</h1>
+      <div class="text-muted">Manage your active subscriptions</div>
+    </div>
+    <div class="d-flex gap-2">
+      <button id="reloadSubs" class="btn btn-outline-primary">
+        <i class="bi bi-arrow-clockwise me-1"></i> Reload
+      </button>
+    </div>
+  </div>
+
+  <div id="subsError"></div>
+  <div id="subsLoading" class="text-center py-4" style="display:none;">
+    <div class="spinner-border text-primary" role="status"></div>
+    <div class="mt-2 text-muted">Loading subscriptions...</div>
+  </div>
+
+  <div class="card">
+    <div class="card-body">
+      <div class="mb-2">
+        <span class="text-muted">Active subscriptions:</span>
+        <span id="activeCount" class="fw-bold">0</span>
+      </div>
+      <div class="table-responsive">
+        <table id="subscriptionsTable" class="table table-striped table-hover w-100">
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Type</th>
+              <th>Coach</th>
+              <th>Price</th>
+              <th>Status</th>
+              <th>Subscribed On</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'js/plan_management/client_dashboard.js' %}"></script>
+{% endblock %}

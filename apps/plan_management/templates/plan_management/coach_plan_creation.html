@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create New Plan - Coach Dashboard{% endblock %}
+
+{% block extra_css %}
+<link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
+<link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}" rel="stylesheet">
+<style>
+.plan-creation-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.step-indicator {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 2rem;
+}
+
+.step {
+    display: flex;
+    align-items: center;
+    margin: 0 1rem;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #e9ecef;
+    color: #6c757d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    margin-right: 0.5rem;
+}
+
+.step.active .step-number {
+    background-color: #0d6efd;
+    color: white;
+}
+
+.step.completed .step-number {
+    background-color: #198754;
+    color: white;
+}
+
+.form-section {
+    background: white;
+    border-radius: 10px;
+    padding: 2rem;
+    margin-bottom: 2rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.plan-preview {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 1.5rem;
+    margin-top: 1rem;
+}
+
+.day-item {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.exercise-item, .meal-item {
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.btn-add-item {
+    border: 2px dashed #dee2e6;
+    background: transparent;
+    color: #6c757d;
+    padding: 1rem;
+    border-radius: 8px;
+    width: 100%;
+    transition: all 0.3s ease;
+}
+
+.btn-add-item:hover {
+    border-color: #0d6efd;
+    color: #0d6efd;
+    background: rgba(13, 110, 253, 0.05);
+}
+
+.nutrition-targets {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.target-item {
+    text-align: center;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.target-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #0d6efd;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plan-creation-container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-plus-circle me-2"></i>Create New Plan</h1>
+        <a href="{% url 'plan_management:coach_plan_management' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Plans
+        </a>
+    </div>
+
+    <!-- Step Indicator -->
+    <div class="step-indicator">
+        <div class="step active" id="step1">
+            <div class="step-number">1</div>
+            <span>Basic Info</span>
+        </div>
+        <div class="step" id="step2">
+            <div class="step-number">2</div>
+            <span>Plan Structure</span>
+        </div>
+        <div class="step" id="step3">
+            <div class="step-number">3</div>
+            <span>Daily Plans</span>
+        </div>
+        <div class="step" id="step4">
+            <div class="step-number">4</div>
+            <span>Review</span>
+        </div>
+    </div>
+
+    <form id="planCreationForm" method="post">
+        {% csrf_token %}
+        
+        <!-- Step 1: Basic Information -->
+        <div class="form-section" id="basicInfoSection">
+            <h3><i class="bi bi-info-circle me-2"></i>Basic Information</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="planName" class="form-label">Plan Name *</label>
+                        <input type="text" class="form-control" id="planName" name="name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="planType" class="form-label">Plan Type *</label>
+                        <select class="form-select" id="planType" name="plan_type" required>
+                            <option value="">Select Plan Type</option>
+                            <option value="workout">Workout Plan</option>
+                            <option value="diet">Diet Plan</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="duration" class="form-label">Duration (days) *</label>
+                        <input type="number" class="form-control" id="duration" name="duration" min="1" max="365" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="difficulty" class="form-label">Difficulty Level *</label>
+                        <select class="form-select" id="difficulty" name="difficulty_level" required>
+                            <option value="">Select Difficulty</option>
+                            <option value="beginner">Beginner</option>
+                            <option value="intermediate">Intermediate</option>
+                            <option value="advanced">Advanced</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="price" class="form-label">Price ($) *</label>
+                        <input type="number" class="form-control" id="price" name="price" min="0" step="0.01" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="maxClients" class="form-label">Max Clients</label>
+                        <input type="number" class="form-control" id="maxClients" name="max_clients" min="1">
+                        <div class="form-text">Leave empty for unlimited</div>
+                    </div>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description *</label>
+                <textarea class="form-control" id="description" name="description" rows="4" required></textarea>
+            </div>
+        </div>
+
+        <!-- Step 2: Plan Structure -->
+        <div class="form-section d-none" id="structureSection">
+            <h3><i class="bi bi-diagram-3 me-2"></i>Plan Structure</h3>
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Workout Structure</h5>
+                    <div class="mb-3">
+                        <label for="workoutDays" class="form-label">Workout Days per Week</label>
+                        <input type="number" class="form-control" id="workoutDays" name="workout_days_per_week" min="0" max="7">
+                    </div>
+                    <div class="mb-3">
+                        <label for="restDays" class="form-label">Rest Days per Week</label>
+                        <input type="number" class="form-control" id="restDays" name="rest_days_per_week" min="0" max="7">
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Nutrition Structure</h5>
+                    <div class="mb-3">
+                        <label for="mealsPerDay" class="form-label">Meals per Day</label>
+                        <input type="number" class="form-control" id="mealsPerDay" name="meals_per_day" min="1" max="8" value="3">
+                    </div>
+                    <div class="mb-3">
+                        <label for="snacksPerDay" class="form-label">Snacks per Day</label>
+                        <input type="number" class="form-control" id="snacksPerDay" name="snacks_per_day" min="0" max="5" value="2">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 3: Daily Plans (Dynamic) -->
+        <div class="form-section d-none" id="dailyPlansSection">
+            <h3><i class="bi bi-calendar-week me-2"></i>Daily Plans</h3>
+            <div id="dailyPlansContainer">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Step 4: Review -->
+        <div class="form-section d-none" id="reviewSection">
+            <h3><i class="bi bi-check-circle me-2"></i>Review Plan</h3>
+            <div class="plan-preview" id="planPreview">
+                <!-- Plan preview will be generated here -->
+            </div>
+        </div>
+
+        <!-- Navigation Buttons -->
+        <div class="d-flex justify-content-between mt-4">
+            <button type="button" class="btn btn-outline-secondary" id="prevBtn" onclick="changeStep(-1)" disabled>
+                <i class="bi bi-arrow-left me-2"></i>Previous
+            </button>
+            <button type="button" class="btn btn-primary" id="nextBtn" onclick="changeStep(1)">
+                Next<i class="bi bi-arrow-right ms-2"></i>
+            </button>
+            <button type="submit" class="btn btn-success d-none" id="submitBtn">
+                <i class="bi bi-check-circle me-2"></i>Create Plan
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentStep = 1;
+const totalSteps = 4;
+
+// Step navigation
+function changeStep(direction) {
+    if (direction === 1 && !validateCurrentStep()) {
+        return;
+    }
+    
+    const newStep = currentStep + direction;
+    if (newStep < 1 || newStep > totalSteps) return;
+    
+    // Hide current step
+    document.getElementById(`step${currentStep}`).classList.remove('active');
+    hideCurrentSection();
+    
+    // Show new step
+    currentStep = newStep;
+    document.getElementById(`step${currentStep}`).classList.add('active');
+    showCurrentSection();
+    
+    // Update navigation buttons
+    updateNavigationButtons();
+    
+    // Load step-specific content
+    if (currentStep === 3) {
+        generateDailyPlans();
+    } else if (currentStep === 4) {
+        generatePlanPreview();
+    }
+}
+
+function hideCurrentSection() {
+    const sections = ['basicInfoSection', 'structureSection', 'dailyPlansSection', 'reviewSection'];
+    sections.forEach(section => {
+        document.getElementById(section).classList.add('d-none');
+    });
+}
+
+function showCurrentSection() {
+    const sectionMap = {
+        1: 'basicInfoSection',
+        2: 'structureSection', 
+        3: 'dailyPlansSection',
+        4: 'reviewSection'
+    };
+    document.getElementById(sectionMap[currentStep]).classList.remove('d-none');
+}
+
+function updateNavigationButtons() {
+    const prevBtn = document.getElementById('prevBtn');
+    const nextBtn = document.getElementById('nextBtn');
+    const submitBtn = document.getElementById('submitBtn');
+    
+    prevBtn.disabled = currentStep === 1;
+    
+    if (currentStep === totalSteps) {
+        nextBtn.classList.add('d-none');
+        submitBtn.classList.remove('d-none');
+    } else {
+        nextBtn.classList.remove('d-none');
+        submitBtn.classList.add('d-none');
+    }
+}
+
+function validateCurrentStep() {
+    if (currentStep === 1) {
+        const required = ['planName', 'planType', 'duration', 'difficulty', 'price', 'description'];
+        return required.every(field => {
+            const element = document.getElementById(field);
+            if (!element.value.trim()) {
+                element.focus();
+                showAlert('Please fill in all required fields', 'warning');
+                return false;
+            }
+            return true;
+        });
+    }
+    return true;
+}
+
+function generateDailyPlans() {
+    const duration = parseInt(document.getElementById('duration').value);
+    const container = document.getElementById('dailyPlansContainer');
+    
+    if (!duration) return;
+    
+    container.innerHTML = `
+        <div class="alert alert-info">
+            <i class="bi bi-info-circle me-2"></i>
+            Creating ${duration} daily plans. You can customize each day or use templates.
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5>Daily Plans (${duration} days)</h5>
+            <div>
+                <button type="button" class="btn btn-outline-primary btn-sm me-2" onclick="applyTemplate()">
+                    <i class="bi bi-copy me-1"></i>Apply Template
+                </button>
+                <button type="button" class="btn btn-outline-success btn-sm" onclick="generateAutoPlan()">
+                    <i class="bi bi-magic me-1"></i>Auto Generate
+                </button>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-8">
+                <div id="daysList" style="max-height: 400px; overflow-y: auto;">
+                    ${Array.from({length: duration}, (_, i) => `
+                        <div class="day-item" data-day="${i + 1}">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <h6 class="mb-0">Day ${i + 1}</h6>
+                                <div>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editDay(${i + 1})">
+                                        <i class="bi bi-pencil"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="copyDay(${i + 1})">
+                                        <i class="bi bi-copy"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="small text-muted">
+                                <i class="bi bi-dumbbell me-1"></i>Workout: Not set
+                                <br>
+                                <i class="bi bi-egg-fried me-1"></i>Nutrition: Not set
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="mb-0">Quick Actions</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="bulkEditWorkouts()">
+                                <i class="bi bi-dumbbell me-1"></i>Bulk Edit Workouts
+                            </button>
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="bulkEditNutrition()">
+                                <i class="bi bi-egg-fried me-1"></i>Bulk Edit Nutrition
+                            </button>
+                            <button type="button" class="btn btn-outline-info btn-sm" onclick="setRestDays()">
+                                <i class="bi bi-moon me-1"></i>Set Rest Days
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function generatePlanPreview() {
+    const formData = new FormData(document.getElementById('planCreationForm'));
+    const preview = document.getElementById('planPreview');
+    
+    preview.innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h5>Plan Overview</h5>
+                <table class="table table-borderless">
+                    <tr><td><strong>Name:</strong></td><td>${formData.get('name')}</td></tr>
+                    <tr><td><strong>Type:</strong></td><td>${formData.get('plan_type')}</td></tr>
+                    <tr><td><strong>Duration:</strong></td><td>${formData.get('duration')} days</td></tr>
+                    <tr><td><strong>Difficulty:</strong></td><td>${formData.get('difficulty_level')}</td></tr>
+                    <tr><td><strong>Price:</strong></td><td>$${formData.get('price')}</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h5>Structure</h5>
+                <table class="table table-borderless">
+                    <tr><td><strong>Workout Days:</strong></td><td>${formData.get('workout_days_per_week') || 'Not set'}/week</td></tr>
+                    <tr><td><strong>Rest Days:</strong></td><td>${formData.get('rest_days_per_week') || 'Not set'}/week</td></tr>
+                    <tr><td><strong>Meals:</strong></td><td>${formData.get('meals_per_day') || 3}/day</td></tr>
+                    <tr><td><strong>Snacks:</strong></td><td>${formData.get('snacks_per_day') || 2}/day</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="mt-3">
+            <h5>Description</h5>
+            <p class="text-muted">${formData.get('description')}</p>
+        </div>
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle me-2"></i>
+            Plan is ready to be created! Click "Create Plan" to save.
+        </div>
+    `;
+}
+
+// Placeholder functions for future implementation
+function applyTemplate() {
+    showAlert('Template functionality coming soon!', 'info');
+}
+
+function generateAutoPlan() {
+    showAlert('Auto-generation functionality coming soon!', 'info');
+}
+
+function editDay(day) {
+    showAlert(`Edit Day ${day} functionality coming soon!`, 'info');
+}
+
+function copyDay(day) {
+    showAlert(`Copy Day ${day} functionality coming soon!`, 'info');
+}
+
+function bulkEditWorkouts() {
+    showAlert('Bulk edit workouts functionality coming soon!', 'info');
+}
+
+function bulkEditNutrition() {
+    showAlert('Bulk edit nutrition functionality coming soon!', 'info');
+}
+
+function setRestDays() {
+    showAlert('Set rest days functionality coming soon!', 'info');
+}
+
+function showAlert(message, type = 'info') {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    const container = document.querySelector('.plan-creation-container');
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    setTimeout(() => {
+        alertDiv.remove();
+    }, 5000);
+}
+
+// Form submission
+document.getElementById('planCreationForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('submitBtn');
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Creating...';
+    submitBtn.disabled = true;
+    
+    try {
+        const formData = new FormData(this);
+        const response = await fetch('{% url "plan_management:coach_plan_creation" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken')
+            }
+        });
+        
+        if (response.ok) {
+            showAlert('Plan created successfully!', 'success');
+            setTimeout(() => {
+                window.location.href = '{% url "plan_management:coach_plan_management" %}';
+            }, 2000);
+        } else {
+            throw new Error('Failed to create plan');
+        }
+    } catch (error) {
+        console.error('Error creating plan:', error);
+        showAlert('Error creating plan. Please try again.', 'danger');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateNavigationButtons();
+});
+</script>
+{% endblock %}

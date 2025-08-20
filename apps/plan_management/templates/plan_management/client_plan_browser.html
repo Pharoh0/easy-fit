@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Browse Fitness Plans{% endblock %}
+
+{% block extra_css %}
+<style>
+    .plan-browser-header {
+        background-color: #f8f9fa;
+        padding: 2rem 0;
+        margin-bottom: 2rem;
+    }
+    
+    .plan-card {
+        transition: all 0.3s ease;
+        height: 100%;
+    }
+    
+    .plan-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    }
+    
+    .plan-price {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #0d6efd;
+    }
+    
+    .plan-price .text-muted {
+        font-size: 0.9rem;
+        font-weight: normal;
+    }
+    
+    .filters-section {
+        background-color: #fff;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .success-animation {
+        animation: pulse 1s infinite;
+    }
+    
+    @keyframes pulse {
+        0% {
+            transform: scale(1);
+        }
+        50% {
+            transform: scale(1.1);
+        }
+        100% {
+            transform: scale(1);
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="plan-browser-header">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h1 class="display-5 fw-bold">Find Your Perfect Fitness Plan</h1>
+                <p class="lead">Browse through our professionally designed plans and find the perfect match for your fitness goals.</p>
+            </div>
+            <div class="col-md-4 text-center">
+                <img src="{% static 'images/plan-illustration.svg' %}" alt="Plan Selection" class="img-fluid" 
+                    onerror="this.onerror=null; this.src='https://via.placeholder.com/300x200?text=Plan+Selection';">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="container mb-5">
+    <div class="row">
+        <div class="col-md-3">
+            <!-- Filters sidebar -->
+            <div class="filters-section sticky-top" style="top: 2rem;">
+                <h5 class="mb-3">
+                    <i class="bi bi-funnel me-2"></i>
+                    Filter Plans
+                </h5>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Plan Type</label>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary plan-filter-btn active" data-filter="all">
+                            <i class="bi bi-grid me-2"></i>All Plans
+                        </button>
+                        <button class="btn btn-outline-success plan-filter-btn" data-filter="workout">
+                            <i class="bi bi-activity me-2"></i>Workout
+                        </button>
+                        <button class="btn btn-outline-info plan-filter-btn" data-filter="diet">
+                            <i class="bi bi-egg-fried me-2"></i>Diet
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Price Range</label>
+                    <div class="input-group mb-3">
+                        <span class="input-group-text">$</span>
+                        <input type="number" class="form-control" id="priceMin" placeholder="Min">
+                        <span class="input-group-text">-</span>
+                        <input type="number" class="form-control" id="priceMax" placeholder="Max">
+                    </div>
+                    <button class="btn btn-sm btn-outline-secondary w-100" id="applyPriceFilter">
+                        <i class="bi bi-sliders me-2"></i>Apply
+                    </button>
+                </div>
+                
+                <div class="mb-3">
+                    <label class="form-label fw-bold">Duration</label>
+                    <select class="form-select" id="durationFilter">
+                        <option value="all" selected>Any duration</option>
+                        <option value="30">Up to 30 days</option>
+                        <option value="90">Up to 90 days</option>
+                        <option value="180">Up to 180 days</option>
+                        <option value="365">Up to 1 year</option>
+                    </select>
+                </div>
+                
+                <hr>
+                
+                <button class="btn btn-primary w-100" id="resetFiltersBtn">
+                    <i class="bi bi-arrow-counterclockwise me-2"></i>Reset Filters
+                </button>
+            </div>
+        </div>
+        
+        <div class="col-md-9">
+            <!-- Plans container -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h4><i class="bi bi-clipboard-check me-2"></i>Available Plans</h4>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="sortDropdown" data-bs-toggle="dropdown">
+                        <i class="bi bi-sort-alpha-down me-1"></i>Sort By
+                    </button>
+                    <ul class="dropdown-menu" aria-labelledby="sortDropdown">
+                        <li><a class="dropdown-item sort-option" href="#" data-sort="price-asc">Price: Low to High</a></li>
+                        <li><a class="dropdown-item sort-option" href="#" data-sort="price-desc">Price: High to Low</a></li>
+                        <li><a class="dropdown-item sort-option" href="#" data-sort="duration-asc">Duration: Shortest First</a></li>
+                        <li><a class="dropdown-item sort-option" href="#" data-sort="duration-desc">Duration: Longest First</a></li>
+                        <li><a class="dropdown-item sort-option" href="#" data-sort="rating-desc">Highest Rated</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div id="planBrowserContainer">
+                <!-- Plans will be loaded here -->
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading plans...</span>
+                    </div>
+                    <p class="mt-3">Loading available plans...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Plan Details Modal -->
+<div class="modal fade" id="planDetailsModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-clipboard-data me-2"></i>
+                    Plan Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="planDetailsBody">
+                <!-- Plan details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Close
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Subscription Confirmation Modal -->
+<div class="modal fade" id="subscriptionConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="bi bi-credit-card me-2"></i>
+                    Confirm Subscription
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="subscriptionConfirmBody">
+                <!-- Subscription confirmation will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" id="cancelSubscriptionBtn" data-bs-dismiss="modal">
+                    <i class="bi bi-x-circle me-2"></i>Cancel
+                </button>
+                <button type="button" class="btn btn-primary" id="confirmSubscriptionBtn">
+                    <i class="bi bi-credit-card me-2"></i>Subscribe Now
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/plan_management_client.js' %}"></script>
+<script>
+    // Initialize plan browser
+    document.addEventListener('DOMContentLoaded', function() {
+        initializeClientPlanBrowsing();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,191 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - Eazy Fit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
+<style>
+  .progress-circle { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative; background: conic-gradient(#28a745 0deg 0deg, #e9ecef 0deg 360deg); }
+  .progress-circle::before { content: ''; width: 84px; height: 84px; border-radius: 50%; background: #fff; position: absolute; }
+  .progress-text { position: relative; z-index: 1; font-weight: 700; font-size: 1.1rem; }
+  .status-badge { font-size: .85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-3" id="clientPlanRoot" data-subscription-id="{{ subscription.id }}">
+  <!-- Header / Overview -->
+  <div class="row g-3 align-items-stretch">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-body d-flex flex-column">
+          <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+            <div>
+              <h4 class="mb-1">{{ subscription.product_plan.name }}</h4>
+              <div class="text-muted">
+                <span class="me-2"><i class="fas fa-user-tie me-1"></i>{{ subscription.product_plan.coach.user.get_full_name }}</span>
+                <span class="me-2"><i class="fas fa-layer-group me-1"></i>{{ subscription.product_plan.get_plan_type_display }}</span>
+                <span class="me-2"><i class="fas fa-calendar me-1"></i>Sessions: {{ subscription.product_plan.session_count }}</span>
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="progress-circle mx-auto" id="progressCircle" data-progress="0">
+                <div class="progress-text" id="progressPercent">0%</div>
+              </div>
+              <small class="text-muted d-block mt-2">
+                <span id="completedDays">0</span>/<span id="totalDays">0</span> days completed · <span id="daysRemaining">0</span> remaining
+              </small>
+            </div>
+          </div>
+          {% if subscription.product_plan.description %}
+          <p class="text-muted mt-3 mb-0">{{ subscription.product_plan.description }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-body d-flex align-items-center justify-content-between gap-2">
+          <a href="{% url 'messaging:chat' %}" class="btn btn-outline-primary">
+            <i class="fas fa-comments me-1"></i> Open Chat
+          </a>
+          <a href="{% url 'plan_management:client_ratings' %}" class="btn btn-outline-warning">
+            <i class="fas fa-star me-1"></i> Rate Plan
+          </a>
+          <a href="{% url 'plan_management:client_dashboard' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Dashboard
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mt-3">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label">Status</label>
+          <select id="statusFilter" class="form-select">
+            <option value="all">All</option>
+            <option value="not_started">Not Started</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+            <option value="skipped">Skipped</option>
+            <option value="rescheduled">Rescheduled</option>
+            <option value="pending">Pending (Not Started/In Progress)</option>
+            <option value="overdue">Overdue</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Start date</label>
+          <input type="date" id="startDate" class="form-control">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">End date</label>
+          <input type="date" id="endDate" class="form-control">
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-outline-secondary w-50" id="todayToggle"><i class="fas fa-calendar-day me-1"></i> Today</button>
+          <button class="btn btn-outline-secondary w-50" id="upcomingToggle"><i class="fas fa-arrow-up me-1"></i> Upcoming</button>
+        </div>
+      </div>
+      <div class="mt-3 d-flex gap-2">
+        <button class="btn btn-primary" id="applyFilters"><i class="fas fa-filter me-1"></i> Apply</button>
+        <button class="btn btn-outline-secondary" id="clearFilters">Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plan Days Table -->
+  <div class="card mt-3">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="planDaysTable" class="table table-hover align-middle" style="width:100%">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Title</th>
+              <th>Scheduled Date</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>Rating</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Day Details Modal -->
+<div class="modal fade" id="dayDetailsModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Day Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="dayDetailsContent">
+        <!-- Content loaded dynamically -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Skip Day Modal -->
+<div class="modal fade" id="skipDayModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="skipDayForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Skip Day</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="skipDayId">
+          <label class="form-label">Reason</label>
+          <textarea class="form-control" id="skipReason" rows="3" placeholder="Why are you skipping this day?"></textarea>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning">Skip</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Reschedule Day Modal -->
+<div class="modal fade" id="rescheduleDayModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="rescheduleDayForm">
+        <div class="modal-header">
+          <h5 class="modal-title">Reschedule Day</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="rescheduleDayId">
+          <label class="form-label">New Date</label>
+          <input type="date" class="form-control" id="newDate" required>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Reschedule</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'js/plan_management/client_plan_detail.js' %}"></script>
+{% endblock %}
