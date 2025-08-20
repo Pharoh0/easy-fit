@@ -1,0 +1,332 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}My Dashboard - EazyFit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/plan_management.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-0">My Fitness Dashboard</h1>
+                    <p class="text-muted">Track your progress and stay motivated</p>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-primary" id="logTodayBtn">
+                        <i class="fas fa-plus"></i> Log Today
+                    </button>
+                    <button class="btn btn-primary" id="refreshDashboard">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="currentStreak">0</h4>
+                            <p class="mb-0">Current Streak</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-fire fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="completionRate">0%</h4>
+                            <p class="mb-0">Completion Rate</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-chart-line fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="activePlans">0</h4>
+                            <p class="mb-0">Active Plans</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-dumbbell fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0" id="achievedGoals">0</h4>
+                            <p class="mb-0">Goals Achieved</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-trophy fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="row">
+        <!-- Left Column -->
+        <div class="col-lg-8">
+            <!-- Progress Chart -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Progress Overview</h5>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <input type="radio" class="btn-check" name="chartPeriod" id="week" value="week" checked>
+                        <label class="btn btn-outline-primary" for="week">Week</label>
+                        <input type="radio" class="btn-check" name="chartPeriod" id="month" value="month">
+                        <label class="btn btn-outline-primary" for="month">Month</label>
+                        <input type="radio" class="btn-check" name="chartPeriod" id="quarter" value="quarter">
+                        <label class="btn btn-outline-primary" for="quarter">Quarter</label>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="progressChart" height="100"></canvas>
+                </div>
+            </div>
+
+            <!-- Today's Plan -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Today's Plan</h5>
+                    <span class="badge bg-primary" id="todayDate"></span>
+                </div>
+                <div class="card-body" id="todaysPlan">
+                    <!-- Today's plan will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Activity</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline" id="recentActivity">
+                        <!-- Recent activity will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-lg-4">
+            <!-- Active Goals -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Active Goals</h5>
+                    <button class="btn btn-sm btn-outline-primary" id="addGoalBtn">
+                        <i class="fas fa-plus"></i> Add Goal
+                    </button>
+                </div>
+                <div class="card-body" id="activeGoals">
+                    <!-- Active goals will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Upcoming Milestones -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Recent Milestones</h5>
+                </div>
+                <div class="card-body" id="recentMilestones">
+                    <!-- Recent milestones will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" id="viewPlansBtn">
+                            <i class="fas fa-list"></i> View My Plans
+                        </button>
+                        <button class="btn btn-outline-success" id="messageCoachBtn">
+                            <i class="fas fa-comments"></i> Message Coach
+                        </button>
+                        <button class="btn btn-outline-info" id="browseNewPlansBtn">
+                            <i class="fas fa-search"></i> Browse New Plans
+                        </button>
+                        <button class="btn btn-outline-warning" id="viewRatingsBtn">
+                            <i class="fas fa-star"></i> Rate Plans
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Today Modal -->
+<div class="modal fade" id="logTodayModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Log Today's Progress</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="logTodayForm">
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Workout Completed</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="workout_completed" id="workoutCompleted">
+                                <label class="form-check-label" for="workoutCompleted">Yes, I completed my workout</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Diet Plan Followed</label>
+                            <div class="form-check form-switch">
+                                <input class="form-check-input" type="checkbox" name="diet_completed" id="dietCompleted">
+                                <label class="form-check-label" for="dietCompleted">Yes, I followed my diet plan</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Energy Level (1-10)</label>
+                            <input type="range" class="form-range" name="energy_level" min="1" max="10" value="5" id="energyLevel">
+                            <div class="d-flex justify-content-between">
+                                <small>Low</small>
+                                <small id="energyValue">5</small>
+                                <small>High</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mood Rating (1-10)</label>
+                            <input type="range" class="form-range" name="mood_rating" min="1" max="10" value="5" id="moodRating">
+                            <div class="d-flex justify-content-between">
+                                <small>Poor</small>
+                                <small id="moodValue">5</small>
+                                <small>Great</small>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-control" name="notes" rows="3" 
+                                placeholder="How did today go? Any challenges or achievements?"></textarea>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Weight (optional)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="weight" step="0.1" placeholder="0.0">
+                                <span class="input-group-text">kg</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Sleep Hours (optional)</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" name="sleep_hours" step="0.5" placeholder="0.0">
+                                <span class="input-group-text">hours</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i> Save Progress
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Add Goal Modal -->
+<div class="modal fade" id="addGoalModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New Goal</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addGoalForm">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Goal Type</label>
+                        <select class="form-select" name="goal_type" required>
+                            <option value="">Select Goal Type</option>
+                            <option value="weight_loss">Weight Loss</option>
+                            <option value="weight_gain">Weight Gain</option>
+                            <option value="muscle_gain">Muscle Gain</option>
+                            <option value="endurance">Endurance</option>
+                            <option value="strength">Strength</option>
+                            <option value="flexibility">Flexibility</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Goal Title</label>
+                        <input type="text" class="form-control" name="title" required 
+                            placeholder="e.g., Lose 10kg in 3 months">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea class="form-control" name="description" rows="3" 
+                            placeholder="Describe your goal in detail..."></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label">Target Value</label>
+                            <input type="number" class="form-control" name="target_value" step="0.1" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Current Value</label>
+                            <input type="number" class="form-control" name="current_value" step="0.1" value="0">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="form-label">Target Date</label>
+                        <input type="date" class="form-control" name="target_date" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Add Goal
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
+<script src="{% static 'js/dashboard.js' %}"></script>
+{% endblock %}
