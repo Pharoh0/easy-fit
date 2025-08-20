@@ -512,8 +512,11 @@
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h6 class="section-title mb-0"><i class="fas fa-dumbbell me-2"></i>Training Plans</h6>
                         {% if request.user == profile.user %}
-                            <a href="{% url 'plan_management:manage_product_plans' %}" class="btn btn-sm btn-light-primary">
-                                <i class="fas fa-plus me-1"></i> Add Plan
+                            <a href="{% url 'plan_management:coach_plan_creation' %}" class="btn btn-sm btn-light-primary">
+                                <i class="fas fa-plus me-1"></i> Create Plan
+                            </a>
+                            <a href="{% url 'plan_management:coach_plan_management' %}" class="btn btn-sm btn-light-info ms-2">
+                                <i class="fas fa-clipboard-check me-1"></i> Manage Plans
                             </a>
                         {% endif %}
                     </div>
