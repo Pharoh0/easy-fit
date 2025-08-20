@@ -1,0 +1,229 @@
+<!-- Coach Measurements Widget for Dashboard -->
+<div class="card measurement-widget">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-chart-line me-2"></i>Client Measurements
+        </h5>
+        <a href="{% url 'plan_management:coach_client_measurements' %}" class="btn btn-sm btn-outline-primary">
+            View All
+        </a>
+    </div>
+    <div class="card-body">
+        <!-- Quick Stats -->
+        <div class="row mb-3" id="measurementStats">
+            <div class="col-3 text-center">
+                <div class="stat-item">
+                    <h4 class="mb-0 text-primary" id="totalClients">-</h4>
+                    <small class="text-muted">Clients</small>
+                </div>
+            </div>
+            <div class="col-3 text-center">
+                <div class="stat-item">
+                    <h4 class="mb-0 text-success" id="activeClients">-</h4>
+                    <small class="text-muted">Active</small>
+                </div>
+            </div>
+            <div class="col-3 text-center">
+                <div class="stat-item">
+                    <h4 class="mb-0 text-info" id="recentMeasurements">-</h4>
+                    <small class="text-muted">Recent</small>
+                </div>
+            </div>
+            <div class="col-3 text-center">
+                <div class="stat-item">
+                    <h4 class="mb-0 text-warning" id="engagementRate">-</h4>
+                    <small class="text-muted">Engaged</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="measurement-activity">
+            <h6 class="mb-2">Recent Client Activity</h6>
+            <div id="recentActivity" class="activity-list">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="mt-3 d-flex gap-2">
+            <a href="{% url 'plan_management:coach_client_measurements' %}" class="btn btn-sm btn-primary flex-fill">
+                <i class="fas fa-users me-1"></i>View Clients
+            </a>
+            <a href="{% url 'plan_management:coach_plan_creation' %}" class="btn btn-sm btn-success flex-fill">
+                <i class="fas fa-plus me-1"></i>Create Plan
+            </a>
+        </div>
+    </div>
+</div>
+
+<style>
+.measurement-widget .stat-item {
+    padding: 10px;
+    border-radius: 8px;
+    background: rgba(0,0,0,0.02);
+    transition: all 0.3s ease;
+}
+
+.measurement-widget .stat-item:hover {
+    background: rgba(0,0,0,0.05);
+    transform: translateY(-2px);
+}
+
+.activity-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.activity-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.activity-item:last-child {
+    border-bottom: none;
+}
+
+.activity-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    margin-right: 10px;
+    object-fit: cover;
+}
+
+.activity-content {
+    flex: 1;
+}
+
+.activity-time {
+    font-size: 0.75rem;
+    color: #6c757d;
+}
+
+.loading-placeholder {
+    text-align: center;
+    padding: 20px;
+    color: #6c757d;
+}
+</style>
+
+<script>
+// Widget JavaScript
+(function() {
+    let widgetInitialized = false;
+    
+    function initMeasurementWidget() {
+        if (widgetInitialized) return;
+        widgetInitialized = true;
+        
+        loadQuickStats();
+        loadRecentActivity();
+        
+        // Refresh every 5 minutes
+        setInterval(() => {
+            loadQuickStats();
+            loadRecentActivity();
+        }, 300000);
+    }
+    
+    async function loadQuickStats() {
+        try {
+            const response = await fetch('{% url "plan_management:coach_client_stats" %}', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                updateStatsDisplay(data.stats);
+            }
+        } catch (error) {
+            console.error('Error loading measurement stats:', error);
+        }
+    }
+    
+    function updateStatsDisplay(stats) {
+        document.getElementById('totalClients').textContent = stats.total_clients || 0;
+        document.getElementById('activeClients').textContent = stats.active_clients || 0;
+        document.getElementById('recentMeasurements').textContent = stats.recent_measurements || 0;
+        document.getElementById('engagementRate').textContent = (stats.engagement_rate || 0) + '%';
+    }
+    
+    async function loadRecentActivity() {
+        const activityContainer = document.getElementById('recentActivity');
+        activityContainer.innerHTML = '<div class="loading-placeholder"><i class="fas fa-spinner fa-spin"></i> Loading...</div>';
+        
+        try {
+            const response = await fetch('{% url "plan_management:coach_measurement_insights" %}', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                displayRecentActivity(data.insights);
+            } else {
+                throw new Error('Failed to load activity');
+            }
+        } catch (error) {
+            console.error('Error loading recent activity:', error);
+            activityContainer.innerHTML = '<div class="loading-placeholder text-muted">Unable to load activity</div>';
+        }
+    }
+    
+    function displayRecentActivity(insights) {
+        const activityContainer = document.getElementById('recentActivity');
+        
+        if (!insights.client_progress || insights.client_progress.length === 0) {
+            activityContainer.innerHTML = '<div class="loading-placeholder text-muted">No recent activity</div>';
+            return;
+        }
+        
+        let html = '';
+        insights.client_progress.slice(0, 3).forEach(client => {
+            const progressIcon = client.weight_change !== null 
+                ? (client.weight_change < 0 ? 'fas fa-arrow-down text-success' : 'fas fa-arrow-up text-primary')
+                : 'fas fa-minus text-muted';
+            
+            const progressText = client.weight_change !== null 
+                ? `${client.weight_change > 0 ? '+' : ''}${client.weight_change.toFixed(1)}kg`
+                : 'No change';
+            
+            html += `
+                <div class="activity-item">
+                    <img src="${client.avatar_url || AvatarGenerator.generateAvatar(client.client_name, {background: '667eea', color: 'fff', size: 32})}" 
+                         alt="${client.client_name}" class="activity-avatar">
+                    <div class="activity-content">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <strong class="small">${client.client_name}</strong>
+                            <span class="activity-time">${client.latest_date}</span>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">${client.measurement_count} measurements</small>
+                            <span class="small">
+                                <i class="${progressIcon}"></i> ${progressText}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        activityContainer.innerHTML = html;
+    }
+    
+    // Initialize when DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initMeasurementWidget);
+    } else {
+        initMeasurementWidget();
+    }
+})();
+</script>

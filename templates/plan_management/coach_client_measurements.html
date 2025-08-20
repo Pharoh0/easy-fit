@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Client Management - Coach Dashboard{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+<link rel="stylesheet" href="{% static 'css/plan_management.css' %}">
+<link rel="stylesheet" href="{% static 'css/coach_measurements.css' %}">
+
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Page Header -->
+    <div class="page-header fade-in">
+        <div class="row align-items-center">
+            <div class="col-lg-8 col-md-7">
+                <h2 class="mb-0"><i class="fas fa-users me-2"></i>Client Management & Insights</h2>
+                <p class="mb-0 mt-2">Manage clients: measurements, plan customization, and chat</p>
+            </div>
+            <div class="col-lg-4 col-md-5">
+                <div class="search-container">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="clientSearch" class="form-control" placeholder="Search clients by name or email...">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Selection Dropdown -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="selection-card slide-up">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-user-friends me-2"></i>Select Client</h5>
+                    <select id="clientSelector" class="form-select">
+                        <option value="">Select a client</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Spinner -->
+    <div id="loadingSpinner" class="loading-container" style="display: none;">
+        <div class="spinner-container">
+            <div class="spinner-border" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+        </div>
+        <p class="loading-text">Loading client measurements...</p>
+    </div>
+
+    <!-- Client Info and Measurements -->
+    <div id="clientMeasurementsContainer" style="display: none;">
+        <!-- Client Info Card -->
+        <div class="client-info-card slide-up">
+            <div class="row align-items-center">
+                <div class="col-lg-2 col-md-3 text-center">
+                    <div class="client-avatar">
+                        <img id="clientAvatar" src="" alt="Client Avatar">
+                    </div>
+                </div>
+                <div class="col-lg-6 col-md-5">
+                    <h3 id="clientName" class="client-name"></h3>
+                    <p id="clientEmail" class="client-email"></p>
+                    <div class="client-stats">
+                        <span class="client-badge" id="clientAge"></span>
+                        <span class="client-badge" id="clientGender"></span>
+                        <span class="client-badge" id="clientActivityLevel"></span>
+                    </div>
+                    <!-- Action buttons -->
+                    <div class="action-buttons">
+                        <button id="chatWithClientBtn" class="btn btn-light-custom" data-client-id="">
+                            <i class="fas fa-comments me-1"></i> Chat with Client
+                        </button>
+                        <a href="/messaging/chat/" class="btn btn-outline-light-custom ms-2">
+                            <i class="fas fa-envelope me-1"></i> All Messages
+                        </a>
+                        <!-- Customize Plan actions: single button (1 subscription) or dropdown (multiple) -->
+                        <a id="customizePlanBtn" href="#" class="btn btn-warning-custom ms-2" style="display: none;">
+                            <i class="fas fa-sliders-h me-1"></i> Customize Plan
+                        </a>
+                        <div class="btn-group ms-2" id="customizePlanGroup" style="display: none;">
+                            <button type="button" class="btn btn-warning-custom dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                                <i class="fas fa-sliders-h me-1"></i> Customize Plan
+                            </button>
+                            <ul class="dropdown-menu" id="customizePlanDropdown"></ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-4 col-md-4">
+                    <div class="row client-stats-container">
+                        <div class="col-4">
+                            <p class="stat-value" id="totalMeasurements">0</p>
+                            <p class="stat-label">Measurements</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="stat-value" id="activePlans">0</p>
+                            <p class="stat-label">Subscriptions</p>
+                        </div>
+                        <div class="col-4">
+                            <p class="stat-value" id="memberSince">-</p>
+                            <p class="stat-label">Member Since</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Measurement Analytics -->
+        <div class="row">
+            <div class="col-md-8">
+                <!-- Progress Charts -->
+                <div id="chartContainer" class="chart-container slide-up">
+                    <h5><i class="fas fa-chart-line me-2"></i>Measurement Progress</h5>
+                    <canvas id="measurementChart" height="100"></canvas>
+                </div>
+
+                <!-- Latest Measurements -->
+                <div class="measurement-card slide-up">
+                    <div class="card-header-custom">
+                        <h5><i class="fas fa-ruler me-2"></i>Latest Measurements</h5>
+                    </div>
+                    <div class="card-body-custom">
+                        <div id="latestMeasurements" class="body-measurements-grid">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Measurement Photos -->
+                <div class="measurement-card slide-up">
+                    <div class="card-header-custom">
+                        <h5><i class="fas fa-camera me-2"></i>Progress Photos</h5>
+                    </div>
+                    <div class="card-body-custom">
+                        <div id="measurementPhotos" class="measurement-photos">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <!-- Progress Summary -->
+                <div class="measurement-card slide-up">
+                    <div class="card-header-custom">
+                        <h5><i class="fas fa-trophy me-2"></i>Progress Summary</h5>
+                    </div>
+                    <div class="card-body-custom">
+                        <div id="progressSummary">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Health Information -->
+                <div class="measurement-card slide-up">
+                    <div class="card-header-custom">
+                        <h5><i class="fas fa-heart me-2"></i>Health Information</h5>
+                    </div>
+                    <div class="card-body-custom">
+                        <div id="healthInfo">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Measurement Timeline -->
+                <div class="measurement-card slide-up">
+                    <div class="card-header-custom">
+                        <h5><i class="fas fa-history me-2"></i>Recent Measurements</h5>
+                    </div>
+                    <div class="card-body-custom">
+                        <div id="measurementTimeline" class="measurement-timeline">
+                            <!-- Dynamic content -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- No Data Message -->
+    <div id="noDataMessage" class="no-data-container fade-in" style="display: none;">
+        <i class="fas fa-chart-line no-data-icon"></i>
+        <h4 class="no-data-title">No Measurement Data</h4>
+        <p class="no-data-message">This client hasn't recorded any measurements yet. When they do, you'll see their progress here.</p>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+{% if include_charts %}
+    <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
+{% endif %}
+<script src="{% static 'js/coach_measurements.js' %}"></script>
+{% endblock %}
