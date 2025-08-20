@@ -20,6 +20,7 @@ class ProductPlan(models.Model):
     start_date = models.DateField()
     end_date = models.DateField()
     renewal_period = models.CharField(max_length=10, choices=[('weekly', 'Weekly'), ('monthly', 'Monthly')],default='monthly')
+    is_active = models.BooleanField(default=True, help_text='Whether this plan is available for clients to browse and subscribe to')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
