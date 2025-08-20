@@ -1,0 +1,364 @@
+/* Plan Management CSS */
+
+/* Plan Browse Styles */
+.plan-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid #e0e0e0;
+}
+
+.plan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.plan-card .card-img-top img {
+    transition: transform 0.3s ease;
+}
+
+.plan-card:hover .card-img-top img {
+    transform: scale(1.05);
+}
+
+.plan-card .badge {
+    font-size: 0.75rem;
+}
+
+/* Dashboard Styles */
+.dashboard-card {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.quick-stats .card {
+    border-radius: 15px;
+    border: none;
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%);
+}
+
+.quick-stats .card.bg-success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #198754 100%) !important;
+}
+
+.quick-stats .card.bg-info {
+    background: linear-gradient(135deg, var(--bs-info) 0%, #0dcaf0 100%) !important;
+}
+
+.quick-stats .card.bg-warning {
+    background: linear-gradient(135deg, var(--bs-warning) 0%, #ffc107 100%) !important;
+}
+
+.plan-day-card {
+    transition: all 0.2s ease;
+}
+
+.plan-day-card:hover {
+    background-color: #f8f9fa !important;
+    border-color: var(--bs-primary) !important;
+}
+
+.goal-card {
+    background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+    border: 1px solid #e9ecef;
+    transition: transform 0.2s ease;
+}
+
+.goal-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.milestone-card {
+    background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%);
+    border: 1px solid #f0ad4e;
+}
+
+.timeline {
+    position: relative;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 6px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--bs-primary);
+}
+
+.timeline-item {
+    position: relative;
+}
+
+.timeline-marker {
+    position: relative;
+    z-index: 1;
+}
+
+/* Progress Chart Styles */
+#progressChart {
+    border-radius: 10px;
+}
+
+/* Rating Styles */
+.rating-card {
+    transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+    border: 1px solid #e0e0e0;
+}
+
+.rating-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.pending-rating-card {
+    background: linear-gradient(135deg, #fff9c4 0%, #f7f3d0 100%);
+    border: 1px solid #f0ad4e;
+    transition: transform 0.2s ease;
+}
+
+.pending-rating-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(240, 173, 78, 0.2);
+}
+
+.rating-stars {
+    cursor: pointer;
+    font-size: 1.2rem;
+}
+
+.rating-stars i {
+    transition: color 0.2s ease;
+    margin-right: 2px;
+}
+
+.rating-stars i:hover {
+    color: #ffc107 !important;
+}
+
+.rating-stars-display i {
+    margin-right: 2px;
+}
+
+.rating-breakdown .rating-item {
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 10px;
+    margin-bottom: 10px;
+}
+
+.coach-response {
+    border-left: 4px solid var(--bs-primary);
+}
+
+/* Form Styles */
+.form-control:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.form-select:focus {
+    border-color: var(--bs-primary);
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%);
+    border: none;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.3);
+}
+
+.btn-outline-primary {
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.btn-outline-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(var(--bs-primary-rgb), 0.2);
+}
+
+/* Modal Styles */
+.modal-content {
+    border-radius: 15px;
+    border: none;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.modal-header {
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 15px 15px 0 0;
+    background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+}
+
+.modal-footer {
+    border-top: 1px solid #e9ecef;
+    border-radius: 0 0 15px 15px;
+    background: #f8f9fa;
+}
+
+/* Filter Styles */
+#filtersSection {
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Loading Spinner */
+.spinner-border {
+    width: 3rem;
+    height: 3rem;
+}
+
+/* Badge Styles */
+.badge {
+    font-size: 0.75rem;
+    padding: 0.5em 0.75em;
+    border-radius: 6px;
+}
+
+.badge.bg-primary {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-primary-dark, #0056b3) 100%) !important;
+}
+
+.badge.bg-success {
+    background: linear-gradient(135deg, var(--bs-success) 0%, #198754 100%) !important;
+}
+
+.badge.bg-warning {
+    background: linear-gradient(135deg, var(--bs-warning) 0%, #f57c00 100%) !important;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .plan-card {
+        margin-bottom: 1rem;
+    }
+    
+    .quick-stats .card {
+        margin-bottom: 1rem;
+    }
+    
+    .rating-card {
+        margin-bottom: 1rem;
+    }
+    
+    .timeline::before {
+        left: 15px;
+    }
+    
+    .timeline-marker {
+        margin-left: 10px;
+    }
+}
+
+@media (max-width: 576px) {
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+    
+    .card-body {
+        padding: 1rem;
+    }
+    
+    .btn {
+        font-size: 0.875rem;
+        padding: 0.5rem 1rem;
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.slide-up {
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Utility Classes */
+.text-gradient {
+    background: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.shadow-custom {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.border-gradient {
+    border: 2px solid;
+    border-image: linear-gradient(135deg, var(--bs-primary) 0%, var(--bs-info) 100%) 1;
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+    .plan-card,
+    .rating-card,
+    .dashboard-card {
+        background-color: #2d3748;
+        border-color: #4a5568;
+        color: #e2e8f0;
+    }
+    
+    .goal-card {
+        background: linear-gradient(135deg, #2d3748 0%, #4a5568 100%);
+        border-color: #4a5568;
+    }
+    
+    .milestone-card {
+        background: linear-gradient(135deg, #744210 0%, #975a16 100%);
+        border-color: #b7791f;
+    }
+    
+    .modal-content {
+        background-color: #2d3748;
+        color: #e2e8f0;
+    }
+    
+    .modal-header,
+    .modal-footer {
+        background-color: #4a5568;
+        border-color: #4a5568;
+    }
+}
