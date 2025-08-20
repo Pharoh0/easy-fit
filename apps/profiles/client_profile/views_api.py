@@ -93,15 +93,15 @@ def body_measurements_full(request):
 @login_required
 def list_subscriptions(request):
     """
-    Display a list of client's subscriptions.
-    Data will be loaded via API calls from JavaScript.
+    Legacy view: redirect to the unified client dashboard under plan_management.
     """
+    # Ensure client profile exists, then redirect
     try:
-        client = ClientProfile.objects.get(user=request.user)
+        ClientProfile.objects.get(user=request.user)
     except ClientProfile.DoesNotExist:
         return redirect('profiles:create_client_profile')
-    
-    return render(request, 'profiles/client/subscription/subscriptions_list_api.html')
+
+    return redirect('plan_management:client_dashboard')
 
 
 @login_required

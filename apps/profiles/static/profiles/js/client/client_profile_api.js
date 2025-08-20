@@ -64,9 +64,9 @@ async function initializeProfilePage() {
                 `;
             }
             
-            setTimeout(() => {
-                window.location.href = '/auth-users/login/';
-            }, 2000);
+            const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+            const loginHref = `${loginUrl}?next=${encodeURIComponent(window.location.href)}`;
+            setTimeout(() => { window.location.href = loginHref; }, 2000);
             return;
         }
         // Fetch client profile data
@@ -2022,13 +2022,15 @@ function showLoginRequiredMessage() {
     // Create the message
     const messageElement = document.createElement('div');
     messageElement.className = 'login-required-message';
+    const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+    const loginHref = `${loginUrl}?next=${encodeURIComponent(window.location.href)}`;
     messageElement.innerHTML = `
         <div class="alert alert-warning" role="alert">
             <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Authentication Required</h4>
             <p>Your session has expired or you are not logged in. Please log in to view your profile.</p>
             <hr>
             <p class="mb-0">
-                <a href="/accounts/login/?next=/profiles/client-profile/" class="btn btn-primary">
+                <a href="${loginHref}" class="btn btn-primary">
                     <i class="fas fa-sign-in-alt"></i> Log In
                 </a>
             </p>
