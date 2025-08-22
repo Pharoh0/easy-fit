@@ -87,17 +87,41 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
     @action(detail=True, methods=['post'])
     def activate(self, request, pk=None):
         subscription = self.get_object()  # Scoped by get_queryset()
-        subscription.activate()
-        return Response({"detail": "Subscription activated."})
+        # Validate allowed transition: only pending -> active
+        if subscription.status != 'pending':
+            return Response(
+                {"detail": "Only pending subscriptions can be activated.", "subscription_id": subscription.id, "current_status": subscription.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            subscription.activate()
+        serializer = self.get_serializer(subscription)
+        return Response({"detail": "Subscription activated.", "subscription": serializer.data}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def cancel(self, request, pk=None):
         subscription = self.get_object()  # Scoped by get_queryset()
-        subscription.cancel()
-        return Response({"detail": "Subscription cancelled."})
+        # Validate allowed transition: pending/active -> cancelled
+        if subscription.status not in ['pending', 'active']:
+            return Response(
+                {"detail": "Only pending or active subscriptions can be cancelled.", "subscription_id": subscription.id, "current_status": subscription.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            subscription.cancel()
+        serializer = self.get_serializer(subscription)
+        return Response({"detail": "Subscription cancelled.", "subscription": serializer.data}, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=['post'])
     def complete(self, request, pk=None):
         subscription = self.get_object()  # Scoped by get_queryset()
-        subscription.complete()
-        return Response({"detail": "Subscription completed."})
+        # Validate allowed transition: only active -> completed
+        if subscription.status != 'active':
+            return Response(
+                {"detail": "Only active subscriptions can be completed.", "subscription_id": subscription.id, "current_status": subscription.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        with transaction.atomic():
+            subscription.complete()
+        serializer = self.get_serializer(subscription)
+        return Response({"detail": "Subscription completed.", "subscription": serializer.data}, status=status.HTTP_200_OK)
