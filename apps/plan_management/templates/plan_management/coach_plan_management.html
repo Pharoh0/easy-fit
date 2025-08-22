@@ -206,6 +206,55 @@
         </div>
     </div>
 
+    <!-- Subscriptions Management -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Subscriptions Management</h5>
+                    <ul class="nav nav-pills" id="subscriptionStatusTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active subscription-status-tab" data-status="" type="button">All</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link subscription-status-tab" data-status="active" type="button">Active</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link subscription-status-tab" data-status="pending" type="button">Pending</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link subscription-status-tab" data-status="cancelled" type="button">Cancelled</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link subscription-status-tab" data-status="completed" type="button">Completed</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link subscription-status-tab" data-status="expired" type="button">Expired</button>
+                        </li>
+                    </ul>
+                </div>
+                <div class="card-body">
+                    <div id="subscriptions-filters" class="mb-3"></div>
+                    <div class="table-responsive">
+                        <table id="subscriptionsTable" class="table table-striped table-hover align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Client</th>
+                                    <th>Plan</th>
+                                    <th>Subscribed</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                    <div id="subscriptions-pagination" class="mt-2"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Analytics Section -->
     <div class="row">
         <div class="col-12">
@@ -342,6 +391,7 @@
 <script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
 <!-- DataTables -->
 <script src="{% static 'vendor/datatables/datatables.min.js' %}"></script>
+<script src="{% static 'js/plan_management/coach_subscriptions.js' %}"></script>
 <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 <script src="{% static 'js/plan_management/coach_plan_customization.js' %}"></script>
 <script>
