@@ -141,13 +141,57 @@ class SubscriptionsAPI {
         const response = await APIBase.request(url, options);
         
         if (response.success) {
-            return { 
+            return {
                 success: true,
-                subscription: response.data
+                data: response.data
             };
         }
         
         return response; // Return error response
+    }
+
+    /**
+     * Activate subscription (custom action)
+     * @param {number} id - Subscription ID
+     * @param {Object} payload - Optional payload (if API supports extra fields)
+     * @returns {Promise<Object>} Response data
+     */
+    static async activateSubscription(id, payload = {}) {
+        const url = `${this.BASE_PATH}/${id}/activate/`;
+        const options = {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        };
+        const response = await APIBase.request(url, options);
+        if (response.success) {
+            return {
+                success: true,
+                data: response.data
+            };
+        }
+        return response;
+    }
+
+    /**
+     * Complete subscription (custom action)
+     * @param {number} id - Subscription ID
+     * @param {Object} payload - Optional payload
+     * @returns {Promise<Object>} Response data
+     */
+    static async completeSubscription(id, payload = {}) {
+        const url = `${this.BASE_PATH}/${id}/complete/`;
+        const options = {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        };
+        const response = await APIBase.request(url, options);
+        if (response.success) {
+            return {
+                success: true,
+                data: response.data
+            };
+        }
+        return response;
     }
 
     /**
