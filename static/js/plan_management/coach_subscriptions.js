@@ -172,7 +172,7 @@
       $(this.tableEl).on('click', '.btn-activate', async (e) => {
         const btn = e.currentTarget;
         const id = Number(btn.getAttribute('data-id'));
-        if (!confirm('Activate this subscription?')) return;
+        if (!(await utils.confirm({ title: 'Activate Subscription', message: 'Activate this subscription?', confirmText: 'Activate', variant: 'success' }))) return;
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Activating...';
@@ -181,12 +181,28 @@
           if (res && res.success) {
             const msg = (res.data && res.data.detail) ? res.data.detail : 'Subscription activated';
             if (window.utils && typeof window.utils.showToast === 'function') utils.showToast(msg, 'success');
+            const returnedStatus = (res.data && res.data.subscription && res.data.subscription.status) || null;
+            if (returnedStatus === 'completed' && window.utils && typeof window.utils.showToast === 'function') {
+              utils.showToast('Note: Plan has already ended, so the subscription was immediately marked as completed.', 'warning');
+            }
             this.loadSubscriptions(this.currentPage);
           } else {
-            (window.utils && utils.handleApiError) ? utils.handleApiError(res, 'Activate failed') : alert('Activate failed');
+            if (window.utils && typeof utils.handleApiError === 'function') {
+              utils.handleApiError(res, 'Activate failed');
+            } else if (window.utils && typeof window.utils.showToast === 'function') {
+              utils.showToast('Activate failed', 'danger');
+            } else {
+              console.error('Activate failed', res);
+            }
           }
         } catch (err) {
-          (window.utils && utils.handleApiError) ? utils.handleApiError(err, 'Activate failed') : alert('Activate failed');
+          if (window.utils && typeof utils.handleApiError === 'function') {
+            utils.handleApiError(err, 'Activate failed');
+          } else if (window.utils && typeof window.utils.showToast === 'function') {
+            utils.showToast('Activate failed', 'danger');
+          } else {
+            console.error('Activate failed', err);
+          }
         } finally {
           btn.disabled = false;
           btn.innerHTML = originalHtml;
@@ -196,7 +212,7 @@
       $(this.tableEl).on('click', '.btn-cancel', async (e) => {
         const btn = e.currentTarget;
         const id = Number(btn.getAttribute('data-id'));
-        if (!confirm('Cancel this subscription?')) return;
+        if (!(await utils.confirm({ title: 'Cancel Subscription', message: 'Cancel this subscription?', confirmText: 'Cancel', variant: 'danger' }))) return;
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Cancelling...';
@@ -207,10 +223,22 @@
             if (window.utils && typeof window.utils.showToast === 'function') utils.showToast(msg, 'success');
             this.loadSubscriptions(this.currentPage);
           } else {
-            (window.utils && utils.handleApiError) ? utils.handleApiError(res, 'Cancel failed') : alert('Cancel failed');
+            if (window.utils && typeof utils.handleApiError === 'function') {
+              utils.handleApiError(res, 'Cancel failed');
+            } else if (window.utils && typeof window.utils.showToast === 'function') {
+              utils.showToast('Cancel failed', 'danger');
+            } else {
+              console.error('Cancel failed', res);
+            }
           }
         } catch (err) {
-          (window.utils && utils.handleApiError) ? utils.handleApiError(err, 'Cancel failed') : alert('Cancel failed');
+          if (window.utils && typeof utils.handleApiError === 'function') {
+            utils.handleApiError(err, 'Cancel failed');
+          } else if (window.utils && typeof window.utils.showToast === 'function') {
+            utils.showToast('Cancel failed', 'danger');
+          } else {
+            console.error('Cancel failed', err);
+          }
         } finally {
           btn.disabled = false;
           btn.innerHTML = originalHtml;
@@ -220,7 +248,7 @@
       $(this.tableEl).on('click', '.btn-complete', async (e) => {
         const btn = e.currentTarget;
         const id = Number(btn.getAttribute('data-id'));
-        if (!confirm('Mark this subscription as completed?')) return;
+        if (!(await utils.confirm({ title: 'Complete Subscription', message: 'Mark this subscription as completed?', confirmText: 'Complete', variant: 'primary' }))) return;
         const originalHtml = btn.innerHTML;
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Completing...';
@@ -231,10 +259,22 @@
             if (window.utils && typeof window.utils.showToast === 'function') utils.showToast(msg, 'success');
             this.loadSubscriptions(this.currentPage);
           } else {
-            (window.utils && utils.handleApiError) ? utils.handleApiError(res, 'Complete failed') : alert('Complete failed');
+            if (window.utils && typeof utils.handleApiError === 'function') {
+              utils.handleApiError(res, 'Complete failed');
+            } else if (window.utils && typeof window.utils.showToast === 'function') {
+              utils.showToast('Complete failed', 'danger');
+            } else {
+              console.error('Complete failed', res);
+            }
           }
         } catch (err) {
-          (window.utils && utils.handleApiError) ? utils.handleApiError(err, 'Complete failed') : alert('Complete failed');
+          if (window.utils && typeof utils.handleApiError === 'function') {
+            utils.handleApiError(err, 'Complete failed');
+          } else if (window.utils && typeof window.utils.showToast === 'function') {
+            utils.showToast('Complete failed', 'danger');
+          } else {
+            console.error('Complete failed', err);
+          }
         } finally {
           btn.disabled = false;
           btn.innerHTML = originalHtml;
