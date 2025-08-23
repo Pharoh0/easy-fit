@@ -94,7 +94,7 @@
     // Delegated cancel handler
     $('#subscriptionsTable').on('click', '.btn-cancel-sub', async function() {
       const id = $(this).data('id');
-      const proceed = confirm('Cancel this subscription?');
+      const proceed = await utils.confirm({ title: 'Cancel Subscription', message: 'Cancel this subscription?', confirmText: 'Cancel', variant: 'danger' });
       if (!proceed) return;
       try {
         setLoading(true);

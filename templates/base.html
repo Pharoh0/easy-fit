@@ -74,6 +74,28 @@
         </div>
     </div>
 
+    <!-- Global Prompt Modal -->
+    <div class="modal fade" id="promptModal" tabindex="-1" aria-labelledby="promptModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="promptModalLabel">Input required</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="promptModalMessage" class="mb-2"></p>
+                    <input id="promptModalInput" type="text" class="form-control" style="display: none;" />
+                    <textarea id="promptModalTextarea" class="form-control" rows="4" style="display: none;"></textarea>
+                    <div id="promptModalFeedback" class="invalid-feedback"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="promptModalConfirmBtn" class="btn btn-primary">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- jQuery first, then Bootstrap JS -->
     <script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
@@ -308,6 +330,100 @@
                             } catch (e) {
                                 const ans = window.confirm(opts.message || 'Are you sure?');
                                 resolve(!!ans);
+                            }
+                        });
+                    },
+                    prompt(options) {
+                        const opts = (typeof options === 'string') ? { message: options } : (options || {});
+                        return new Promise((resolve) => {
+                            try {
+                                const modalEl = document.getElementById('promptModal');
+                                if (!modalEl) {
+                                    // Fallback to native prompt
+                                    const val = window.prompt(opts.message || 'Enter a value:', opts.defaultValue || '');
+                                    return resolve(val === null ? null : String(val));
+                                }
+                                const titleEl = modalEl.querySelector('#promptModalLabel');
+                                const msgEl = modalEl.querySelector('#promptModalMessage');
+                                const inputEl = modalEl.querySelector('#promptModalInput');
+                                const textareaEl = modalEl.querySelector('#promptModalTextarea');
+                                const feedbackEl = modalEl.querySelector('#promptModalFeedback');
+                                const confirmBtn = modalEl.querySelector('#promptModalConfirmBtn');
+                                const cancelBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+
+                                // Reset state
+                                inputEl.style.display = 'none';
+                                textareaEl.style.display = 'none';
+                                inputEl.value = '';
+                                textareaEl.value = '';
+                                inputEl.classList.remove('is-invalid');
+                                textareaEl.classList.remove('is-invalid');
+                                if (feedbackEl) feedbackEl.textContent = '';
+
+                                const type = (opts.inputType || 'text').toLowerCase();
+                                let activeEl = inputEl;
+                                if (type === 'textarea') {
+                                    activeEl = textareaEl;
+                                    textareaEl.style.display = '';
+                                } else {
+                                    inputEl.style.display = '';
+                                    inputEl.type = ['text','date','number','email','password'].includes(type) ? type : 'text';
+                                }
+
+                                if (titleEl) titleEl.textContent = opts.title || 'Input required';
+                                if (msgEl) msgEl.textContent = opts.message || '';
+                                if (opts.placeholder) activeEl.placeholder = opts.placeholder;
+                                if (opts.defaultValue != null) activeEl.value = String(opts.defaultValue);
+                                if (opts.pattern && activeEl.tagName === 'INPUT') activeEl.pattern = opts.pattern;
+
+                                if (confirmBtn) {
+                                    confirmBtn.textContent = opts.confirmText || 'OK';
+                                    confirmBtn.classList.remove('btn-primary','btn-danger','btn-success','btn-warning','btn-info','btn-secondary');
+                                    const variant = opts.variant || 'primary';
+                                    confirmBtn.classList.add(`btn-${variant}`);
+                                }
+
+                                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                let resolved = false;
+                                const validateAndResolve = () => {
+                                    const raw = (activeEl.value != null) ? String(activeEl.value) : '';
+                                    const value = raw;
+                                    const required = !!opts.required;
+                                    const customValidate = typeof opts.validate === 'function' ? opts.validate : null;
+                                    let errorMsg = null;
+                                    if (required && (!value || value.trim() === '')) {
+                                        errorMsg = 'This field is required';
+                                    }
+                                    if (!errorMsg && customValidate) {
+                                        const res = customValidate(value);
+                                        if (typeof res === 'string' && res) errorMsg = res;
+                                    }
+                                    if (errorMsg) {
+                                        activeEl.classList.add('is-invalid');
+                                        if (feedbackEl) feedbackEl.textContent = errorMsg;
+                                        return;
+                                    }
+                                    if (resolved) return;
+                                    resolved = true;
+                                    bsModal.hide();
+                                    resolve(value);
+                                };
+                                const onHidden = () => {
+                                    if (resolved) return;
+                                    resolved = true;
+                                    resolve(null);
+                                };
+
+                                confirmBtn && confirmBtn.addEventListener('click', validateAndResolve, { once: true });
+                                modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                                modalEl.addEventListener('shown.bs.modal', () => {
+                                    try { activeEl.focus(); if (activeEl.select) activeEl.select(); } catch (e) {}
+                                }, { once: true });
+
+                                bsModal.show();
+                            } catch (e) {
+                                const val = window.prompt(opts.message || 'Enter a value:', opts.defaultValue || '');
+                                resolve(val === null ? null : String(val));
                             }
                         });
                     }

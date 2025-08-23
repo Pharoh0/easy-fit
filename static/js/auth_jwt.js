@@ -42,7 +42,7 @@ function logout() {
 
     if (!refreshToken || !accessToken) {
         console.log('No tokens found, redirecting to login page');
-        alert("Session has already expired. Please log in again.");
+        utils.showToast("Session has already expired. Please log in again.", 'warning');
         const loginUrl = (window.LOGIN_URL || "/auth-users/login/");
         const nextUrl = encodeURIComponent(window.location.href);
         window.location.href = `${loginUrl}?next=${nextUrl}`;  // Redirect to login page with next
@@ -101,7 +101,7 @@ function handleTokenExpiry() {
     localStorage.removeItem('refresh_token');
 
     // Notify the user and redirect to the login page
-    alert("Your session has expired. Please log in again.");
+    utils.showToast("Your session has expired. Please log in again.", 'warning');
     try {
         const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
         const nextUrl = encodeURIComponent(window.location.href);

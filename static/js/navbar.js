@@ -258,10 +258,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 // For demo purposes only
                 if (this.querySelector('.bi-bell')) {
                     e.preventDefault();
-                    alert('Notifications panel will be implemented here');
+                    if (window.utils && typeof window.utils.showToast === 'function') {
+                        utils.showToast('Notifications panel will be implemented here', 'info');
+                    }
                 } else if (this.querySelector('.bi-cart')) {
                     e.preventDefault();
-                    alert('Shopping cart will be implemented here');
+                    if (window.utils && typeof window.utils.showToast === 'function') {
+                        utils.showToast('Shopping cart will be implemented here', 'info');
+                    }
                 }
             });
         }

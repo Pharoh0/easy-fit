@@ -293,7 +293,7 @@ class ClientPlanDetailManager {
     }
 
     async skipDay(dayId) {
-        const reason = prompt('Please provide a reason for skipping this day (optional):');
+        const reason = await utils.prompt({ title: 'Skip Day', label: 'Reason (optional)', placeholder: 'Optional reason', inputType: 'textarea', required: false });
         
         try {
             const response = await APIBase.request(`/plan-management/api/v1/plan-days/${dayId}/skip_day/`, {
@@ -315,7 +315,7 @@ class ClientPlanDetailManager {
     }
 
     async rescheduleDay(dayId) {
-        const newDate = prompt('Please enter the new date (YYYY-MM-DD):');
+        const newDate = await utils.prompt({ title: 'Reschedule Day', label: 'New date', inputType: 'date', required: true });
         
         if (!newDate) return;
 
@@ -348,11 +348,17 @@ class ClientPlanDetailManager {
     }
 
     showAlert(message, type) {
-        // Remove existing alerts
+        // Prefer global toast utility if available
+        if (window.utils && typeof window.utils.showToast === 'function') {
+            const toastType = type === 'danger' ? 'danger' : (type || 'info');
+            utils.showToast(message, toastType);
+            return;
+        }
+
+        // Fallback: inline alert rendering
         const existingAlerts = document.querySelectorAll('.alert');
         existingAlerts.forEach(alert => alert.remove());
 
-        // Create new alert
         const alertDiv = document.createElement('div');
         alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
         alertDiv.innerHTML = `
@@ -360,11 +366,9 @@ class ClientPlanDetailManager {
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
 
-        // Insert at the top of the main content
         const mainContent = document.querySelector('.container-fluid') || document.body;
         mainContent.insertBefore(alertDiv, mainContent.firstChild);
 
-        // Auto-dismiss after 5 seconds
         setTimeout(() => {
             if (alertDiv.parentNode) {
                 alertDiv.remove();

@@ -1017,7 +1017,8 @@ class MessagingManager {
     }
 
     async deleteMessage(messageId) {
-        if (!confirm('Are you sure you want to delete this message?')) return;
+        const confirmed = await utils.confirm({ title: 'Delete Message', message: 'Are you sure you want to delete this message?', confirmText: 'Delete', variant: 'danger' });
+        if (!confirmed) return;
 
         try {
             const response = await APIBase.request(`/messaging/api/v1/messages/${messageId}/`, { method: 'DELETE' });

@@ -361,7 +361,7 @@ class CoachPlanCustomizationManager {
     }
 
     async addCoachNotes(dayId) {
-        const notes = prompt('Enter coach notes for this day:');
+        const notes = await utils.prompt({ title: 'Coach Notes', label: 'Enter notes for this day', inputType: 'textarea', required: false });
         if (notes === null) return; // User cancelled
 
         try {
@@ -389,9 +389,8 @@ class CoachPlanCustomizationManager {
     }
 
     async regeneratePlanDays(subscriptionId) {
-        if (!confirm('Are you sure you want to regenerate all plan days? This will reset any customizations.')) {
-            return;
-        }
+        const confirmed = await utils.confirm({ title: 'Regenerate Plan Days', message: 'Are you sure you want to regenerate all plan days? This will reset any customizations.', confirmText: 'Regenerate', variant: 'danger' });
+        if (!confirmed) { return; }
 
         const regenBtn = document.getElementById('regeneratePlanDays');
         const prevHTML = regenBtn ? regenBtn.innerHTML : null;
