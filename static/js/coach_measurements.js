@@ -1504,7 +1504,7 @@ updateProgressPhotos(measurement) {
                 window.messagingSystem.openChat(clientId, clientName);
             } else {
                 // Fallback to redirect to messaging page
-                window.location.href = `/messaging/coach/chat/${clientId}/`;
+                window.location.href = `/messaging/chat/?participant_id=${encodeURIComponent(clientId)}`;
             }
         } catch (error) {
             console.error('Error opening chat:', error);
