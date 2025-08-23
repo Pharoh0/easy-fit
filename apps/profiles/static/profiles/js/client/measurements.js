@@ -1676,70 +1676,28 @@ function getCsrfToken() {
  * Show success message
  */
 function showSuccess(message) {
-    // Implement success notification
+    try {
+        if (window.utils && typeof window.utils.showToast === 'function') {
+            window.utils.showToast(message, 'success');
+            return;
+        }
+    } catch (e) {}
+    // Fallbacks if global toast utility is unavailable
     console.log('Success:', message);
-    
-    // Create alert if not exists
-    let alert = document.getElementById('success-alert');
-    if (!alert) {
-        alert = document.createElement('div');
-        alert.id = 'success-alert';
-        alert.className = 'alert alert-success alert-dismissible fade show position-fixed top-0 end-0 m-3';
-        alert.setAttribute('role', 'alert');
-        document.body.appendChild(alert);
-    }
-    
-    // Set content
-    alert.innerHTML = `
-        ${message}
-        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-    `;
-    
-    // Auto-dismiss after 3 seconds
-    setTimeout(() => {
-        const bsAlert = new bootstrap.Alert(alert);
-        bsAlert.close();
-    }, 3000);
+    try { alert(message); } catch (e) {}
 }
 
 /**
  * Show error message
  */
 function showError(message) {
-    // Implement error notification
-    console.error('Error:', message);
-    
-    // Update error container if it exists
-    const errorContainer = document.getElementById('error-container');
-    if (errorContainer) {
-        errorContainer.textContent = message;
-        errorContainer.style.display = 'block';
-        
-        // Hide after 5 seconds
-        setTimeout(() => {
-            errorContainer.style.display = 'none';
-        }, 5000);
-    } else {
-        // Create alert
-        let alert = document.getElementById('error-alert');
-        if (!alert) {
-            alert = document.createElement('div');
-            alert.id = 'error-alert';
-            alert.className = 'alert alert-danger alert-dismissible fade show position-fixed top-0 end-0 m-3';
-            alert.setAttribute('role', 'alert');
-            document.body.appendChild(alert);
+    try {
+        if (window.utils && typeof window.utils.showToast === 'function') {
+            window.utils.showToast(message, 'danger');
+            return;
         }
-        
-        // Set content
-        alert.innerHTML = `
-            ${message}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        `;
-        
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-            const bsAlert = new bootstrap.Alert(alert);
-            bsAlert.close();
-        }, 5000);
-    }
+    } catch (e) {}
+    // Fallbacks if global toast utility is unavailable
+    console.error('Error:', message);
+    try { alert(message); } catch (e) {}
 }

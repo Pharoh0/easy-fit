@@ -26,6 +26,13 @@
   function initTable() {
     subsTable = $('#subscriptionsTable').DataTable({
       data: [],
+      dom: "<'row mb-2'<'col-md-6'l><'col-md-6'f>>" +
+           "rt" +
+           "<'row mt-2'<'col-md-5'i><'col-md-7'p>>",
+      language: {
+        search: '',
+        lengthMenu: 'Show _MENU_ entries'
+      },
       columns: [
         {
           title: 'Plan',
@@ -48,7 +55,9 @@
           className: 'text-nowrap',
           render: (row) => {
             const p = row?.product_plan?.price;
-            return p !== undefined && p !== null ? `$${parseFloat(p).toFixed(2)}` : '—';
+            return (p !== undefined && p !== null)
+              ? (window.utils ? window.utils.formatCurrency(p) : `$${parseFloat(p).toFixed(2)}`)
+              : '—';
           }
         },
         {
@@ -70,16 +79,22 @@
           data: null,
           orderable: false,
           searchable: false,
+          className: 'text-nowrap text-end',
           render: (row) => {
             const id = row.id;
+            const status = (row.status || '').toString().toLowerCase();
+            const canCancel = ['active','pending'].includes(status);
+            const cancelBtn = canCancel
+              ? `<button type="button" class="btn btn-outline-danger btn-cancel-sub" data-id="${id}" title="Cancel subscription">
+                   <i class="bi bi-x-circle"></i>
+                 </button>`
+              : '';
             return `
               <div class="btn-group btn-group-sm" role="group">
-                <a class="btn btn-outline-primary" href="/plan-management/client/plan-detail/${id}/">
+                <a class="btn btn-outline-primary" href="/plan-management/client/plan-detail/${id}/" title="View details">
                   <i class="bi bi-eye"></i>
                 </a>
-                <button type="button" class="btn btn-outline-danger btn-cancel-sub" data-id="${id}">
-                  <i class="bi bi-x-circle"></i>
-                </button>
+                ${cancelBtn}
               </div>
             `;
           }
@@ -88,7 +103,13 @@
       responsive: true,
       pageLength: 10,
       lengthChange: true,
-      order: [[5, 'desc']]
+      order: [[5, 'desc']],
+      initComplete: function() {
+        try {
+          const $input = $('#subscriptionsTable_filter input');
+          $input.attr('placeholder', 'Search subscriptions...');
+        } catch (e) { /* ignore */ }
+      }
     });
 
     // Delegated cancel handler
@@ -113,16 +134,22 @@
   async function loadData() {
     try {
       setLoading(true);
-      const { success, subscriptions, error } = await window.SubscriptionsAPI.getSubscriptions({
-        // Show all ongoing subs (active or pending)
-        is_active: true,
+      // Read selected status; pass only if not 'all'
+      const statusSel = document.getElementById('statusFilter');
+      const selectedStatus = statusSel ? statusSel.value : 'all';
+      const query = {
         page: 1,
         page_size: 100
-      });
+      };
+      if (selectedStatus && selectedStatus !== 'all') {
+        query.status = selectedStatus;
+      }
+
+      const { success, subscriptions, error } = await window.SubscriptionsAPI.getSubscriptions(query);
       if (!success) throw new Error(error || 'Failed to load subscriptions');
 
       // Update count
-      const countEl = document.getElementById('activeCount');
+      const countEl = document.getElementById('totalCount');
       if (countEl) countEl.textContent = subscriptions.length;
 
       // Load into table
@@ -140,6 +167,15 @@
   function bindEvents() {
     const reloadBtn = document.getElementById('reloadSubs');
     if (reloadBtn) reloadBtn.addEventListener('click', () => loadData());
+    const statusSel = document.getElementById('statusFilter');
+    if (statusSel) statusSel.addEventListener('change', () => loadData());
+    const resetBtn = document.getElementById('resetFilters');
+    if (resetBtn) resetBtn.addEventListener('click', () => {
+      const sel = document.getElementById('statusFilter');
+      if (sel) sel.value = 'all';
+      if (subsTable) subsTable.search('').draw();
+      loadData();
+    });
   }
 
   document.addEventListener('DOMContentLoaded', function() {
