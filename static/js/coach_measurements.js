@@ -8,6 +8,7 @@ class CoachMeasurementsManager {
         this.authManager = window.authManager;
         this.currentClient = null;
         this.measurementChart = null;
+        this.currentMeasurements = [];
         this.clients = [];
         this.filteredClients = [];
         this.init();
@@ -228,6 +229,9 @@ class CoachMeasurementsManager {
                 const measurements = response.data.measurements || [];
                 const totalMeasurements = measurements.length;
                 
+                // Store for detail views
+                this.currentMeasurements = measurements;
+
                 this.updateClientInfo(clientInfo, totalMeasurements);
                 
                 const clientMeasurementsContainer = document.getElementById('clientMeasurementsContainer');
@@ -301,11 +305,11 @@ class CoachMeasurementsManager {
     updateClientInfo(clientInfo, totalMeasurements) {
         const detailsElements = [
             // Client details elements with animation delays
-            { el: document.getElementById('clientName'), value: clientInfo.full_name || 'N/A', delay: 0 },
-            { el: document.getElementById('clientEmail'), value: clientInfo.email || 'N/A', delay: 0.1 },
-            { el: document.getElementById('clientAge'), value: clientInfo.age || 'N/A', delay: 0.2 },
-            { el: document.getElementById('clientGender'), value: clientInfo.gender || 'N/A', delay: 0.3 },
-            { el: document.getElementById('clientActivityLevel'), value: clientInfo.activity_level || 'N/A', delay: 0.4 }
+            { el: document.getElementById('clientName'), value: clientInfo.full_name || '-', delay: 0 },
+            { el: document.getElementById('clientEmail'), value: clientInfo.email || '-', delay: 0.1 },
+            { el: document.getElementById('clientAge'), value: (clientInfo.age != null ? clientInfo.age : '-') , delay: 0.2 },
+            { el: document.getElementById('clientGender'), value: clientInfo.gender || '-', delay: 0.3 },
+            { el: document.getElementById('clientActivityLevel'), value: clientInfo.activity_level || '-', delay: 0.4 }
         ];
         
         detailsElements.forEach(item => {
@@ -352,7 +356,7 @@ class CoachMeasurementsManager {
             },
             { 
                 el: document.getElementById('memberSince'),
-                value: profile.date_joined ? this.formatDate(profile.date_joined) : '-',
+                value: (clientInfo.date_joined || profile.date_joined) ? this.formatDate(clientInfo.date_joined || profile.date_joined) : '-',
                 delay: 0.4
             },
             { 
@@ -530,7 +534,7 @@ class CoachMeasurementsManager {
         
         // Create a card for each measurement with staggered animation delay
         measurements.forEach((m, index) => {
-            if (m.value) {
+            if (m.value !== null && m.value !== undefined && m.value !== '') {
                 const card = document.createElement('div');
                 card.className = 'body-part-card';
                 // Add animation delay for staggered effect
@@ -760,8 +764,8 @@ class CoachMeasurementsManager {
             
             const date = new Date(measurement.date).toLocaleDateString();
             const formattedDate = this.formatDate(measurement.date);
-            const weight = measurement.weight ? `${measurement.weight} kg` : 'N/A';
-            const bodyFat = measurement.body_fat_percentage ? `${measurement.body_fat_percentage}%` : 'N/A';
+            const weight = (measurement.weight != null) ? `${measurement.weight} kg` : '-';
+            const bodyFat = (measurement.body_fat_percentage != null) ? `${measurement.body_fat_percentage}%` : '-';
             
             // Find changes from previous measurement if available
             let weightChange = '';
@@ -769,14 +773,14 @@ class CoachMeasurementsManager {
             
             if (index < measurements.length - 1) {
                 const prevMeasurement = measurements[index + 1];
-                if (measurement.weight && prevMeasurement.weight) {
-                    const diff = (measurement.weight - prevMeasurement.weight).toFixed(1);
+                if (measurement.weight != null && prevMeasurement.weight != null) {
+                    const diff = (Number(measurement.weight) - Number(prevMeasurement.weight)).toFixed(1);
                     const changeClass = diff > 0 ? 'text-danger' : (diff < 0 ? 'text-success' : 'text-muted');
                     weightChange = `<span class="${changeClass} small ms-2">${diff > 0 ? '+' : ''}${diff}</span>`;
                 }
                 
-                if (measurement.body_fat_percentage && prevMeasurement.body_fat_percentage) {
-                    const diff = (measurement.body_fat_percentage - prevMeasurement.body_fat_percentage).toFixed(1);
+                if (measurement.body_fat_percentage != null && prevMeasurement.body_fat_percentage != null) {
+                    const diff = (Number(measurement.body_fat_percentage) - Number(prevMeasurement.body_fat_percentage)).toFixed(1);
                     const changeClass = diff > 0 ? 'text-danger' : (diff < 0 ? 'text-success' : 'text-muted');
                     bodyFatChange = `<span class="${changeClass} small ms-2">${diff > 0 ? '+' : ''}${diff}</span>`;
                 }
@@ -862,6 +866,16 @@ formatHealthInfoContent(content, type) {
 updateProgressPhotos(measurement) {
         const container = document.getElementById('measurementPhotos');
         container.innerHTML = '';
+
+        if (!measurement) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-images fa-2x mb-3"></i>
+                    <p>No progress photos available</p>
+                </div>
+            `;
+            return;
+        }
         
         const photos = [
             { label: 'Front', photo: measurement.front_photo, icon: 'user', delay: 0 },
@@ -1298,10 +1312,10 @@ updateProgressPhotos(measurement) {
      * @returns {string} - Formatted date string
      */
     formatDate(dateInput, style = 'medium') {
-        if (!dateInput) return 'N/A';
+        if (!dateInput) return '-';
         
         const date = new Date(dateInput);
-        if (isNaN(date.getTime())) return 'Invalid date';
+        if (isNaN(date.getTime())) return '-';
         
         // Get current date for relative formatting
         const now = new Date();
@@ -1366,10 +1380,62 @@ updateProgressPhotos(measurement) {
      * @param {string} measurementId - ID of the measurement to view
      */
     viewMeasurementDetails(measurementId) {
-        // This could open a modal with detailed measurement information
-        console.log('View measurement details clicked for ID:', measurementId);
-        // For now, just show a message
-        this.showSuccess('Detailed measurement view coming soon');
+        try {
+            const measurement = (this.currentMeasurements || []).find(m => String(m.id) === String(measurementId));
+            if (!measurement) {
+                this.showError('Measurement not found');
+                return;
+            }
+            const modalEl = document.getElementById('measurementDetailModal');
+            if (!modalEl) {
+                this.showError('Detail modal not found');
+                return;
+            }
+            const titleEl = modalEl.querySelector('.modal-title');
+            const bodyEl = modalEl.querySelector('.modal-body');
+            if (titleEl) titleEl.textContent = `Measurement Details - ${this.formatDate(measurement.date, 'long')}`;
+
+            const formatVal = (val, suffix = '') => (val != null && val !== '') ? `${val}${suffix}` : '-';
+            const rows = [];
+            rows.push({ label: 'Date', value: this.formatDate(measurement.date, 'long') });
+            rows.push({ label: 'Weight', value: formatVal(measurement.weight, ' kg') });
+            rows.push({ label: 'Body Fat', value: formatVal(measurement.body_fat_percentage, ' %') });
+            if (measurement.bmi != null) rows.push({ label: 'BMI', value: formatVal(measurement.bmi) });
+            if (measurement.chest != null) rows.push({ label: 'Chest', value: formatVal(measurement.chest, ' cm') });
+            if (measurement.waist != null) rows.push({ label: 'Waist', value: formatVal(measurement.waist, ' cm') });
+            if (measurement.hips != null) rows.push({ label: 'Hips', value: formatVal(measurement.hips, ' cm') });
+            if (measurement.neck != null) rows.push({ label: 'Neck', value: formatVal(measurement.neck, ' cm') });
+            if (measurement.notes) rows.push({ label: 'Notes', value: measurement.notes });
+
+            const tableHtml = `
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tbody>
+                            ${rows.map(r => `
+                                <tr>
+                                    <th class="w-25">${r.label}</th>
+                                    <td>${r.value}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            if (bodyEl) bodyEl.innerHTML = tableHtml;
+
+            // Show modal
+            if (window.bootstrap && window.bootstrap.Modal) {
+                const modal = new window.bootstrap.Modal(modalEl);
+                modal.show();
+            } else {
+                // Fallback: toggle via data API
+                modalEl.style.display = 'block';
+                modalEl.classList.add('show');
+            }
+        } catch (err) {
+            console.error('Error showing measurement details:', err);
+            this.showError('Could not open measurement details');
+        }
     }
     
     /**
