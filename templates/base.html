@@ -45,6 +45,35 @@
     <!-- Include the footer -->
     {% include 'components/footer.html' %}
 
+    <!-- Global Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1080;">
+        <div id="globalToast" class="toast align-items-center text-bg-info border-0" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="3500">
+            <div class="d-flex">
+                <div class="toast-body">Notification</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Confirmation Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="confirmModalLabel">Please confirm</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p id="confirmModalMessage">Are you sure?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="confirmModalConfirmBtn" class="btn btn-primary">Confirm</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- jQuery first, then Bootstrap JS -->
     <script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
     <script src="{% static 'vendor/bootstrap/js/bootstrap.bundle.min.js' %}"></script>
@@ -238,6 +267,49 @@
                         } catch (e) {
                             alert(message);
                         }
+                    },
+                    confirm(options) {
+                        const opts = (typeof options === 'string') ? { message: options } : (options || {});
+                        return new Promise((resolve) => {
+                            try {
+                                const modalEl = document.getElementById('confirmModal');
+                                if (!modalEl) {
+                                    const ans = window.confirm(opts.message || 'Are you sure?');
+                                    return resolve(!!ans);
+                                }
+                                const titleEl = modalEl.querySelector('.modal-title');
+                                const msgEl = modalEl.querySelector('#confirmModalMessage');
+                                const confirmBtn = modalEl.querySelector('#confirmModalConfirmBtn');
+                                const cancelBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
+                                if (titleEl) titleEl.textContent = opts.title || 'Please confirm';
+                                if (msgEl) msgEl.textContent = opts.message || 'Are you sure?';
+                                if (confirmBtn) {
+                                    confirmBtn.textContent = opts.confirmText || 'Confirm';
+                                    confirmBtn.classList.remove('btn-primary','btn-danger','btn-success','btn-warning','btn-info','btn-secondary');
+                                    const variant = opts.variant || 'primary';
+                                    confirmBtn.classList.add(`btn-${variant}`);
+                                }
+                                const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
+                                let resolved = false;
+                                const onConfirm = () => {
+                                    if (resolved) return;
+                                    resolved = true;
+                                    bsModal.hide();
+                                    resolve(true);
+                                };
+                                const onHidden = () => {
+                                    if (resolved) return;
+                                    resolved = true;
+                                    resolve(false);
+                                };
+                                confirmBtn && confirmBtn.addEventListener('click', onConfirm, { once: true });
+                                modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                                bsModal.show();
+                            } catch (e) {
+                                const ans = window.confirm(opts.message || 'Are you sure?');
+                                resolve(!!ans);
+                            }
+                        });
                     }
                 };
             }
