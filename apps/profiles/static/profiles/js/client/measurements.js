@@ -1682,9 +1682,8 @@ function showSuccess(message) {
             return;
         }
     } catch (e) {}
-    // Fallbacks if global toast utility is unavailable
+    // Fallback: log to console only (no native alerts)
     console.log('Success:', message);
-    try { alert(message); } catch (e) {}
 }
 
 /**
@@ -1697,7 +1696,6 @@ function showError(message) {
             return;
         }
     } catch (e) {}
-    // Fallbacks if global toast utility is unavailable
+    // Fallback: log to console only (no native alerts)
     console.error('Error:', message);
-    try { alert(message); } catch (e) {}
 }
