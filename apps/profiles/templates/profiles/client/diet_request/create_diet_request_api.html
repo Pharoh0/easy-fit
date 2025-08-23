@@ -204,7 +204,11 @@
                 
             } catch (error) {
                 console.error('Error submitting diet request:', error);
-                alert('Failed to submit diet request. Please try again later.');
+                if (window.utils && typeof window.utils.showToast === 'function') {
+                    window.utils.showToast('Failed to submit diet request. Please try again later.', 'danger');
+                } else {
+                    console.error('Toast unavailable: Failed to submit diet request. Please try again later.');
+                }
                 
                 const submitButton = document.getElementById('submit-button');
                 submitButton.disabled = false;
