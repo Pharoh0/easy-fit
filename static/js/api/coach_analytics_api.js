@@ -7,7 +7,7 @@ class CoachAnalyticsAPI {
     /**
      * API endpoint base path
      */
-    static BASE_PATH = '/api/v1/coach';
+    static BASE_PATH = '/plan-management/api/v1/coach';
 
     /**
      * Get plan analytics data for coach

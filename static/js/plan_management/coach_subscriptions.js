@@ -17,6 +17,7 @@
       this.pageSize = 10;
       this.currentStatus = '';
       this.currentIsActive = '';
+      this.currentPlanType = '';
 
       this.dt = null; // DataTable instance
 
@@ -57,10 +58,21 @@
               { value: 'false', label: 'Inactive' }
             ],
             colSize: 3
+          },
+          {
+            id: 'plan_type',
+            type: 'select',
+            label: 'Plan Type',
+            options: [
+              { value: 'workout', label: 'Workout' },
+              { value: 'diet', label: 'Diet' }
+            ],
+            colSize: 3
           }
         ]
       }, (values) => {
         this.currentIsActive = values.is_active || '';
+        this.currentPlanType = values.plan_type || '';
         this.currentPage = 1;
         this.loadSubscriptions();
       });
@@ -94,6 +106,7 @@
       };
       if (this.currentStatus) query.status = this.currentStatus;
       if (this.currentIsActive) query.is_active = this.currentIsActive;
+      if (this.currentPlanType) query.plan_type = this.currentPlanType;
 
       try {
         const resp = await SubscriptionsAPI.getSubscriptions(query);
@@ -119,7 +132,7 @@
           const statusHtml = `<span class="${st.class}">${st.text}</span>`;
 
           const id = s.id;
-          const viewUrl = `/plan-management/coach/client-plan/${id}/`;
+          const viewUrl = `/plan-management/coach/client-measurements/?subscription_id=${id}`;
           const customizeUrl = `/plan-management/coach/plan-customization/?subscription_id=${id}`;
 
           const actions = [];

@@ -27,7 +27,9 @@ def coach_client_measurements_view(request):
         return render(request, 'errors/403.html', {
             'error_message': 'Access denied. Coach profile required.'
         })
-    
+    # Optional: deep-link subscription id for auto-loading a client's data on the frontend
+    subscription_id = request.GET.get('subscription_id')
+
     context = {
         'coach_profile': coach_profile,
         'page_title': 'Client Measurements',
@@ -38,6 +40,8 @@ def coach_client_measurements_view(request):
         ],
         # Ensure Chart.js is included for charts on this page
         'include_charts': True,
+        # Expose subscription id (if any) to template for potential use
+        'subscription_id': subscription_id,
     }
     
     return render(request, 'plan_management/coach_client_measurements.html', context)

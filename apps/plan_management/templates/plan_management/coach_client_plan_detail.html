@@ -216,7 +216,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function sendMessage() {
     const clientId = '{{ client.id }}';
-    window.location.href = `/messaging/conversation/?client_id=${clientId}`;
+    const subscriptionId = '{{ subscription.id }}';
+    window.location.href = `/messaging/chat/?client_id=${clientId}&subscription_id=${subscriptionId}`;
 }
 </script>
 {% endblock %}

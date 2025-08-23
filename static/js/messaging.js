@@ -140,7 +140,7 @@ class MessagingManager {
             const params = new URLSearchParams(window.location.search);
             const conversationId = params.get('conversation_id');
             const subscriptionId = params.get('plan_subscription_id') || params.get('subscription_id');
-            let participantId = params.get('participant_id') || params.get('coach_id') || params.get('coach_user_id') || params.get('user_id');
+            let participantId = params.get('participant_id') || params.get('coach_id') || params.get('coach_user_id') || params.get('client_id') || params.get('client_user_id') || params.get('user_id');
 
             if (conversationId) {
                 const resp = await APIBase.request(`/messaging/api/v1/conversations/${conversationId}/`);

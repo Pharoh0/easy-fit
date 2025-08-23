@@ -13,9 +13,11 @@ class CoachMeasurementsManager {
         this.init();
     }
     
-    init() {
+    async init() {
         this.bindEvents();
-        this.loadClients();
+        // Ensure clients are loaded before attempting deep-link selection
+        await this.loadClients();
+        await this.handleDeepLinkIfPresent();
     }
     
     bindEvents() {
@@ -64,6 +66,80 @@ class CoachMeasurementsManager {
             this.showError('Failed to load clients');
         } finally {
             this.hideLoading();
+        }
+    }
+    
+    /**
+     * Get a query parameter value from URL
+     */
+    getQueryParam(name) {
+        const params = new URLSearchParams(window.location.search);
+        return params.get(name);
+    }
+    
+    /**
+     * Handle deep linking via subscription_id in URL by resolving client_id and auto-loading
+     */
+    async handleDeepLinkIfPresent() {
+        try {
+            const subId = this.getQueryParam('subscription_id');
+            if (!subId) return; // No deep link
+
+            // Fetch subscription details to resolve client_id
+            let subscriptionResp = null;
+            if (window.SubscriptionsAPI && typeof window.SubscriptionsAPI.getSubscription === 'function') {
+                subscriptionResp = await window.SubscriptionsAPI.getSubscription(subId);
+            } else if (this.authManager && typeof this.authManager.apiCall === 'function') {
+                const resp = await this.authManager.apiCall(`/plan-management/api/v1/plan-subscriptions/${subId}/`, { method: 'GET' });
+                if (resp && resp.success) {
+                    subscriptionResp = { success: true, subscription: resp.data };
+                } else {
+                    subscriptionResp = resp;
+                }
+            }
+
+            if (!subscriptionResp || !subscriptionResp.success || !subscriptionResp.subscription) {
+                this.showError('Unable to load subscription for deep link');
+                return;
+            }
+
+            const subscription = subscriptionResp.subscription;
+            const clientId = subscription.client_id;
+            if (!clientId) {
+                this.showError('Subscription missing client information');
+                return;
+            }
+
+            // Find the client in the loaded clients list and select it
+            const selector = document.getElementById('clientSelector');
+            if (!selector) return;
+
+            // Ensure options are populated; populateClientSelector already ran in loadClients
+            // Verify the option exists; if not, repopulate as a fallback
+            if (!selector.querySelector(`option[value="${clientId}"]`)) {
+                this.populateClientSelector();
+            }
+
+            const optionEl = selector.querySelector(`option[value="${clientId}"]`);
+            if (!optionEl) {
+                // As a last resort, attempt to append an option if client exists in memory
+                const clientObj = (this.clients || []).find(c => String(c.id) === String(clientId));
+                if (clientObj) {
+                    const opt = document.createElement('option');
+                    opt.value = clientObj.id;
+                    opt.textContent = `${clientObj.full_name} (${clientObj.username})`;
+                    opt.dataset.client = JSON.stringify(clientObj);
+                    selector.appendChild(opt);
+                }
+            }
+
+            // Select and trigger loading
+            selector.value = String(clientId);
+            // Trigger the same flow as manual selection
+            await this.onClientSelect({ target: selector });
+        } catch (err) {
+            console.error('Deep link handling error:', err);
+            this.showError('Failed to apply deep link');
         }
     }
     
