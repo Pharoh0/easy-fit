@@ -6,6 +6,7 @@ from rest_framework.permissions import IsAuthenticated
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Q
 from .models import PlanSubscription
 from ..coach.models import ProductPlan
 from .serializers import PlanSubscriptionSerializer
@@ -43,7 +44,11 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
         # Optional filtering by query params
         status_param = self.request.query_params.get('status')
         if status_param:
-            qs = qs.filter(status=status_param)
+            # Support UI "Expired" tab: treat as plans whose end_date has passed
+            if status_param == 'expired':
+                qs = qs.filter(product_plan__end_date__lt=timezone.now().date())
+            else:
+                qs = qs.filter(status=status_param)
 
         is_active_param = self.request.query_params.get('is_active')
         if is_active_param is not None:
@@ -52,7 +57,23 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
             elif is_active_param.lower() in ('false', '0', 'no'):
                 qs = qs.filter(is_active=False)
 
-        return qs
+        # Filter by plan type when provided
+        plan_type_param = self.request.query_params.get('plan_type')
+        if plan_type_param:
+            qs = qs.filter(product_plan__plan_type=plan_type_param)
+
+        # Free text search across client and plan
+        search_param = self.request.query_params.get('search')
+        if search_param:
+            qs = qs.filter(
+                Q(product_plan__name__icontains=search_param)
+                | Q(client__username__icontains=search_param)
+                | Q(client__first_name__icontains=search_param)
+                | Q(client__last_name__icontains=search_param)
+            )
+
+        # Default ordering: newest subscriptions first
+        return qs.order_by('-subscribed_at')
 
     def create(self, request, *args, **kwargs):
         product_plan_id = request.data.get('product_plan_id')
