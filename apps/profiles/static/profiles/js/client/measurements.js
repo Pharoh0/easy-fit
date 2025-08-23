@@ -1086,7 +1086,8 @@ function editMeasurement(measurementId) {
  * Delete a measurement
  */
 async function deleteMeasurement(measurementId) {
-    if (!confirm('Are you sure you want to delete this measurement?')) {
+    const confirmed = await utils.confirm({ title: 'Delete Measurement', message: 'Are you sure you want to delete this measurement?', confirmText: 'Delete', variant: 'danger' });
+    if (!confirmed) {
         return;
     }
     

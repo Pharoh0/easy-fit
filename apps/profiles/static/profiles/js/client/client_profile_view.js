@@ -304,7 +304,7 @@ async function loadAndDisplayMeasurements() {
         showBodyMeasurementsModal(data);
     } catch (error) {
         console.error('Error loading measurements:', error);
-        alert('Failed to load body measurements. Please try again later.');
+        utils.showToast('Failed to load body measurements. Please try again later.', 'danger');
     }
 }
 
@@ -536,7 +536,7 @@ function setupMeasurementModalEvents() {
         viewFullMeasurementsBtn.addEventListener('click', function(e) {
             e.preventDefault();
             // Navigate to full measurements page (to be implemented)
-            alert('Full measurements page will be implemented soon!');
+            utils.showToast('Full measurements page will be implemented soon!', 'info');
         });
     }
 }
