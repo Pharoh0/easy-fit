@@ -235,10 +235,13 @@ class CoachMeasurementsManager {
                 
                 if (totalMeasurements > 0) {
                     this.updateLatestMeasurements(measurements[0]);
-                    this.updateProgressSummary(measurements);
-                    this.updateHealthInfo(clientInfo.health_info || {});
+                    // Use analytics object for progress summary
+                    this.updateProgressSummary(response.data.analytics || {});
+                    // Use normalized profile object for health info
+                    this.updateHealthInfo(clientInfo.profile || {});
                     this.updateMeasurementTimeline(measurements);
-                    this.updateProgressPhotos(measurements);
+                    // Show photos from the latest measurement
+                    this.updateProgressPhotos(measurements[0]);
                     
                     if (clientMeasurementsContainer) clientMeasurementsContainer.style.display = 'block';
                     if (noDataMessage) noDataMessage.style.display = 'none';
