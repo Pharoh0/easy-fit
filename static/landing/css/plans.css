@@ -1,0 +1,110 @@
+/* Featured Plans Section Styles */
+.plan-card {
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    background-color: #fff;
+    overflow: hidden;
+    height: 100%;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.plan-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+}
+
+.plan-card-header {
+    padding: 20px;
+    border-bottom: 1px solid #f1f1f1;
+    position: relative;
+}
+
+.plan-category {
+    display: inline-block;
+    background-color: var(--bs-primary);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 100px;
+    margin-bottom: 12px;
+}
+
+.plan-title {
+    font-size: 1.35rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.plan-coach {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.coach-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.plan-card-body {
+    padding: 20px;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.plan-description {
+    font-size: 0.95rem;
+    color: #555;
+    margin-bottom: 15px;
+    flex-grow: 1;
+}
+
+.plan-details {
+    display: flex;
+    flex-wrap: wrap;
+    margin-top: auto;
+    gap: 15px;
+    color: #666;
+}
+
+.detail-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.85rem;
+}
+
+.detail-item i {
+    color: var(--bs-primary);
+}
+
+.plan-card-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #f1f1f1;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .plan-title {
+        font-size: 1.25rem;
+    }
+    
+    .plan-card-header,
+    .plan-card-body,
+    .plan-card-footer {
+        padding: 15px;
+    }
+    
+    .plan-details {
+        flex-direction: column;
+        gap: 8px;
+    }
+}

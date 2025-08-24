@@ -1,0 +1,111 @@
+/* Enhanced Coach Card Styling */
+.coaches-section {
+    background-color: #f8f9fa;
+    padding: 60px 0;
+}
+
+.coach-card {
+    background-color: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+    height: 100%;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+}
+
+.coach-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.12);
+}
+
+.coach-card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+.coach-avatar {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid var(--bs-primary);
+}
+
+.coach-card-info {
+    margin-left: 15px;
+}
+
+.coach-card-name {
+    margin: 0;
+    font-weight: 600;
+    color: #333;
+}
+
+.coach-specialty-badge {
+    display: inline-block;
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 4px 12px;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-top: 10px;
+}
+
+.coach-rating {
+    margin: 10px 0;
+}
+
+.coach-rating i {
+    color: #ffc107;
+    margin-right: 2px;
+}
+
+/* Enhanced section headers */
+.section-header {
+    text-align: center;
+    margin-bottom: 50px;
+}
+
+.section-title {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 15px;
+    position: relative;
+    display: inline-block;
+}
+
+.section-title:after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 3px;
+    background: var(--bs-primary);
+    margin: 15px auto 0;
+}
+
+.section-subtitle {
+    color: #6c757d;
+    font-size: 1.1rem;
+    max-width: 700px;
+    margin: 0 auto;
+}
+
+/* Responsive adjustments */
+@media (max-width: 767px) {
+    .coach-avatar {
+        width: 50px;
+        height: 50px;
+    }
+    
+    .section-title {
+        font-size: 2rem;
+    }
+    
+    .coach-card {
+        margin-bottom: 20px;
+    }
+}

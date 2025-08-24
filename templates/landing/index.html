@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Eazy Fit - Transform Your Fitness Journey</title>
+    <meta name="description" content="Personalized fitness coaching, customized workout plans, and expert nutrition advice. Join Eazy Fit and achieve your health goals with our certified coaches.">
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="/static/favicon.ico" type="image/x-icon">
+    
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="/static/vendor/bootstrap/css/bootstrap.min.css">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="/static/vendor/fontawesome/css/all.min.css">
+    
+    <!-- Bootstrap Icons CSS -->
+    <link rel="stylesheet" href="/static/vendor/bootstrap-icons/bootstrap-icons.css">
+    
+    <!-- Featured Plans CSS -->
+    <link rel="stylesheet" href="/static/landing/css/plans.css">
+    
+    <!-- Featured Coaches CSS -->
+    <link rel="stylesheet" href="/static/landing/css/coach.css">
+    
+    <!-- Landing Page CSS -->
+    <link rel="stylesheet" href="/static/landing/css/styles.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light fixed-top" id="mainNav">
+        <div class="container">
+            <a class="navbar-brand" href="/">
+                <img src="/static/landing/images/logo.png" alt="Eazy Fit" height="40" class="logo">
+                <span>Eazy Fit</span>
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarSupportedContent" aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#features">Features</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#coaches">Coaches</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#testimonials">Testimonials</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#featured-plans">Plans</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#faq">FAQ</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link login-btn" href="/auth-users/login/">Login</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-primary signup-btn" href="/auth-users/register/">Sign Up Free</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero-section" id="hero">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-lg-6 hero-text-column">
+                    <h1 class="hero-title">Achieve Your Fitness Goals with Expert Coaching</h1>
+                    <p class="hero-subtitle">Connect with certified fitness professionals, get personalized workout plans, and track your progress all in one place.</p>
+                    <div class="hero-buttons">
+                        <a href="/auth-users/register/" class="btn btn-primary btn-lg">Start Your Journey</a>
+                        <a href="#coaches" class="btn btn-outline-light btn-lg ms-3">Find a Coach</a>
+                    </div>
+                    <div class="hero-stats">
+                        <div class="stat-item">
+                            <span class="stat-number">500+</span>
+                            <span class="stat-label">Certified Coaches</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">10k+</span>
+                            <span class="stat-label">Happy Clients</span>
+                        </div>
+                        <div class="stat-item">
+                            <span class="stat-number">95%</span>
+                            <span class="stat-label">Success Rate</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-6 hero-image-column">
+                    <div class="hero-image-wrapper">
+                        <img src="/static/landing/images/fitness/hero-fitness.jpg" alt="Eazy Fit App" class="img-fluid hero-image" onerror="this.src='/static/landing/images/hero-image.png'">
+                    </div>
+                    <div class="floating-card card-1">
+                            <i class="bi bi-graph-up"></i>
+                            <span>Track Progress</span>
+                        </div>
+                        <div class="floating-card card-2">
+                            <i class="bi bi-person-check"></i>
+                            <span>Expert Coaching</span>
+                        </div>
+                        <div class="floating-card card-3">
+                            <i class="bi bi-calendar-check"></i>
+                            <span>Custom Plans</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="hero-shape-divider">
+            <svg data-name="Layer 1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 120" preserveAspectRatio="none">
+                <path d="M985.66,92.83C906.67,72,823.78,31,743.84,14.19c-82.26-17.34-168.06-16.33-250.45.39-57.84,11.73-114,31.07-172,41.86A600.21,600.21,0,0,1,0,27.35V120H1200V95.8C1132.19,118.92,1055.71,111.31,985.66,92.83Z" class="shape-fill"></path>
+            </svg>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features-section py-5" id="features">
+        <div class="container">
+            <div class="section-header text-center mb-5">
+                <h2 class="section-title">How Eazy Fit Works</h2>
+                <p class="section-subtitle">Simple steps to transform your fitness journey</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-6 col-lg-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="bi bi-person-plus"></i>
+                        </div>
+                        <h3 class="feature-title">1. Find Your Coach</h3>
+                        <p class="feature-text">Browse profiles of certified fitness professionals and find the perfect match for your goals.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="bi bi-clipboard-check"></i>
+                        </div>
+                        <h3 class="feature-title">2. Get Custom Plan</h3>
+                        <p class="feature-text">Receive a personalized workout and nutrition plan designed specifically for your needs.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="bi bi-journal-text"></i>
+                        </div>
+                        <h3 class="feature-title">3. Track Progress</h3>
+                        <p class="feature-text">Log your workouts, meals, and metrics to monitor your improvement over time.</p>
+                    </div>
+                </div>
+                
+                <div class="col-md-6 col-lg-3">
+                    <div class="feature-card">
+                        <div class="feature-icon">
+                            <i class="bi bi-trophy"></i>
+                        </div>
+                        <h3 class="feature-title">4. Achieve Results</h3>
+                        <p class="feature-text">Stay motivated with regular feedback and adjustments to reach your fitness goals.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mt-5 pt-4">
+                <div class="col-lg-6">
+                    <div class="feature-image-wrapper">
+                        <img src="/static/landing/images/fitness/feature-analytics.jpg" alt="Workout Analytics" class="img-fluid feature-image shadow-lg rounded" onerror="this.src='/static/landing/images/fitness/feature-analytics.png'">
+                    </div>
+                </div>
+                <div class="col-lg-6 d-flex flex-column justify-content-center">
+                    <div class="feature-content">
+                        <h3>Advanced Progress Tracking</h3>
+                        <p>Visualize your fitness journey with comprehensive analytics and progress charts. Track measurements, workouts completed, nutrition adherence, and more.</p>
+                        <ul class="feature-list">
+                            <li><i class="bi bi-check-circle-fill"></i> Real-time progress updates</li>
+                            <li><i class="bi bi-check-circle-fill"></i> Body composition tracking</li>
+                            <li><i class="bi bi-check-circle-fill"></i> Performance metrics</li>
+                            <li><i class="bi bi-check-circle-fill"></i> Goal achievement visualization</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Plans Section -->
+    <section id="featured-plans" class="py-5 bg-light">
+        <div class="container py-4">
+            <div class="text-center mb-5">
+                <h2 class="display-5 fw-bold mb-3">Featured Fitness Plans</h2>
+                <p class="lead text-muted">Browse popular workout and nutrition plans from our expert coaches</p>
+            </div>
+
+            <div class="row g-4 justify-content-center" id="featuredPlansContainer">
+                <!-- Plans will be loaded dynamically via JS -->
+                <div class="col-md-6 col-lg-4">
+                    <div class="plan-card">
+                        <div class="plan-card-header">
+                            <span class="plan-category">Weight Loss</span>
+                            <h3 class="plan-title">30-Day Fat Burn Challenge</h3>
+                            <div class="plan-coach">
+                                <img src="/static/landing/images/coaches/coach-1.jpg" alt="Coach" class="coach-avatar" onerror="this.src='/static/landing/images/coaches/default-avatar.svg'">
+                                <span>By Coach Ahmed</span>
+                            </div>
+                        </div>
+                        <div class="plan-card-body">
+                            <p class="plan-description">Intensive workout program designed to maximize fat burn while preserving muscle mass.</p>
+                            <div class="plan-details">
+                                <div class="detail-item">
+                                    <i class="bi bi-calendar-week"></i>
+                                    <span>30 days</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-lightning-charge"></i>
+                                    <span>Advanced</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-star-fill"></i>
+                                    <span>4.8 (125 ratings)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="plan-card-footer">
+                            <button type="button" class="btn btn-primary w-100" onclick="return utils.handleAuthRequired();">View Plan</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="plan-card">
+                        <div class="plan-card-header">
+                            <span class="plan-category">Muscle Building</span>
+                            <h3 class="plan-title">Hypertrophy Program</h3>
+                            <div class="plan-coach">
+                                <img src="/static/landing/images/coaches/coach-2.jpg" alt="Coach" class="coach-avatar" onerror="this.src='/static/landing/images/coaches/default-avatar.svg'">
+                                <span>By Coach Sarah</span>
+                            </div>
+                        </div>
+                        <div class="plan-card-body">
+                            <p class="plan-description">Science-backed muscle growth program with progressive overload and nutrition guidance.</p>
+                            <div class="plan-details">
+                                <div class="detail-item">
+                                    <i class="bi bi-calendar-week"></i>
+                                    <span>8 weeks</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-lightning-charge"></i>
+                                    <span>Intermediate</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-star-fill"></i>
+                                    <span>4.9 (210 ratings)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="plan-card-footer">
+                            <button type="button" class="btn btn-primary w-100" onclick="return utils.handleAuthRequired();">View Plan</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-6 col-lg-4">
+                    <div class="plan-card">
+                        <div class="plan-card-header">
+                            <span class="plan-category">Nutrition</span>
+                            <h3 class="plan-title">Clean Eating Challenge</h3>
+                            <div class="plan-coach">
+                                <img src="/static/landing/images/coaches/coach-3.jpg" alt="Coach" class="coach-avatar" onerror="this.src='/static/landing/images/coaches/default-avatar.svg'">
+                                <span>By Coach Layla</span>
+                            </div>
+                        </div>
+                        <div class="plan-card-body">
+                            <p class="plan-description">Complete nutrition program with meal plans, recipes, and shopping lists for whole food eating.</p>
+                            <div class="plan-details">
+                                <div class="detail-item">
+                                    <i class="bi bi-calendar-week"></i>
+                                    <span>4 weeks</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-lightning-charge"></i>
+                                    <span>All levels</span>
+                                </div>
+                                <div class="detail-item">
+                                    <i class="bi bi-star-fill"></i>
+                                    <span>4.7 (178 ratings)</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="plan-card-footer">
+                            <button type="button" class="btn btn-primary w-100" onclick="return utils.handleAuthRequired();">View Plan</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="/plan-management/plans/" class="btn btn-outline-primary btn-lg" onclick="return utils.handleAuthRequired(event);">Browse All Plans</a>
+                <p class="small text-muted mt-2">Sign up or login to access complete plan details</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Featured Coaches Section -->
+    <section class="coaches-section py-5" id="coaches">
+        <div class="container">
+            <div class="section-header text-center mb-5">
+                <h2 class="section-title">Meet Our Top Coaches</h2>
+                <p class="section-subtitle">Expert guidance from certified fitness professionals</p>
+            </div>
+            
+            <div class="row g-4" id="featuredCoachesContainer">
+                <!-- Coaches will be dynamically loaded here -->
+                <div class="col-12 text-center">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="text-center mt-4">
+                <a href="/search/coaches/" class="btn btn-outline-primary btn-lg">Browse All Coaches</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- Testimonials Section -->
+    <section class="testimonials-section py-5" id="testimonials">
+        <div class="container">
+            <div class="section-header text-center mb-5">
+                <h2 class="section-title">Success Stories</h2>
+                <p class="section-subtitle">Hear from our satisfied clients</p>
+            </div>
+            
+            <div class="row g-4">
+                <div class="col-md-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <p>"Eazy Fit transformed my approach to health. With my coach's guidance, I've lost 30 pounds and gained incredible energy!"</p>
+                        </div>
+                        <div class="testimonial-author">
+                            <img src="/static/landing/images/testimonial-1.jpg" alt="John Smith" class="testimonial-avatar">
+                            <div>
+                                <h5>John Smith</h5>
+                                <p>Weight Loss Client</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <p>"The personalized meal plans and workout routines have been a game-changer. I've gained 10lbs of lean muscle in just 3 months!"</p>
+                        </div>
+                        <div class="testimonial-author">
+                            <img src="/static/landing/images/testimonial-2.jpg" alt="Sarah Johnson" class="testimonial-avatar">
+                            <div>
+                                <h5>Sarah Johnson</h5>
+                                <p>Muscle Building Client</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="testimonial-card">
+                        <div class="testimonial-content">
+                            <p>"As a busy professional, I needed flexible workout options. My coach designed a program that fits perfectly with my schedule."</p>
+                        </div>
+                        <div class="testimonial-author">
+                            <img src="/static/landing/images/testimonial-3.jpg" alt="Client" class="testimonial-avatar">
+                            <div class="testimonial-info">
+                                <h5>Sara Khalid</h5>
+                                <p class="mb-0">Improved energy & strength</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="faq-section py-5" id="faq">
+        <div class="container">
+            <div class="section-header text-center mb-5">
+                <h2 class="section-title">Frequently Asked Questions</h2>
+                <p class="section-subtitle">Find answers to common questions</p>
+            </div>
+            
+            <div class="row justify-content-center">
+                <div class="col-lg-8">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne" aria-expanded="true" aria-controls="collapseOne">
+                                    How do I get matched with a coach?
+                                </button>
+                            </h2>
+                            <div id="collapseOne" class="accordion-collapse collapse show" aria-labelledby="headingOne" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    After signing up, you'll complete a brief fitness assessment. Based on your goals, preferences, and experience level, we'll recommend coaches who specialize in your areas of interest. You can browse their profiles, reviews, and specialties before making your selection.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo" aria-expanded="false" aria-controls="collapseTwo">
+                                    Can I change my coach if we're not a good fit?
+                                </button>
+                            </h2>
+                            <div id="collapseTwo" class="accordion-collapse collapse" aria-labelledby="headingTwo" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Absolutely! We understand that the coach-client relationship is important. If you feel your current coach isn't the right match, you can request a change through your dashboard at any time, and we'll help you find a better fit for your needs.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree" aria-expanded="false" aria-controls="collapseThree">
+                                    How personalized are the workout plans?
+                                </button>
+                            </h2>
+                            <div id="collapseThree" class="accordion-collapse collapse" aria-labelledby="headingThree" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Our workout plans are completely customized to your specific goals, fitness level, available equipment, and schedule. Your coach will create a plan tailored to your unique situation and will adjust it based on your progress and feedback throughout your journey.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFour">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFour" aria-expanded="false" aria-controls="collapseFour">
+                                    Do I need any special equipment?
+                                </button>
+                            </h2>
+                            <div id="collapseFour" class="accordion-collapse collapse" aria-labelledby="headingFour" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    Not at all! Your coach will design your workout plan based on the equipment you have access to. Whether you're working out at home with minimal equipment, at a fully-equipped gym, or even just using bodyweight exercises, your plan will be tailored accordingly.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="headingFive">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseFive" aria-expanded="false" aria-controls="collapseFive">
+                                    How do I track my progress?
+                                </button>
+                            </h2>
+                            <div id="collapseFive" class="accordion-collapse collapse" aria-labelledby="headingFive" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    The Eazy Fit platform includes comprehensive tracking tools for workouts, measurements, and nutrition. You can log your activities, update your metrics, and view your progress through visual charts and graphs. Your coach will also provide regular feedback on your progress and make adjustments as needed.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section py-5">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-lg-10">
+                    <div class="cta-card">
+                        <div class="row align-items-center">
+                            <div class="col-lg-8">
+                                <h2>Ready to Transform Your Fitness Journey?</h2>
+                                <p class="mb-0">Join thousands of people who have achieved their goals with Eazy Fit's expert coaching.</p>
+                            </div>
+                            <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+                                <a href="/auth-users/register/" class="btn btn-primary btn-lg">Start Now — It's Free!</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer-section">
+        <div class="container">
+            <div class="row gy-4">
+                <div class="col-lg-4">
+                    <div class="footer-brand mb-4">
+                        <img src="/static/landing/images/logo-light.png" alt="Eazy Fit" height="40">
+                        <span>Eazy Fit</span>
+                    </div>
+                    <p class="footer-about">Eazy Fit connects you with certified fitness coaches to create personalized training and nutrition plans that fit your lifestyle and help you achieve your goals.</p>
+                    <div class="footer-social">
+                        <a href="#" class="social-icon"><i class="bi bi-facebook"></i></a>
+                        <a href="#" class="social-icon"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="social-icon"><i class="bi bi-twitter-x"></i></a>
+                        <a href="#" class="social-icon"><i class="bi bi-youtube"></i></a>
+                    </div>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <h5 class="footer-heading">Company</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Our Team</a></li>
+                        <li><a href="#">Careers</a></li>
+                        <li><a href="#">Contact Us</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <h5 class="footer-heading">Resources</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">Blog</a></li>
+                        <li><a href="#">Fitness Tips</a></li>
+                        <li><a href="#">Nutrition Guides</a></li>
+                        <li><a href="#">Success Stories</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-lg-2 col-md-4">
+                    <h5 class="footer-heading">Support</h5>
+                    <ul class="footer-links">
+                        <li><a href="#">Help Center</a></li>
+                        <li><a href="#">FAQs</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Terms of Service</a></li>
+                    </ul>
+                </div>
+                
+                <div class="col-lg-2">
+                    <h5 class="footer-heading">Get Started</h5>
+                    <ul class="footer-links">
+                        <li><a href="/auth-users/register/">Sign Up</a></li>
+                        <li><a href="/auth-users/login/">Login</a></li>
+                        <li><a href="/search/coaches/">Find a Coach</a></li>
+                        <li><a href="#featured-plans">Plans</a></li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="footer-bottom">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-md-0">&copy; 2025 Eazy Fit. All rights reserved.</p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <p class="mb-0">Designed with <i class="bi bi-heart-fill text-danger"></i> for a healthier world</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Back to top button -->
+    <a href="#" class="back-to-top" id="backToTop">
+        <i class="bi bi-arrow-up"></i>
+    </a>
+
+    <!-- Scripts -->
+    <script src="/static/vendor/jquery/jquery.min.js"></script>
+    <script src="/static/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="/static/js/api/api_base.js"></script>
+    <script src="/static/js/utils.js"></script>
+    <script src="/static/landing/js/main.js"></script>
+    <script src="/static/landing/js/plans.js"></script>
+</body>
+</html>

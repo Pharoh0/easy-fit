@@ -21,6 +21,7 @@ from django.conf import settings
 from django.views.generic import TemplateView
 
 urlpatterns = [
+    path('', TemplateView.as_view(template_name="landing/index.html"), name="home"),
     path('admin/', admin.site.urls),
     path("auth-users/", include("apps.auth_users.urls", namespace="auth_users")),
     path("profiles/", include("apps.profiles.urls", namespace="profiles")),
