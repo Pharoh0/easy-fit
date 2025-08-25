@@ -22,9 +22,10 @@
       // Try to fetch from the actual API endpoint
       try {
         // For live environments, use the actual endpoint
-        const res = await APIBase.request('/plan-management/api/v1/plans/featured/?page_size=3');
-        if (res.success && res.data?.results?.length > 0) {
-          renderPlans(container, res.data.results);
+        const res = await APIBase.request('/plan-management/api/v1/product-plans/?is_active=true&page_size=3', { noRedirectOn401: true });
+        const dataResults = Array.isArray(res.data) ? res.data : res.data?.results;
+        if (res.success && dataResults?.length > 0) {
+          renderPlans(container, dataResults);
           return;
         }
       } catch (apiError) {
@@ -121,17 +122,18 @@
   // Render individual plan card
   function renderPlanCard(plan) {
     // Sanitize data to prevent XSS
-    const title = utils.sanitize(plan.title);
-    const category = utils.sanitize(plan.category);
+    const title = utils.sanitize(plan.name || plan.title);
+    const category = utils.sanitize(plan.plan_type || plan.category || 'Plan');
     const description = utils.sanitize(plan.description);
-    const duration = utils.sanitize(plan.duration);
-    const difficulty = utils.sanitize(plan.difficulty);
-    const rating = parseFloat(plan.rating) || 4.5;
+    const durationText = plan.duration || (plan.session_count ? `${plan.session_count} sessions` : ((plan.start_date && plan.end_date) ? `${utils.formatDate(plan.start_date)} - ${utils.formatDate(plan.end_date)}` : ''));
+    const duration = utils.sanitize(durationText);
+    const difficulty = utils.sanitize(plan.difficulty || 'All levels');
+    const rating = parseFloat(plan.rating) || 4.6;
     const ratingCount = parseInt(plan.rating_count) || 0;
     
     // Coach info
-    const coachName = plan.coach ? utils.sanitize(plan.coach.name) : 'Coach';
-    const coachAvatar = plan.coach && plan.coach.avatar ? plan.coach.avatar : '/static/landing/images/coaches/default-avatar.svg';
+    const coachName = utils.sanitize((plan.coach_info && plan.coach_info.display_name) || (plan.coach && plan.coach.name) || 'Coach');
+    const coachAvatar = (plan.coach_info && plan.coach_info.avatar_url) || (plan.coach && plan.coach.avatar) || '/static/landing/images/coaches/default-avatar.svg';
     
     return `
     <div class="col-md-6 col-lg-4">
@@ -162,7 +164,7 @@
           </div>
         </div>
         <div class="plan-card-footer">
-          <button type="button" class="btn btn-primary w-100" onclick="return utils.handleAuthRequired(event, '/plan-management/plans/${plan.id}/');">View Plan</button>
+          <button type="button" class="btn btn-primary w-100" onclick="return utils.handleAuthRequired(event, '/plan-management/client/browse-plans/');">View Plan</button>
         </div>
       </div>
     </div>

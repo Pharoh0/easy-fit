@@ -199,6 +199,11 @@ class APIBase {
                     }
                 }
                 
+                // If caller opts out of auto-redirect on 401, return gracefully
+                if (options && options.noRedirectOn401) {
+                    return { success: false, status: 401, error: 'Authentication required' };
+                }
+
                 // Redirect to login if token refresh failed
                 try {
                     const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
