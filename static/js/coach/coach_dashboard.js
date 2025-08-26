@@ -108,7 +108,7 @@
             const name = (first + ' ' + last).trim() || 'Unknown';
             const count = tc['measurement_count'] || 0;
             const clientId = tc['client__user_id'];
-            const url = '/plan-management/coach/client-measurements/';
+            const url = `/plan-management/coach/client-measurements/?client_id=${clientId}`;
             const actionHtml = `
                 <a class="btn btn-sm btn-outline-primary" href="${url}" data-clientid="${clientId}">
                     <i class="bi bi-eye"></i> View
