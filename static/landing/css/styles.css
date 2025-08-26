@@ -119,10 +119,23 @@ section {
   text-align: center;
 }
 
+/* Ensure the wrapper around the hero image is positioned for absolute children */
+.hero-image-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+/* Column wrapper should also be positioned to avoid overflow offsets */
+.hero-image-column {
+  position: relative;
+}
+
 .hero-image {
   max-width: 100%;
   border-radius: 0.75rem;
   box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+  position: relative;
+  z-index: 1;
 }
 
 .floating-card {
@@ -136,6 +149,7 @@ section {
   gap: 0.75rem;
   color: var(--dark);
   font-weight: 500;
+  z-index: 2;
 }
 
 .floating-card i {
@@ -144,20 +158,20 @@ section {
 }
 
 .card-1 {
-  top: 10%;
-  right: -10%;
+  top: 8%;
+  right: 5%;
   animation: float 6s ease-in-out infinite;
 }
 
 .card-2 {
-  bottom: 15%;
-  left: -10%;
+  bottom: 12%;
+  left: 4%;
   animation: float 6s ease-in-out infinite 1s;
 }
 
 .card-3 {
-  bottom: -5%;
-  right: 15%;
+  bottom: 6%;
+  right: 12%;
   animation: float 6s ease-in-out infinite 2s;
 }
 
@@ -692,6 +706,10 @@ section {
   .hero-image-container {
     margin-top: 3rem;
   }
+  /* Tighter card placement on tablets */
+  .card-1 { top: 6%; right: 2%; }
+  .card-2 { bottom: 10%; left: 2%; }
+  .card-3 { bottom: 4%; right: 8%; }
   
   .floating-card {
     padding: 0.5rem 0.75rem;

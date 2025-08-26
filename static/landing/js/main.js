@@ -36,12 +36,12 @@
 
   // Back to Top button behavior
   function handleBackToTop() {
-    const backToTopButton = document.getElementById('back-to-top');
+    const backToTopButton = document.getElementById('backToTop');
     if (backToTopButton) {
       if (window.scrollY > 300) {
-        backToTopButton.classList.add('show');
+        backToTopButton.classList.add('active');
       } else {
-        backToTopButton.classList.remove('show');
+        backToTopButton.classList.remove('active');
       }
     }
   }
@@ -77,7 +77,7 @@
     if (!container) return;
 
     try {
-      const res = await APIBase.request('/search/api/v1/search-coaches/?page_size=6&sort_by=experience_high');
+      const res = await APIBase.request('/search/api/v1/search-coaches/?page_size=6&sort_by=experience_high', { noRedirectOn401: true });
       if (!res.success) throw new Error(res.error || 'Failed to load featured coaches');
       
       const data = res.data || { results: [] };
@@ -205,5 +205,6 @@
     
     // Trigger navbar state check on page load
     handleNavbarScroll();
+    handleBackToTop();
   });
 })();
