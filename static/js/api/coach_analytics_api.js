@@ -42,9 +42,9 @@ class CoachAnalyticsAPI {
         const response = await APIBase.request(url);
         
         if (response.success) {
-            return { 
-                success: true, 
-                insights: response.data 
+            return {
+                success: true,
+                insights: (response.data && response.data.insights) ? response.data.insights : response.data
             };
         }
         
@@ -56,13 +56,13 @@ class CoachAnalyticsAPI {
      * @returns {Promise<Object>} Client stats data
      */
     static async getClientStats() {
-        const url = '/coach/client-stats/';
+        const url = '/plan-management/coach/client-stats/';
         const response = await APIBase.request(url);
         
         if (response.success) {
-            return { 
-                success: true, 
-                stats: response.data 
+            return {
+                success: true,
+                stats: (response.data && response.data.stats) ? response.data.stats : response.data
             };
         }
         

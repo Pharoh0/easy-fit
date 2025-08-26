@@ -50,6 +50,10 @@
                                 <span class="app-name">Search Coaches</span>
                             </a>
                             {% if request.user.is_coach %}
+                            <a href="{% url 'plan_management:coach_dashboard' %}" class="app-item">
+                                <i class="bi bi-speedometer2 app-icon"></i>
+                                <span class="app-name">Coach Dashboard</span>
+                            </a>
                             <a href="{% url 'plan_management:coach_plan_management' %}" class="app-item">
                                 <i class="bi bi-clipboard-check app-icon"></i>
                                 <span class="app-name">Plan Management</span>
@@ -135,6 +139,9 @@
                         <span class="d-lg-none ms-2">Plans</span>
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="planManagementDropdown">
+                        <li><a class="dropdown-item" href="{% url 'plan_management:coach_dashboard' %}">
+                            <i class="bi bi-speedometer2 me-2"></i>Coach Dashboard
+                        </a></li>
                         <li><a class="dropdown-item" href="{% url 'plan_management:coach_plan_management' %}">
                             <i class="bi bi-clipboard-check me-2"></i>Plan Management
                         </a></li>
