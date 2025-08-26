@@ -320,6 +320,30 @@ def coach_dashboard_measurements_widget(request):
 
 
 @login_required
+def coach_dashboard_view(request):
+    """
+    Coach dashboard template view (JWT-driven via frontend JS)
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return render(request, 'errors/403.html', {
+            'error_message': 'Access denied. Coach profile required.'
+        })
+
+    context = {
+        'coach_profile': coach_profile,
+        'page_title': 'Coach Dashboard',
+        'include_charts': True,
+        'breadcrumbs': [
+            {'name': 'Dashboard', 'url': None},
+        ]
+    }
+
+    return render(request, 'plan_management/coach_dashboard.html', context)
+
+
+@login_required
 def coach_plan_management_view(request):
     """
     Coach plan management dashboard

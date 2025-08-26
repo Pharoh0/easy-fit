@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from rest_framework import viewsets, status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.shortcuts import get_object_or_404
 from django.db import transaction
 from django.db.models import Q, Count, Avg
@@ -29,6 +29,8 @@ class StandardResultsSetPagination(PageNumberPagination):
 class ProductPlanViewSet(viewsets.ModelViewSet):
     queryset = ProductPlan.objects.all()
     serializer_class = ProductPlanSerializer
+    pagination_class = StandardResultsSetPagination
+    permission_classes = [IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
         # Check if is_active filter is applied (typically for clients browsing plans)
