@@ -1,0 +1,56 @@
+/* Coach Dashboard Styles (brand green gradient + filters) */
+:root {
+  --brand-green-1: #00c853;
+  --brand-green-2: #2ecc71;
+  --brand-green-3: #20bf6b;
+  --hero-gradient: linear-gradient(135deg, var(--brand-green-1) 0%, var(--brand-green-2) 60%, var(--brand-green-3) 100%);
+}
+
+.hero-gradient {
+  background: var(--hero-gradient);
+  border-radius: 14px;
+  overflow: hidden;
+  position: relative;
+}
+
+.hero-gradient::after {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -30%;
+  width: 60%;
+  height: 180%;
+  background: rgba(255, 255, 255, 0.12);
+  transform: rotate(30deg);
+  pointer-events: none;
+}
+
+.filters-bar {
+  border-radius: 12px;
+  z-index: 1015; /* above content, below navbar */
+}
+
+#filterPresetGroup .btn.active {
+  background: var(--brand-green-1);
+  border-color: var(--brand-green-1);
+  color: #fff;
+}
+
+#filterPresetGroup .btn:hover {
+  border-color: var(--brand-green-2);
+}
+
+#customDateInputs input[type='date'] {
+  min-width: 140px;
+}
+
+/* Cards polish */
+.card .card-title {
+  font-weight: 600;
+}
+
+/* Chart container helper to ensure height within cards */
+#measurementFrequencyChart {
+  width: 100% !important;
+  height: 100% !important;
+}
