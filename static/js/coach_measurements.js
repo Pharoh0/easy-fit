@@ -83,6 +83,36 @@ class CoachMeasurementsManager {
      */
     async handleDeepLinkIfPresent() {
         try {
+            // 1) Direct client deep-linking
+            const clientIdParam = this.getQueryParam('client_id');
+            if (clientIdParam) {
+                const selector = document.getElementById('clientSelector');
+                if (selector) {
+                    // Ensure the selector has this client
+                    if (!selector.querySelector(`option[value="${clientIdParam}"]`)) {
+                        this.populateClientSelector();
+                    }
+
+                    const optionEl = selector.querySelector(`option[value="${clientIdParam}"]`);
+                    if (!optionEl) {
+                        // Attempt to append if client exists in loaded list
+                        const clientObj = (this.clients || []).find(c => String(c.id) === String(clientIdParam));
+                        if (clientObj) {
+                            const opt = document.createElement('option');
+                            opt.value = clientObj.id;
+                            opt.textContent = `${clientObj.full_name} (${clientObj.username})`;
+                            opt.dataset.client = JSON.stringify(clientObj);
+                            selector.appendChild(opt);
+                        }
+                    }
+
+                    selector.value = String(clientIdParam);
+                    await this.onClientSelect({ target: selector });
+                    return; // If client_id is present, we're done
+                }
+            }
+
+            // 2) Fallback: deep-link via subscription_id
             const subId = this.getQueryParam('subscription_id');
             if (!subId) return; // No deep link
 

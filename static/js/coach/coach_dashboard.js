@@ -55,6 +55,7 @@
 
             const insights = resp.insights;
             renderMeasurementFrequency(insights.measurement_frequency || []);
+            renderInsightsSummary(insights);
             renderTopClientsTable(insights.top_clients || []);
         } catch (e) {
             console.error('Error loading measurement insights', e);
@@ -109,10 +110,16 @@
             const count = tc['measurement_count'] || 0;
             const clientId = tc['client__user_id'];
             const url = `/plan-management/coach/client-measurements/?client_id=${clientId}`;
+            const createPlanUrl = `/plan-management/coach/plan-creation/?client_id=${clientId}`;
             const actionHtml = `
-                <a class="btn btn-sm btn-outline-primary" href="${url}" data-clientid="${clientId}">
-                    <i class="bi bi-eye"></i> View
-                </a>`;
+                <div class="btn-group" role="group">
+                    <a class="btn btn-sm btn-outline-primary" href="${url}" data-clientid="${clientId}">
+                        <i class="bi bi-eye"></i> View
+                    </a>
+                    <a class="btn btn-sm btn-primary" href="${createPlanUrl}" data-clientid="${clientId}">
+                        <i class="bi bi-plus-circle"></i> Create Plan
+                    </a>
+                </div>`;
             return [name, count, actionHtml];
         });
 
@@ -139,5 +146,103 @@
                 }
             });
         }
+    }
+
+    function renderInsightsSummary(insights) {
+        const container = document.getElementById('insightsSummaryContainer');
+        if (!container) return;
+
+        const summary = insights.summary || {};
+        const total30 = summary.total_measurements_30d ?? 0;
+        const avgPerClient = summary.avg_measurements_per_client ?? 0;
+        const clientsWithProgress = summary.clients_with_progress ?? 0;
+        const activeDays = (insights.measurement_frequency || []).length;
+
+        // Most improved (largest negative weight change)
+        let mostImproved = null;
+        if (Array.isArray(insights.client_progress)) {
+            insights.client_progress.forEach(p => {
+                if (p.weight_change != null) {
+                    if (!mostImproved || (p.weight_change < mostImproved.weight_change)) {
+                        mostImproved = p;
+                    }
+                }
+            });
+        }
+
+        // Most engaged (highest measurements)
+        const topClient = Array.isArray(insights.top_clients) && insights.top_clients.length ? insights.top_clients[0] : null;
+        const topClientName = topClient ? `${(topClient['client__user__first_name']||'')} ${(topClient['client__user__last_name']||'')}`.trim() : null;
+        const topClientId = topClient ? topClient['client__user_id'] : null;
+        const topClientCount = topClient ? (topClient['measurement_count']||0) : 0;
+
+        const kpiCard = (title, value, icon, extra='') => `
+            <div class="col-sm-6 col-lg-3">
+                <div class="card border-0 bg-light h-100">
+                    <div class="card-body d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted small">${title}</div>
+                            <div class="h5 mb-0">${value}</div>
+                            ${extra}
+                        </div>
+                        <i class="bi ${icon} fs-2 text-secondary"></i>
+                    </div>
+                </div>
+            </div>`;
+
+        const improvedHtml = mostImproved ? `
+            <div class="col-lg-6">
+                <div class="p-3 rounded border h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="mb-0">Most Improved</h6>
+                        ${(() => {
+                            const delta = Number(mostImproved.weight_change);
+                            const sign = delta > 0 ? '+' : (delta < 0 ? '' : '');
+                            const cls = delta < 0 ? 'bg-success-subtle text-success' : (delta > 0 ? 'bg-danger-subtle text-danger' : 'bg-secondary-subtle text-secondary');
+                            return `<span class="badge ${cls}">${sign}${delta.toFixed(1)} kg</span>`;
+                        })()}
+                    </div>
+                    <div class="text-muted small mb-2">${mostImproved.client_name} over ${mostImproved.duration_days} days</div>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-primary" href="/plan-management/coach/client-measurements/?client_id=${mostImproved.client_id}">
+                            <i class="bi bi-eye"></i> View Measurements
+                        </a>
+                        <a class="btn btn-sm btn-primary" href="/plan-management/coach/plan-creation/?client_id=${mostImproved.client_id}">
+                            <i class="bi bi-plus-circle"></i> Create Plan
+                        </a>
+                    </div>
+                </div>
+            </div>` : '';
+
+        const engagedHtml = topClient ? `
+            <div class="col-lg-6">
+                <div class="p-3 rounded border h-100">
+                    <div class="d-flex justify-content-between align-items-center mb-1">
+                        <h6 class="mb-0">Most Engaged</h6>
+                        <span class="badge bg-info-subtle text-info">${topClientCount} measurements</span>
+                    </div>
+                    <div class="text-muted small mb-2">${topClientName}</div>
+                    <div class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-primary" href="/plan-management/coach/client-measurements/?client_id=${topClientId}">
+                            <i class="bi bi-eye"></i> View Measurements
+                        </a>
+                        <a class="btn btn-sm btn-primary" href="/plan-management/coach/plan-creation/?client_id=${topClientId}">
+                            <i class="bi bi-plus-circle"></i> Create Plan
+                        </a>
+                    </div>
+                </div>
+            </div>` : '';
+
+        container.innerHTML = `
+            <div class="row g-3 mb-2">
+                ${kpiCard('Total Measurements (30d)', total30, 'bi-graph-up')}
+                ${kpiCard('Active Days (30d)', `${activeDays}/30`, 'bi-calendar-check')}
+                ${kpiCard('Avg per Client', avgPerClient, 'bi-people')}
+                ${kpiCard('Clients with Progress', clientsWithProgress, 'bi-activity')}
+            </div>
+            <div class="row g-3">
+                ${improvedHtml}
+                ${engagedHtml}
+            </div>`;
     }
 })();
