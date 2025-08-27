@@ -61,6 +61,7 @@ urlpatterns = [
     path('coach/client-measurements/', views_coach_templates.coach_client_measurements_view, name='coach_client_measurements'),
     path('coach/plan-creation/', views_coach_templates.coach_plan_creation_view, name='coach_plan_creation'),
     path('coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats'),
+    path('api/v1/coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api'),
     path('api/v1/coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights'),
     path('coach/measurements-widget/', views_coach_templates.coach_dashboard_measurements_widget, name='coach_measurements_widget'),
     path('coach/dashboard/', views_coach_templates.coach_dashboard_view, name='coach_dashboard'),
