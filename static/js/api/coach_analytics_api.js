@@ -15,7 +15,7 @@ class CoachAnalyticsAPI {
      * @returns {Promise<Object>} Analytics data
      */
     static async getPlanAnalytics(options = {}) {
-        const url = `${this.BASE_PATH}/plan-analytics/`;
+        const url = `${this.BASE_PATH}/plan-analytics/${this.buildQuery(options)}`;
         const response = await APIBase.request(url);
         
         if (response.success) {
@@ -33,12 +33,12 @@ class CoachAnalyticsAPI {
      * @param {string} clientId - Optional client ID to filter by
      * @returns {Promise<Object>} Measurement insights data
      */
-    static async getMeasurementInsights(clientId = null) {
-        let url = `${this.BASE_PATH}/measurement-insights/`;
-        if (clientId) {
-            url += `?client_id=${clientId}`;
+    static async getMeasurementInsights(options = {}) {
+        // Backward compatibility if clientId was passed directly
+        if (typeof options === 'string' || typeof options === 'number') {
+            options = { client_id: options };
         }
-        
+        const url = `${this.BASE_PATH}/measurement-insights/${this.buildQuery(options)}`;
         const response = await APIBase.request(url);
         
         if (response.success) {
@@ -55,8 +55,8 @@ class CoachAnalyticsAPI {
      * Get client quick stats
      * @returns {Promise<Object>} Client stats data
      */
-    static async getClientStats() {
-        const url = '/plan-management/coach/client-stats/';
+    static async getClientStats(options = {}) {
+        const url = `${this.BASE_PATH}/client-stats/${this.buildQuery(options)}`;
         const response = await APIBase.request(url);
         
         if (response.success) {
@@ -73,7 +73,7 @@ class CoachAnalyticsAPI {
      * Load analytics data into UI element
      * @param {string} elementId - Element ID to load analytics into
      */
-    static async loadAnalyticsIntoElement(elementId) {
+    static async loadAnalyticsIntoElement(elementId, options = {}) {
         const element = document.getElementById(elementId);
         if (!element) return;
         
@@ -81,7 +81,7 @@ class CoachAnalyticsAPI {
         APIBase.showLoading(elementId);
         
         try {
-            const analytics = await this.getPlanAnalytics();
+            const analytics = await this.getPlanAnalytics(options);
             
             if (analytics.success) {
                 this.renderAnalytics(element, analytics.analytics);
@@ -236,6 +236,26 @@ class CoachAnalyticsAPI {
                 }
             });
         }, 0);
+    }
+
+    /**
+     * Build a query string from key-value pairs, ignoring null/undefined/empty values
+     * @param {Object} params
+     * @returns {string} leading '?' if any params, otherwise ''
+     */
+    static buildQuery(params = {}) {
+        try {
+            const searchParams = new URLSearchParams();
+            Object.entries(params || {}).forEach(([k, v]) => {
+                if (v === undefined || v === null) return;
+                if (typeof v === 'string' && v.trim() === '') return;
+                searchParams.append(k, v);
+            });
+            const qs = searchParams.toString();
+            return qs ? `?${qs}` : '';
+        } catch (e) {
+            return '';
+        }
     }
 }
 

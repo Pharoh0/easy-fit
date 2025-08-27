@@ -5,23 +5,56 @@
 (function () {
     let measurementFrequencyChart = null;
     let topClientsTable = null;
+    let lastAppliedState = null;
+    // Server-driven pagination for Top Clients
+    let topClientsLimit = 5;
+    let topClientsOffset = 0;
+    let topClientsTotal = 0;
 
     $(document).ready(function () {
-        initCoachDashboard();
+        setupFiltersUI();
+        const initialState = parseFiltersFromURL();
+        applyStateToUI(initialState);
+        lastAppliedState = initialState;
+        // Parse pagination from URL and sync UI
+        parsePaginationFromURL();
+        initCoachDashboard(initialState);
     });
 
-    async function initCoachDashboard() {
-        // Load all sections in parallel
+    async function initCoachDashboard(options = {}) {
+        // Load all sections in parallel with current filter options
         await Promise.allSettled([
-            loadQuickStats(),
-            loadAnalytics(),
-            loadMeasurementInsights()
+            loadQuickStats(options),
+            loadAnalytics(options),
+            loadMeasurementInsights(options)
         ]);
     }
 
-    async function loadQuickStats() {
+    function updateTopClientsPagerUI() {
+        const infoEl = document.getElementById('topClientsPageInfo');
+        const btnPrev = document.getElementById('btnTopPrev');
+        const btnNext = document.getElementById('btnTopNext');
+        if (!infoEl || !btnPrev || !btnNext) return;
+
+        const start = topClientsTotal === 0 ? 0 : (topClientsOffset + 1);
+        const end = Math.min(topClientsOffset + topClientsLimit, topClientsTotal);
+        infoEl.textContent = `Showing ${start}–${end} of ${topClientsTotal}`;
+
+        // Enable/disable buttons
+        btnPrev.disabled = (topClientsOffset <= 0);
+        btnNext.disabled = (topClientsOffset + topClientsLimit >= topClientsTotal);
+
+        // Sync page size selector if present
+        const sel = document.getElementById('topClientsPageSize');
+        if (sel) {
+            const val = String(topClientsLimit);
+            if (sel.value !== val) sel.value = val;
+        }
+    }
+
+    async function loadQuickStats(options = {}) {
         try {
-            const res = await CoachAnalyticsAPI.getClientStats();
+            const res = await CoachAnalyticsAPI.getClientStats(buildQueryOptionsFromState(options));
             if (res && res.success && res.stats) {
                 const s = res.stats;
                 $('#statTotalClients').text(s.total_clients ?? 0);
@@ -36,27 +69,40 @@
         }
     }
 
-    async function loadAnalytics() {
+    async function loadAnalytics(options = {}) {
         try {
-            await CoachAnalyticsAPI.loadAnalyticsIntoElement('analyticsContainer');
+            await CoachAnalyticsAPI.loadAnalyticsIntoElement('analyticsContainer', buildQueryOptionsFromState(options));
         } catch (e) {
             console.error('Error loading analytics', e);
             APIBase.showError('analyticsContainer', 'Failed to load analytics');
         }
     }
 
-    async function loadMeasurementInsights() {
+    async function loadMeasurementInsights(options = {}) {
         try {
-            const resp = await CoachAnalyticsAPI.getMeasurementInsights();
+            const query = buildQueryOptionsFromState(options);
+            // include server paging for top clients
+            query.top_limit = topClientsLimit;
+            query.top_offset = topClientsOffset;
+            const resp = await CoachAnalyticsAPI.getMeasurementInsights(query);
             if (!(resp && resp.success && resp.insights)) {
                 console.warn('Failed to load measurement insights', resp);
                 return;
             }
 
             const insights = resp.insights;
+            // Update top clients pagination meta if provided
+            if (insights.top_clients_meta) {
+                topClientsTotal = Number(insights.top_clients_meta.total) || 0;
+                topClientsLimit = Number(insights.top_clients_meta.limit) || topClientsLimit;
+                topClientsOffset = Number(insights.top_clients_meta.offset) || topClientsOffset;
+            } else {
+                topClientsTotal = (Array.isArray(insights.top_clients) ? insights.top_clients.length : 0);
+            }
+            updateTopClientsPagerUI();
             renderMeasurementFrequency(insights.measurement_frequency || []);
             renderInsightsSummary(insights);
-            renderTopClientsTable(insights.top_clients || []);
+            renderTopClientsTable(insights.top_clients || [], (options && options.q) ? options.q : '');
         } catch (e) {
             console.error('Error loading measurement insights', e);
         }
@@ -102,7 +148,7 @@
         });
     }
 
-    function renderTopClientsTable(items) {
+    function renderTopClientsTable(items, searchTerm = '') {
         const rows = items.map(tc => {
             const first = tc['client__user__first_name'] || '';
             const last = tc['client__user__last_name'] || '';
@@ -137,12 +183,13 @@
                     { title: 'Measurements' },
                     { title: 'Actions', orderable: false, searchable: false }
                 ],
-                pageLength: 5,
+                paging: false,
+                info: false,
+                searching: false,
                 lengthChange: false,
                 order: [[1, 'desc']],
                 language: {
-                    emptyTable: 'No top clients found',
-                    search: 'Filter:'
+                    emptyTable: 'No top clients found'
                 }
             });
         }
@@ -244,5 +291,232 @@
                 ${improvedHtml}
                 ${engagedHtml}
             </div>`;
+    }
+    
+    // ===== Filters State Management =====
+    function defaultFilterState() {
+        return {
+            preset: '30d',
+            start_date: '',
+            end_date: '',
+            plan_type: 'all',
+            segment: 'all',
+            q: ''
+        };
+    }
+
+    function computeDateRange(preset) {
+        const today = new Date();
+        const end = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        let start = new Date(end);
+        switch ((preset || '').toLowerCase()) {
+            case '7d':
+                start.setDate(end.getDate() - 6);
+                break;
+            case '30d':
+                start.setDate(end.getDate() - 29);
+                break;
+            case '90d':
+                start.setDate(end.getDate() - 89);
+                break;
+            case 'ytd':
+                start = new Date(end.getFullYear(), 0, 1);
+                break;
+            default:
+                // all or unknown
+                start = null;
+                break;
+        }
+        const fmt = (d) => d ? d.toISOString().slice(0, 10) : '';
+        return { start_date: fmt(start), end_date: fmt(end) };
+    }
+
+    function parseFiltersFromURL() {
+        try {
+            const url = new URL(window.location.href);
+            const p = url.searchParams;
+            const state = defaultFilterState();
+            state.preset = (p.get('preset') || state.preset).toLowerCase();
+            state.start_date = p.get('start_date') || state.start_date;
+            state.end_date = p.get('end_date') || state.end_date;
+            state.plan_type = p.get('plan_type') || state.plan_type;
+            state.segment = p.get('segment') || state.segment;
+            state.q = p.get('q') || state.q;
+
+            if (state.preset !== 'custom') {
+                const { start_date, end_date } = computeDateRange(state.preset);
+                state.start_date = start_date;
+                state.end_date = end_date;
+            }
+            return state;
+        } catch (e) {
+            return defaultFilterState();
+        }
+    }
+
+    // Parse pagination params for Top Clients from URL
+    function parsePaginationFromURL() {
+        try {
+            const url = new URL(window.location.href);
+            const p = url.searchParams;
+            const limit = parseInt(p.get('top_limit'));
+            const offset = parseInt(p.get('top_offset'));
+            if (!isNaN(limit) && limit > 0 && limit <= 50) {
+                topClientsLimit = limit;
+            }
+            if (!isNaN(offset) && offset >= 0) {
+                topClientsOffset = offset;
+            }
+            const sel = document.getElementById('topClientsPageSize');
+            if (sel) sel.value = String(topClientsLimit);
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    function applyStateToUI(state) {
+        // Presets
+        const group = $('#filterPresetGroup');
+        group.find('button').removeClass('active');
+        const presetBtn = group.find(`button[data-preset="${state.preset}"]`);
+        if (presetBtn.length) presetBtn.addClass('active');
+
+        // Custom dates visibility
+        if (state.preset === 'custom') {
+            $('#customDateInputs').show();
+        } else {
+            $('#customDateInputs').hide();
+        }
+
+        // Dates
+        $('#filterStart').val(state.start_date || '');
+        $('#filterEnd').val(state.end_date || '');
+
+        // Plan type & segment
+        $('#filterPlanType').val(state.plan_type || 'all');
+        $('#filterSegment').val(state.segment || 'all');
+
+        // Search
+        $('#filterSearch').val(state.q || '');
+    }
+
+    function collectStateFromUI() {
+        const state = defaultFilterState();
+        const activePreset = $('#filterPresetGroup button.active').data('preset');
+        state.preset = (activePreset || '30d').toLowerCase();
+        if (state.preset === 'custom') {
+            state.start_date = ($('#filterStart').val() || '').trim();
+            state.end_date = ($('#filterEnd').val() || '').trim();
+        } else {
+            const { start_date, end_date } = computeDateRange(state.preset);
+            state.start_date = start_date;
+            state.end_date = end_date;
+        }
+        state.plan_type = ($('#filterPlanType').val() || 'all');
+        state.segment = ($('#filterSegment').val() || 'all');
+        state.q = ($('#filterSearch').val() || '').trim();
+        return state;
+    }
+
+    function buildQueryOptionsFromState(state) {
+        if (!state) return {};
+        const opts = {};
+        // always send preset plus dates to allow backend flexibility
+        if (state.preset && state.preset !== 'all') opts.preset = state.preset;
+        if (state.start_date) opts.start_date = state.start_date;
+        if (state.end_date) opts.end_date = state.end_date;
+        if (state.plan_type && state.plan_type !== 'all') opts.plan_type = state.plan_type;
+        if (state.segment && state.segment !== 'all') opts.segment = state.segment;
+        if (state.q) opts.q = state.q;
+        return opts;
+    }
+
+    function updateUrlWithState(state) {
+        try {
+            const url = new URL(window.location.href);
+            const params = url.searchParams;
+            params.set('preset', state.preset || '');
+            if (state.start_date) params.set('start_date', state.start_date); else params.delete('start_date');
+            if (state.end_date) params.set('end_date', state.end_date); else params.delete('end_date');
+            if (state.plan_type && state.plan_type !== 'all') params.set('plan_type', state.plan_type); else params.delete('plan_type');
+            if (state.segment && state.segment !== 'all') params.set('segment', state.segment); else params.delete('segment');
+            if (state.q) params.set('q', state.q); else params.delete('q');
+            // Persist Top Clients pagination
+            if (topClientsLimit) params.set('top_limit', String(topClientsLimit)); else params.delete('top_limit');
+            if (typeof topClientsOffset === 'number') params.set('top_offset', String(topClientsOffset)); else params.delete('top_offset');
+            const newUrl = `${url.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', newUrl);
+        } catch (e) {}
+    }
+
+    function setupFiltersUI() {
+        // Preset buttons
+        $('#filterPresetGroup').on('click', 'button', function () {
+            $('#filterPresetGroup button').removeClass('active');
+            $(this).addClass('active');
+            const preset = ($(this).data('preset') || '').toLowerCase();
+            if (preset === 'custom') {
+                $('#customDateInputs').show();
+            } else {
+                $('#customDateInputs').hide();
+            }
+        });
+
+        // Apply filters
+        $('#btnApplyFilters').on('click', async function () {
+            const state = collectStateFromUI();
+            // Reset server paging when filters change
+            topClientsOffset = 0;
+            lastAppliedState = state;
+            updateUrlWithState(state);
+            await initCoachDashboard(state);
+        });
+
+        // Reset filters
+        $('#btnResetFilters').on('click', async function () {
+            const state = defaultFilterState();
+            const { start_date, end_date } = computeDateRange('30d');
+            state.start_date = start_date;
+            state.end_date = end_date;
+            applyStateToUI(state);
+            // Reset server paging when filters reset
+            topClientsOffset = 0;
+            lastAppliedState = state;
+            updateUrlWithState(state);
+            await initCoachDashboard(state);
+        });
+
+        // Enter key submits search
+        $('#filterSearch').on('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                $('#btnApplyFilters').trigger('click');
+            }
+        });
+
+        // Pager controls for Top Clients
+        $(document).on('click', '#btnTopPrev', async function () {
+            if (topClientsOffset <= 0) return;
+            topClientsOffset = Math.max(0, topClientsOffset - topClientsLimit);
+            updateUrlWithState(lastAppliedState || parseFiltersFromURL());
+            await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+        });
+        $(document).on('click', '#btnTopNext', async function () {
+            if (topClientsOffset + topClientsLimit >= topClientsTotal) return;
+            topClientsOffset = topClientsOffset + topClientsLimit;
+            updateUrlWithState(lastAppliedState || parseFiltersFromURL());
+            await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+        });
+
+        // Page size change for Top Clients
+        $(document).on('change', '#topClientsPageSize', async function () {
+            const newLimit = parseInt($(this).val());
+            if (!isNaN(newLimit) && newLimit > 0 && newLimit <= 50) {
+                topClientsLimit = newLimit;
+                topClientsOffset = 0; // reset to first page
+                updateUrlWithState(lastAppliedState || parseFiltersFromURL());
+                await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+            }
+        });
     }
 })();
