@@ -6,6 +6,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Eazy Fit{% endblock %}</title>
+    <!-- Favicon -->
+    <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
+    <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <link href="{% static 'vendor/bootstrap/css/bootstrap.min.css' %}" rel="stylesheet">
     <!-- Bootstrap Icons -->
     <link href="{% static 'vendor/bootstrap-icons/bootstrap-icons.css' %}" rel="stylesheet">
@@ -108,6 +111,7 @@
     </script>
     <script src="{% static 'js/auth_jwt.js' %}"></script>
     <script src="{% static 'js/avatar_generator.js' %}"></script>
+    <script src="{% static 'js/avatar_handler.js' %}"></script>
     <script>
         // Compatibility shim: provide legacy globals via APIBase/auth_jwt.js
         (function() {

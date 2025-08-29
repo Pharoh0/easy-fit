@@ -1,14 +1,206 @@
-/* Coach Dashboard Styles (brand green gradient + filters) */
+/* Coach Dashboard Styles - Modern Theme */
 :root {
   --brand-green-1: #00c853;
   --brand-green-2: #2ecc71;
   --brand-green-3: #20bf6b;
+  --brand-green-light: #e6f7ef;
+  --brand-blue: #3498db;
+  --brand-orange: #ff9800;
+  --brand-red: #e74c3c;
+  --brand-purple: #8e44ad;
+  --brand-teal: #1abc9c;
+  --brand-gray: #f8f9fa;
+  --dark-gray: #343a40;
+  --light-gray: #f5f5f5;
+  --border-radius: 12px;
+  --card-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+  --card-shadow-hover: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
   --hero-gradient: linear-gradient(135deg, var(--brand-green-1) 0%, var(--brand-green-2) 60%, var(--brand-green-3) 100%);
 }
 
+/* Global Layout Styles */
+body {
+  background-color: #f9fafb;
+}
+
+.dashboard-container {
+  padding: 1.5rem;
+}
+
+/* Modern Cards */
+.modern-card {
+  border: none;
+  border-radius: var(--border-radius);
+  box-shadow: var(--card-shadow);
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.modern-card:hover {
+  box-shadow: var(--card-shadow-hover);
+  transform: translateY(-2px);
+}
+
+.modern-card .card-header {
+  background-color: white;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding: 1rem 1.25rem;
+}
+
+.modern-card .card-title {
+  font-weight: 600;
+  margin-bottom: 0;
+  font-size: 1rem;
+  color: var(--dark-gray);
+}
+
+/* Stats Cards */
+.stat-card {
+  border: none;
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  height: 100%;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.stat-card .stat-icon {
+  font-size: 2rem;
+  height: 48px;
+  width: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  color: white;
+  margin-right: 1rem;
+}
+
+.stat-card .stat-content {
+  flex: 1;
+}
+
+.stat-card .stat-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.stat-card .stat-label {
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.stat-card .stat-change {
+  font-size: 0.8125rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  font-weight: 500;
+}
+
+.stat-change.positive {
+  background-color: rgba(0, 200, 83, 0.1);
+  color: var(--brand-green-1);
+}
+
+.stat-change.negative {
+  background-color: rgba(231, 76, 60, 0.1);
+  color: var(--brand-red);
+}
+
+/* Charts & Graphs */
+.chart-container {
+  position: relative;
+  height: 300px;
+  width: 100%;
+}
+
+.chart-title {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  font-size: 1rem;
+  color: var(--dark-gray);
+}
+
+.chart-subtitle {
+  color: #6c757d;
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
+}
+
+/* Activity Feed */
+.activity-item {
+  padding: 0.75rem 0;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  display: flex;
+  align-items: flex-start;
+}
+
+.activity-item:last-child {
+  border-bottom: none;
+}
+
+.activity-icon {
+  margin-right: 1rem;
+  background: var(--light-gray);
+  height: 40px;
+  width: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.activity-content {
+  flex: 1;
+}
+
+.activity-title {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  margin-bottom: 0.25rem;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+/* Tables */
+.modern-table {
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+}
+
+.modern-table th {
+  background-color: var(--light-gray);
+  font-weight: 600;
+  padding: 0.75rem 1rem;
+  color: var(--dark-gray);
+}
+
+.modern-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+}
+
+.modern-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Hero Banner */
 .hero-gradient {
   background: var(--hero-gradient);
-  border-radius: 14px;
+  border-radius: var(--border-radius);
   overflow: hidden;
   position: relative;
 }
@@ -25,9 +217,24 @@
   pointer-events: none;
 }
 
+/* Filters Bar */
 .filters-bar {
-  border-radius: 12px;
+  border-radius: var(--border-radius);
   z-index: 1015; /* above content, below navbar */
+  background-color: white;
+  transition: all 0.3s ease;
+}
+
+.sticky-filters {
+  position: sticky;
+  top: 0.75rem;
+  z-index: 1000;
+}
+
+#filterPresetGroup .btn {
+  border-radius: 20px;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.875rem;
 }
 
 #filterPresetGroup .btn.active {
@@ -40,17 +247,102 @@
   border-color: var(--brand-green-2);
 }
 
+.filter-input {
+  border-radius: 20px;
+}
+
 #customDateInputs input[type='date'] {
   min-width: 140px;
 }
 
-/* Cards polish */
-.card .card-title {
-  font-weight: 600;
+/* Donut Chart */
+.donut-chart-container {
+  position: relative;
+  height: 240px;
+  width: 100%;
 }
 
-/* Chart container helper to ensure height within cards */
-#measurementFrequencyChart {
+.donut-center-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.donut-value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: 0.25rem;
+}
+
+.donut-label {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+/* Progress Indicators */
+.progress-thin {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+/* Custom Chart Styles */
+#measurementFrequencyChart, 
+#planCompletionChart,
+#clientProgressChart {
   width: 100% !important;
   height: 100% !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 992px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+  
+  .stat-card .stat-icon {
+    height: 40px;
+    width: 40px;
+    font-size: 1.5rem;
+  }
+  
+  .stat-card .stat-value {
+    font-size: 1.5rem;
+  }
+}
+
+/* DataTables Customization */
+.dataTables_wrapper .dataTables_info {
+  padding-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+.dataTables_wrapper .dataTables_paginate .paginate_button {
+  border-radius: 20px;
+  padding: 0.375rem 0.75rem;
+}
+
+/* Legend styles */
+.chart-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+}
+
+.legend-color {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 0.5rem;
 }
