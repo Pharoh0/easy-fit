@@ -278,6 +278,25 @@ class APIBase {
             `;
         }
     }
+    
+    /**
+     * Show empty state message in element
+     * @param {string} elementId - Element ID to show empty state message in
+     * @param {string} message - Empty state message to display
+     */
+    static showEmptyState(elementId, message) {
+        const element = document.getElementById(elementId);
+        if (element) {
+            element.innerHTML = `
+                <div class="text-center py-4">
+                    <div class="text-muted">
+                        <i class="bi bi-inbox fs-2 mb-2"></i>
+                        <p>${message}</p>
+                    </div>
+                </div>
+            `;
+        }
+    }
 }
 
 // Make available globally

@@ -127,16 +127,6 @@ document.addEventListener('DOMContentLoaded', function() {
             this.src = '/static/images/default-logo.png';
         };
     }
-    
-    // Handle profile avatar fallbacks
-    const profileAvatars = document.querySelectorAll('.profile-avatar, .navbar-profile-avatar');
-    profileAvatars.forEach(avatar => {
-        avatar.onerror = function() {
-            this.onerror = null;
-            const userName = this.getAttribute('data-username') || 'User';
-            this.src = generateLocalAvatar(userName);
-        };
-    });
 
     // Dark mode toggle functionality
     const darkModeToggle = document.getElementById('darkModeToggle');
@@ -237,16 +227,34 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // Make navbar sticky on scroll
+    // Make navbar sticky on scroll with improved performance
     const navbar = document.querySelector('.modern-navbar');
     if (navbar) {
-        window.addEventListener('scroll', () => {
-            if (window.scrollY > 10) {
+        // Use requestAnimationFrame for better performance
+        let lastScrollY = window.scrollY;
+        let ticking = false;
+        
+        const updateNavbar = () => {
+            if (lastScrollY > 10) {
                 navbar.classList.add('navbar-scrolled');
             } else {
                 navbar.classList.remove('navbar-scrolled');
             }
-        });
+            ticking = false;
+        };
+        
+        window.addEventListener('scroll', () => {
+            lastScrollY = window.scrollY;
+            if (!ticking) {
+                window.requestAnimationFrame(() => {
+                    updateNavbar();
+                });
+                ticking = true;
+            }
+        }, { passive: true });
+        
+        // Ensure correct initial state
+        updateNavbar();
     }
     
     // Handle notifications (example functionality)

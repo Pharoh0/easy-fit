@@ -217,41 +217,87 @@ class DashboardInteractions {
     }
     
     /**
-     * Make filter panel sticky when scrolling
+     * Make filter panel sticky when scrolling with improved positioning
      */
     initStickyFilterPanel(filterPanel) {
         if (!filterPanel) return;
         
-        const filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
-        let filterPanelWidth = filterPanel.offsetWidth;
+        // Get main dashboard container instead of generic container
+        const dashboardContainer = document.querySelector('.dashboard-container');
+        if (!dashboardContainer) return;
         
-        window.addEventListener('scroll', () => {
+        const navbar = document.querySelector('nav.navbar'); // Select the main navbar
+        const navbarHeight = navbar ? navbar.offsetHeight : 0;
+        let filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
+        let filterPanelWidth = filterPanel.offsetWidth;
+        let ticking = false;
+        
+        // Cache DOM elements and dimensions
+        const calculateDimensions = () => {
+            const navbar = document.querySelector('nav.navbar');
+            const navbarHeight = navbar ? navbar.offsetHeight : 0;
+            filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
+            if (!filterPanel.classList.contains('sticky-filter-panel')) {
+                filterPanelWidth = filterPanel.offsetWidth;
+            }
+            return { navbarHeight, filterPanelWidth };
+        };
+        
+        // Function to update the sticky state with animation frame optimization
+        const updateStickyState = () => {
             const scrollPos = window.scrollY;
-            const shouldStick = scrollPos > filterPanelOffset;
+            const { navbarHeight, filterPanelWidth } = calculateDimensions();
+            const shouldStick = scrollPos > filterPanelOffset - navbarHeight;
             
             if (shouldStick) {
                 if (!filterPanel.classList.contains('sticky-filter-panel')) {
                     filterPanel.classList.add('sticky-filter-panel');
+                    // Account for navbar height in top positioning
+                    filterPanel.style.top = navbarHeight + 'px';
                     filterPanel.style.width = filterPanelWidth + 'px';
-                    document.querySelector('.container').style.paddingTop = filterPanel.offsetHeight + 'px';
+                    filterPanel.style.left = '0';
+                    filterPanel.style.right = '0';
+                    dashboardContainer.style.paddingTop = filterPanel.offsetHeight + 'px';
                 }
             } else {
                 if (filterPanel.classList.contains('sticky-filter-panel')) {
                     filterPanel.classList.remove('sticky-filter-panel');
+                    filterPanel.style.top = '';
                     filterPanel.style.width = '';
-                    document.querySelector('.container').style.paddingTop = '';
+                    filterPanel.style.left = '';
+                    filterPanel.style.right = '';
+                    dashboardContainer.style.paddingTop = '';
                 }
             }
+            
+            ticking = false;
+        };
+        
+        // Optimize scroll event with requestAnimationFrame
+        window.addEventListener('scroll', () => {
+            if (!ticking) {
+                window.requestAnimationFrame(updateStickyState);
+                ticking = true;
+            }
+        }, { passive: true });
+        
+        // Handle window resize with debounce
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                const { navbarHeight } = calculateDimensions();
+                
+                if (filterPanel.classList.contains('sticky-filter-panel')) {
+                    filterPanel.style.top = navbarHeight + 'px';
+                    // Use container width for responsive behavior
+                    filterPanel.style.width = dashboardContainer.offsetWidth + 'px';
+                }
+            }, 100);
         });
         
-        // Update filter panel width on window resize
-        window.addEventListener('resize', () => {
-            if (!filterPanel.classList.contains('sticky-filter-panel')) {
-                filterPanelWidth = filterPanel.offsetWidth;
-            } else {
-                filterPanel.style.width = document.querySelector('.container').offsetWidth + 'px';
-            }
-        });
+        // Initialize correct state on page load
+        updateStickyState();
     }
 
     /**

@@ -20,6 +20,39 @@
     // Default avatar path
     const DEFAULT_AVATAR = '/static/images/default-avatar.svg';
     
+    // Helpers
+    function getUserName(img) {
+        return img.getAttribute('data-username') || img.getAttribute('alt') || 'User';
+    }
+
+    function isDefaultAvatarSrc(src) {
+        if (!src) return false;
+        try { src = String(src); } catch (e) { return false; }
+        return src.indexOf('default-avatar.svg') !== -1;
+    }
+
+    function applyGeneratedAvatar(img) {
+        const userName = getUserName(img);
+        // Determine a reasonable size for crisp rendering
+        let size = 32;
+        try {
+            const cs = window.getComputedStyle ? window.getComputedStyle(img) : null;
+            const sw = cs ? parseInt(cs.width) || 0 : 0;
+            const sh = cs ? parseInt(cs.height) || 0 : 0;
+            const aw = Number(img.width || 0);
+            const ah = Number(img.height || 0);
+            const candidates = [sw, sh, aw, ah, 32].filter(n => n && !isNaN(n));
+            size = Math.max.apply(null, candidates);
+            size = Math.max(24, Math.min(size, 256)); // clamp
+        } catch (e) { /* ignore, keep default */ }
+
+        if (window.AvatarGenerator && typeof window.AvatarGenerator.generateAvatar === 'function') {
+            img.src = window.AvatarGenerator.generateAvatar(userName, { size });
+        } else {
+            img.src = DEFAULT_AVATAR;
+        }
+    }
+    
     /**
      * Apply fallback handling to an image element
      * @param {HTMLImageElement} img - The image element to handle
@@ -35,25 +68,26 @@
         img.onerror = function() {
             // Clear error handler to prevent loops
             this.onerror = null;
-            
-            // Get user name for generating avatar
-            const userName = this.getAttribute('data-username') || 
-                             this.getAttribute('alt') || 
-                             'User';
-            
-            // Try to use AvatarGenerator from utils if available
-            if (window.AvatarGenerator && typeof window.AvatarGenerator.generateAvatar === 'function') {
-                this.src = window.AvatarGenerator.generateAvatar(userName);
-            }
-            // Otherwise try to use the global AvatarGenerator class if available
-            else if (window.AvatarGenerator && typeof window.AvatarGenerator.generateAvatar === 'function') {
-                this.src = window.AvatarGenerator.generateAvatar(userName);
-            }
-            // Finally, fall back to default avatar image
-            else {
-                this.src = DEFAULT_AVATAR;
-            }
+            applyGeneratedAvatar(this);
         };
+
+        // Initial checks for empty/placeholder src that won't trigger onerror
+        try {
+            const currentSrc = (img.getAttribute('src') || '').trim();
+            const looksEmpty = !currentSrc || currentSrc === '#' || currentSrc.toLowerCase() === 'none' || currentSrc.toLowerCase() === 'null';
+
+            // If no valid src, immediately apply generated/default avatar
+            if (looksEmpty) {
+                applyGeneratedAvatar(img);
+                return;
+            }
+
+            // For navbar avatar, prefer generated avatar over default static placeholder
+            if (img.classList.contains('navbar-profile-avatar') && isDefaultAvatarSrc(currentSrc)) {
+                applyGeneratedAvatar(img);
+                return;
+            }
+        } catch (e) { /* ignore */ }
         
         // Force reload if already failed to load (but src is set)
         if (img.complete && img.naturalHeight === 0 && img.src) {
@@ -150,3 +184,4 @@
         setupAvatarObserver();
     }
 })();
+

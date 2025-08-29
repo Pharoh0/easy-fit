@@ -15,17 +15,33 @@ class CoachAnalyticsAPI {
      * @returns {Promise<Object>} Analytics data
      */
     static async getPlanAnalytics(options = {}) {
+        console.debug('Getting plan analytics with options:', options);
         const url = `${this.BASE_PATH}/plan-analytics/${this.buildQuery(options)}`;
-        const response = await APIBase.request(url);
         
-        if (response.success) {
+        try {
+            const response = await APIBase.request(url);
+            
+            if (response.success && response.data && response.data.analytics) {
+                console.debug('Plan analytics data received successfully');
+                return { 
+                    success: true, 
+                    analytics: response.data.analytics 
+                };
+            }
+            
+            console.warn('Failed to get plan analytics:', response);
             return { 
-                success: true, 
-                analytics: response.data.analytics 
+                success: false, 
+                error: (response.error || 'No analytics data available'),
+                emptyDataMessage: 'No analytics data available for the selected filters'
+            };
+        } catch (error) {
+            console.error('Error fetching plan analytics:', error);
+            return { 
+                success: false, 
+                error: error.message || 'Failed to connect to analytics service'
             };
         }
-        
-        return response; // Return error response
     }
 
     /**
@@ -34,21 +50,40 @@ class CoachAnalyticsAPI {
      * @returns {Promise<Object>} Measurement insights data
      */
     static async getMeasurementInsights(options = {}) {
+        console.debug('Getting measurement insights with options:', options);
         // Backward compatibility if clientId was passed directly
         if (typeof options === 'string' || typeof options === 'number') {
             options = { client_id: options };
+            console.debug('Converted client_id to options object:', options);
         }
-        const url = `${this.BASE_PATH}/measurement-insights/${this.buildQuery(options)}`;
-        const response = await APIBase.request(url);
         
-        if (response.success) {
-            return {
-                success: true,
-                insights: (response.data && response.data.insights) ? response.data.insights : response.data
+        const url = `${this.BASE_PATH}/measurement-insights/${this.buildQuery(options)}`;
+        
+        try {
+            const response = await APIBase.request(url);
+            
+            if (response.success) {
+                const insights = (response.data && response.data.insights) ? response.data.insights : response.data;
+                console.debug('Measurement insights received successfully');
+                return {
+                    success: true,
+                    insights: insights
+                };
+            }
+            
+            console.warn('Failed to get measurement insights:', response);
+            return { 
+                success: false, 
+                error: (response.error || 'No measurement insights available'),
+                emptyDataMessage: 'No measurement data available for the selected filters'
+            };
+        } catch (error) {
+            console.error('Error fetching measurement insights:', error);
+            return { 
+                success: false, 
+                error: error.message || 'Failed to connect to measurement insights service'
             };
         }
-        
-        return response; // Return error response
     }
 
     /**
@@ -56,17 +91,34 @@ class CoachAnalyticsAPI {
      * @returns {Promise<Object>} Client stats data
      */
     static async getClientStats(options = {}) {
+        console.debug('Getting client stats with options:', options);
         const url = `${this.BASE_PATH}/client-stats/${this.buildQuery(options)}`;
-        const response = await APIBase.request(url);
         
-        if (response.success) {
-            return {
-                success: true,
-                stats: (response.data && response.data.stats) ? response.data.stats : response.data
+        try {
+            const response = await APIBase.request(url);
+            
+            if (response.success) {
+                const stats = (response.data && response.data.stats) ? response.data.stats : response.data;
+                console.debug('Client stats received successfully');
+                return {
+                    success: true,
+                    stats: stats
+                };
+            }
+            
+            console.warn('Failed to get client stats:', response);
+            return { 
+                success: false, 
+                error: (response.error || 'No client stats available'),
+                emptyDataMessage: 'No client stats available for the selected filters'
+            };
+        } catch (error) {
+            console.error('Error fetching client stats:', error);
+            return { 
+                success: false, 
+                error: error.message || 'Failed to connect to client stats service'
             };
         }
-        
-        return response; // Return error response
     }
     
     /**
@@ -74,8 +126,12 @@ class CoachAnalyticsAPI {
      * @param {string} elementId - Element ID to load analytics into
      */
     static async loadAnalyticsIntoElement(elementId, options = {}) {
+        console.debug(`Loading analytics into element: ${elementId} with options:`, options);
         const element = document.getElementById(elementId);
-        if (!element) return;
+        if (!element) {
+            console.warn(`Element not found: ${elementId}`);
+            return;
+        }
         
         // Show loading spinner
         APIBase.showLoading(elementId);
@@ -83,10 +139,14 @@ class CoachAnalyticsAPI {
         try {
             const analytics = await this.getPlanAnalytics(options);
             
-            if (analytics.success) {
+            if (analytics.success && analytics.analytics) {
+                console.debug('Rendering analytics data to element');
                 this.renderAnalytics(element, analytics.analytics);
             } else {
-                APIBase.showError(elementId, 'Failed to load analytics data');
+                // Show empty state with custom message if available
+                const message = analytics.emptyDataMessage || 'No analytics data available for the selected filters';
+                APIBase.showEmptyState(elementId, message);
+                console.warn('No analytics data available to render');
             }
         } catch (error) {
             console.error('Error loading analytics:', error);
@@ -252,8 +312,11 @@ class CoachAnalyticsAPI {
                 searchParams.append(k, v);
             });
             const qs = searchParams.toString();
-            return qs ? `?${qs}` : '';
+            const queryString = qs ? `?${qs}` : '';
+            console.debug('Built query string:', queryString, 'from params:', params);
+            return queryString;
         } catch (e) {
+            console.error('Error building query string:', e);
             return '';
         }
     }

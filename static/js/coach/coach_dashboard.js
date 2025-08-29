@@ -18,16 +18,36 @@
         lastAppliedState = initialState;
         // Parse pagination from URL and sync UI
         parsePaginationFromURL();
+        // Ensure URL reflects the current state and pagination for consistency with backend queries
+        updateUrlWithState(initialState);
         initCoachDashboard(initialState);
     });
 
     async function initCoachDashboard(options = {}) {
+        console.debug('Initializing coach dashboard with options:', options);
+        // Ensure options is not null/undefined
+        options = options || {};
+        
+        // Ensure the options object is properly formatted
+        if (typeof options !== 'object') {
+            console.warn('Invalid options format, resetting to empty object');
+            options = {};
+        }
+        
+        // Show loading state for all containers
+        ['quickStatsContainer', 'analyticsContainer', 'insightsSummaryContainer', 'topClientsTableContainer'].forEach(id => {
+            const container = document.getElementById(id);
+            if (container) APIBase.showLoading(id);
+        });
+        
         // Load all sections in parallel with current filter options
         await Promise.allSettled([
             loadQuickStats(options),
             loadAnalytics(options),
             loadMeasurementInsights(options)
         ]);
+        
+        console.debug('Dashboard initialization completed');
     }
 
     function updateTopClientsPagerUI() {
@@ -54,15 +74,24 @@
 
     async function loadQuickStats(options = {}) {
         try {
-            const res = await CoachAnalyticsAPI.getClientStats(buildQueryOptionsFromState(options));
+            // Ensure options are properly passed and logged
+            const queryOptions = buildQueryOptionsFromState(options);
+            console.debug('Loading quick stats with options:', queryOptions);
+            
+            const res = await CoachAnalyticsAPI.getClientStats(queryOptions);
             if (res && res.success && res.stats) {
                 const s = res.stats;
                 $('#statTotalClients').text(s.total_clients ?? 0);
                 $('#statActiveSubs').text(s.active_subscriptions ?? 0);
                 $('#statRecentMeasurements').text(s.recent_measurements ?? 0);
                 $('#statEngagementRate').text(((s.engagement_rate ?? 0)).toString() + '%');
+                console.debug('Quick stats loaded successfully');
             } else {
                 console.warn('Failed to load quick stats', res);
+                // Show user feedback for empty data
+                if (!res || !res.stats) {
+                    APIBase.showEmptyState('quickStatsContainer', 'No stats available for the selected filters');
+                }
             }
         } catch (e) {
             console.error('Error loading quick stats', e);
@@ -71,7 +100,22 @@
 
     async function loadAnalytics(options = {}) {
         try {
-            await CoachAnalyticsAPI.loadAnalyticsIntoElement('analyticsContainer', buildQueryOptionsFromState(options));
+            // Ensure options are properly passed and logged
+            const queryOptions = buildQueryOptionsFromState(options);
+            console.debug('Loading analytics with options:', queryOptions);
+            
+            // Check if container exists
+            const container = document.getElementById('analyticsContainer');
+            if (!container) {
+                console.warn('Analytics container not found');
+                return;
+            }
+            
+            // Show loading indicator
+            APIBase.showLoading('analyticsContainer');
+            
+            await CoachAnalyticsAPI.loadAnalyticsIntoElement('analyticsContainer', queryOptions);
+            console.debug('Analytics loaded successfully');
         } catch (e) {
             console.error('Error loading analytics', e);
             APIBase.showError('analyticsContainer', 'Failed to load analytics');
@@ -80,17 +124,30 @@
 
     async function loadMeasurementInsights(options = {}) {
         try {
+            // Ensure options are properly passed and logged
             const query = buildQueryOptionsFromState(options);
             // include server paging for top clients
             query.top_limit = topClientsLimit;
             query.top_offset = topClientsOffset;
+            console.debug('Loading measurement insights with options:', query);
+            
+            // Show loading indicators for the insights containers
+            APIBase.showLoading('insightsSummaryContainer');
+            APIBase.showLoading('topClientsTableContainer');
+            
             const resp = await CoachAnalyticsAPI.getMeasurementInsights(query);
             if (!(resp && resp.success && resp.insights)) {
                 console.warn('Failed to load measurement insights', resp);
+                // Show empty states instead of leaving blank areas
+                APIBase.showEmptyState('insightsSummaryContainer', 'No insights available for the selected filters');
+                APIBase.showEmptyState('topClientsTableContainer', 'No client data available for the selected filters');
+                updateTopClientsPagerUI(); // Still update UI with zero results
                 return;
             }
 
             const insights = resp.insights;
+            console.debug('Measurement insights loaded successfully:', insights);
+            
             // Update top clients pagination meta if provided
             if (insights.top_clients_meta) {
                 topClientsTotal = Number(insights.top_clients_meta.total) || 0;
@@ -100,11 +157,28 @@
                 topClientsTotal = (Array.isArray(insights.top_clients) ? insights.top_clients.length : 0);
             }
             updateTopClientsPagerUI();
-            renderMeasurementFrequency(insights.measurement_frequency || []);
+            
+            // Render each section with data validation
+            if (Array.isArray(insights.measurement_frequency) && insights.measurement_frequency.length > 0) {
+                renderMeasurementFrequency(insights.measurement_frequency);
+            } else {
+                console.debug('No measurement frequency data available');
+                const chartContainer = document.getElementById('measurementFrequencyChart');
+                if (chartContainer) {
+                    const card = chartContainer.closest('.card');
+                    const cardBody = card ? card.querySelector('.card-body') : null;
+                    const target = cardBody || card || chartContainer;
+                    target.innerHTML = '<div class="text-center text-muted p-4">No measurement frequency data available for the selected filters</div>';
+                }
+            }
+            
             renderInsightsSummary(insights);
             renderTopClientsTable(insights.top_clients || [], (options && options.q) ? options.q : '');
         } catch (e) {
             console.error('Error loading measurement insights', e);
+            // Show error states
+            APIBase.showError('insightsSummaryContainer', 'Failed to load insights');
+            APIBase.showError('topClientsTableContainer', 'Failed to load client data');
         }
     }
 
@@ -195,12 +269,14 @@
                 <div class="small text-muted mt-1">${progress}%</div>
             `;
             
-            // Client display with avatar
+            // Client display with avatar image using global avatar fallback
+            // We provide an empty src to trigger the global avatar handler which will
+            // generate initials or use a default image. We include data-username for better initials.
             const clientHtml = `
                 <div class="d-flex align-items-center">
-                    <div class="avatar-circle bg-light me-2">
-                        ${first.charAt(0)}${last.charAt(0)}
-                    </div>
+                    <img class="client-avatar avatar-img rounded-circle me-2" 
+                         src="" alt="${name}" data-username="${name}" 
+                         width="32" height="32" loading="lazy" />
                     <div>
                         <div class="fw-medium">${name}</div>
                         <div class="small text-muted">#${clientId}</div>
@@ -433,35 +509,52 @@
     }
 
     function applyStateToUI(state) {
-        // Presets
-        const group = $('#filterPresetGroup');
-        group.find('button').removeClass('active');
-        const presetBtn = group.find(`button[data-preset="${state.preset}"]`);
-        if (presetBtn.length) presetBtn.addClass('active');
+        // Time period radios
+        const presetMap = { all: 'allTime', '7d': '7days', '30d': '30days', '90d': '90days', ytd: 'thisYear', custom: 'customRange' };
+        const radioId = presetMap[state.preset] || '30days';
+        $('input[name="timePeriod"]').prop('checked', false);
+        $(`#${radioId}`).prop('checked', true);
 
-        // Custom dates visibility
+        // Custom dates visibility (if custom date inputs exist)
         if (state.preset === 'custom') {
             $('#customDateInputs').show();
         } else {
             $('#customDateInputs').hide();
         }
 
-        // Dates
+        // Dates (if present)
         $('#filterStart').val(state.start_date || '');
         $('#filterEnd').val(state.end_date || '');
 
-        // Plan type & segment
-        $('#filterPlanType').val(state.plan_type || 'all');
-        $('#filterSegment').val(state.segment || 'all');
+        // Plan type dropdown
+        const $planBtn = $('#planTypesDropdown');
+        if ($planBtn.length) {
+            const selected = state.plan_type || 'all';
+            $planBtn.data('selected', selected);
+            const $item = $(`.plan-types-menu .dropdown-item[data-value="${selected}"]`);
+            const labelText = $item.length ? $item.text().trim() : 'All plan types';
+            $planBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selected === 'all' ? 'All' : labelText}</span>`);
+        }
+
+        // Segment dropdown
+        const $segBtn = $('#segmentsDropdown');
+        if ($segBtn.length) {
+            const selected = state.segment || 'all';
+            $segBtn.data('selected', selected);
+            const $item = $(`.segments-menu .dropdown-item[data-value="${selected}"]`);
+            const labelText = $item.length ? $item.text().trim() : 'All segments';
+            $segBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selected === 'all' ? 'All' : labelText}</span>`);
+        }
 
         // Search
-        $('#filterSearch').val(state.q || '');
+        $('#searchClients').val(state.q || '');
     }
 
     function collectStateFromUI() {
         const state = defaultFilterState();
-        const activePreset = $('#filterPresetGroup button.active').data('preset');
-        state.preset = (activePreset || '30d').toLowerCase();
+        const checkedId = ($('input[name="timePeriod"]:checked').attr('id') || '').toLowerCase();
+        const idToPreset = { 'alltime': 'all', '7days': '7d', '30days': '30d', '90days': '90d', 'thisyear': 'ytd', 'customrange': 'custom' };
+        state.preset = idToPreset[checkedId] || '30d';
         if (state.preset === 'custom') {
             state.start_date = ($('#filterStart').val() || '').trim();
             state.end_date = ($('#filterEnd').val() || '').trim();
@@ -470,9 +563,9 @@
             state.start_date = start_date;
             state.end_date = end_date;
         }
-        state.plan_type = ($('#filterPlanType').val() || 'all');
-        state.segment = ($('#filterSegment').val() || 'all');
-        state.q = ($('#filterSearch').val() || '').trim();
+        state.plan_type = ($('#planTypesDropdown').data('selected') || 'all');
+        state.segment = ($('#segmentsDropdown').data('selected') || 'all');
+        state.q = ($('#searchClients').val() || '').trim();
         return state;
     }
 
@@ -486,6 +579,9 @@
         if (state.plan_type && state.plan_type !== 'all') opts.plan_type = state.plan_type;
         if (state.segment && state.segment !== 'all') opts.segment = state.segment;
         if (state.q) opts.q = state.q;
+        
+        // Debug log to ensure options are generated properly
+        console.debug('Filter options:', opts);
         return opts;
     }
 
@@ -508,26 +604,80 @@
     }
 
     function setupFiltersUI() {
-        // Preset buttons
-        $('#filterPresetGroup').on('click', 'button', function () {
-            $('#filterPresetGroup button').removeClass('active');
-            $(this).addClass('active');
-            const preset = ($(this).data('preset') || '').toLowerCase();
-            if (preset === 'custom') {
+        console.debug('Setting up filters UI');
+        // Time period radios
+        $(document).on('change', 'input[name="timePeriod"]', function () {
+            const id = ($(this).attr('id') || '').toLowerCase();
+            const isCustom = (id === 'customrange');
+            if (isCustom) {
                 $('#customDateInputs').show();
             } else {
                 $('#customDateInputs').hide();
+            }
+            console.debug(`Time period changed: ${id}`);
+        });
+
+        // Plan types dropdown
+        $(document).on('click', '.plan-types-menu .dropdown-item', function (e) {
+            e.preventDefault();
+            const value = $(this).data('value');
+            const label = $(this).text().trim();
+            const $btn = $('#planTypesDropdown');
+            if ($btn.length) {
+                $btn.data('selected', value);
+                const badgeText = (value === 'all') ? 'All' : label;
+                $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
+                try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
+            }
+        });
+
+        // Segments dropdown
+        $(document).on('click', '.segments-menu .dropdown-item', function (e) {
+            e.preventDefault();
+            const value = $(this).data('value');
+            const label = $(this).text().trim();
+            const $btn = $('#segmentsDropdown');
+            if ($btn.length) {
+                $btn.data('selected', value);
+                const badgeText = (value === 'all') ? 'All' : label;
+                $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
+                try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
             }
         });
 
         // Apply filters
         $('#btnApplyFilters').on('click', async function () {
+            console.debug('Apply filters button clicked');
             const state = collectStateFromUI();
+            console.debug('Collected filter state:', state);
+            
             // Reset server paging when filters change
             topClientsOffset = 0;
-            lastAppliedState = state;
+            
+            // Save state for future reference - create deep copy to avoid reference issues
+            lastAppliedState = JSON.parse(JSON.stringify(state));
+            
+            // Update UI to reflect the state
+            applyStateToUI(state);
+            
+            // Update URL and trigger data refresh
             updateUrlWithState(state);
-            await initCoachDashboard(state);
+            
+            // Show loading feedback
+            $('#btnApplyFilters').prop('disabled', true).html(
+                '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span> Applying...'
+            );
+            
+            try {
+                // Ensure we pass the state object directly, not a string version
+                await initCoachDashboard(state);
+                console.debug('Dashboard refreshed with new filters');
+            } catch (err) {
+                console.error('Error refreshing dashboard with filters:', err);
+            } finally {
+                // Reset button state
+                $('#btnApplyFilters').prop('disabled', false).html('Apply Filters');
+            }
         });
 
         // Reset filters
@@ -544,12 +694,15 @@
             await initCoachDashboard(state);
         });
 
-        // Enter key submits search
-        $('#filterSearch').on('keydown', function (e) {
+        // Search input and button
+        $('#searchClients').on('keydown', function (e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
                 $('#btnApplyFilters').trigger('click');
             }
+        });
+        $('#btnSearch').on('click', function () {
+            $('#btnApplyFilters').trigger('click');
         });
 
         // Pager controls for Top Clients

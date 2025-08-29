@@ -847,11 +847,15 @@
 .sticky-filter-panel {
     position: fixed;
     top: 0;
-    z-index: 1000;
+    left: 0;
+    right: 0;
+    z-index: 999; /* Below navbar but above other content */
     width: 100%;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     animation: slideDown 0.3s ease-in-out;
     background-color: #fff;
+    margin: 0;
+    padding: 0 15px; /* Match container padding */
 }
 
 @keyframes slideDown {
