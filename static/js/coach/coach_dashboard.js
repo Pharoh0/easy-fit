@@ -149,24 +149,77 @@
     }
 
     function renderTopClientsTable(items, searchTerm = '') {
-        const rows = items.map(tc => {
+        const rows = items.map((tc, index) => {
+            // Extract client data
             const first = tc['client__user__first_name'] || '';
             const last = tc['client__user__last_name'] || '';
             const name = (first + ' ' + last).trim() || 'Unknown';
             const count = tc['measurement_count'] || 0;
             const clientId = tc['client__user_id'];
-            const url = `/plan-management/coach/client-measurements/?client_id=${clientId}`;
+            
+            // URLs
+            const viewUrl = `/plan-management/coach/client-measurements/?client_id=${clientId}`;
             const createPlanUrl = `/plan-management/coach/plan-creation/?client_id=${clientId}`;
+            
+            // Plan type - extract or use default
+            const planType = tc['plan_type'] || 'Not Assigned';
+            const planTypeClass = planType.toLowerCase().includes('workout') ? 'text-success' : 
+                                  planType.toLowerCase().includes('nutrition') ? 'text-info' : 
+                                  planType.toLowerCase().includes('hybrid') ? 'text-primary' : 'text-secondary';
+            const planTypeHtml = `<span class="badge bg-light ${planTypeClass}">${planType}</span>`;
+            
+            // Status - extract from data or provide default
+            const status = tc['status'] || (count > 10 ? 'Active' : 'New');
+            const statusClass = status === 'Active' ? 'success' : 
+                               status === 'Inactive' ? 'danger' : 
+                               status === 'New' ? 'info' : 'secondary';
+            const statusHtml = `<span class="badge bg-${statusClass}-subtle text-${statusClass}">${status}</span>`;
+            
+            // Last activity date
+            const lastActivity = tc['last_activity_date'] || 'N/A';
+            const lastActivityText = lastActivity === 'N/A' ? lastActivity : 
+                                     typeof lastActivity === 'string' ? lastActivity : 
+                                     new Date(lastActivity).toLocaleDateString();
+            
+            // Progress bar
+            const progress = tc['progress_percent'] || Math.min(Math.round((count / 20) * 100), 100) || 0;
+            const progressClass = progress >= 75 ? 'bg-success' : 
+                                 progress >= 50 ? 'bg-info' : 
+                                 progress >= 25 ? 'bg-warning' : 'bg-secondary';
+            const progressHtml = `
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar ${progressClass}" role="progressbar" 
+                         style="width: ${progress}%" aria-valuenow="${progress}" 
+                         aria-valuemin="0" aria-valuemax="100"></div>
+                </div>
+                <div class="small text-muted mt-1">${progress}%</div>
+            `;
+            
+            // Client display with avatar
+            const clientHtml = `
+                <div class="d-flex align-items-center">
+                    <div class="avatar-circle bg-light me-2">
+                        ${first.charAt(0)}${last.charAt(0)}
+                    </div>
+                    <div>
+                        <div class="fw-medium">${name}</div>
+                        <div class="small text-muted">#${clientId}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Action buttons with icons
             const actionHtml = `
                 <div class="btn-group" role="group">
-                    <a class="btn btn-sm btn-outline-primary" href="${url}" data-clientid="${clientId}">
+                    <a class="btn btn-sm btn-outline-primary" href="${viewUrl}" data-clientid="${clientId}">
                         <i class="bi bi-eye"></i> View
                     </a>
                     <a class="btn btn-sm btn-primary" href="${createPlanUrl}" data-clientid="${clientId}">
-                        <i class="bi bi-plus-circle"></i> Create Plan
+                        <i class="bi bi-plus-circle"></i> Plan
                     </a>
                 </div>`;
-            return [name, count, actionHtml];
+            
+            return [index + 1, clientHtml, planTypeHtml, statusHtml, count, lastActivityText, progressHtml, actionHtml];
         });
 
         const tableSelector = '#topClientsTable';
@@ -179,15 +232,20 @@
             topClientsTable = $(tableSelector).DataTable({
                 data: rows,
                 columns: [
-                    { title: 'Client' },
-                    { title: 'Measurements' },
-                    { title: 'Actions', orderable: false, searchable: false }
+                    { title: '#', width: '40px' },
+                    { title: 'Client', width: '20%' },
+                    { title: 'Plan Type', width: '10%' },
+                    { title: 'Status', width: '10%' },
+                    { title: 'Measurements', width: '10%' },
+                    { title: 'Last Activity', width: '15%' },
+                    { title: 'Progress', width: '15%' },
+                    { title: 'Actions', width: '15%', orderable: false, searchable: false, className: 'text-end' }
                 ],
                 paging: false,
                 info: false,
                 searching: false,
                 lengthChange: false,
-                order: [[1, 'desc']],
+                order: [[4, 'desc']], // Order by measurements count
                 language: {
                     emptyTable: 'No top clients found'
                 }

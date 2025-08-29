@@ -34,76 +34,93 @@
         </div>
     </div>
 
-    <!-- Filters Bar -->
-    <div class="modern-card shadow-sm mb-4 sticky-filters">
-        <div class="card-header py-3">
+    <!-- Dashboard Filters - Collapsible -->    
+    <div class="card mb-4 filter-card" id="filterPanel">
+        <div class="card-header bg-white py-2" id="filterToggleHeader">
             <div class="d-flex justify-content-between align-items-center">
-                <h5 class="card-title mb-0"><i class="bi bi-sliders me-2"></i>Dashboard Filters</h5>
-                <div class="d-flex gap-2">
-                    <button class="btn btn-sm btn-primary px-4 py-2" id="btnApplyFilters">
-                        <i class="bi bi-funnel-fill me-2"></i>Apply Filters
+                <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Dashboard Filters</h5>
+                <div>
+                    <button class="btn btn-primary btn-sm me-2" id="btnApplyFilters">
+                        <i class="bi bi-check2-circle me-1"></i> Apply Filters
                     </button>
-                    <button class="btn btn-sm btn-outline-secondary px-3" id="btnResetFilters">
-                        <i class="bi bi-arrow-counterclockwise me-1"></i>Reset
+                    <button class="btn btn-outline-secondary btn-sm me-2" id="btnResetFilters">
+                        <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
+                    </button>
+                    <button class="btn btn-sm btn-outline-secondary" id="btnToggleFilters">
+                        <i class="bi bi-chevron-up" id="filterCollapseIcon"></i>
                     </button>
                 </div>
             </div>
         </div>
-        <div class="card-body">
-            <div class="row g-4">
-                <div class="col-12 col-xl-5">
-                    <label class="form-label fw-medium mb-2"><i class="bi bi-calendar-range me-1"></i> Time Period</label>
-                    <div class="d-flex flex-wrap align-items-center gap-2" id="filterPresetGroup">
-                        <button type="button" class="btn btn-outline-secondary" data-preset="all">All Time</button>
-                        <button type="button" class="btn btn-outline-secondary" data-preset="7d">7 Days</button>
-                        <button type="button" class="btn btn-outline-secondary active" data-preset="30d">30 Days</button>
-                        <button type="button" class="btn btn-outline-secondary" data-preset="90d">90 Days</button>
-                        <button type="button" class="btn btn-outline-secondary" data-preset="ytd">This Year</button>
-                        <button type="button" class="btn btn-outline-secondary" data-preset="custom">Custom Range</button>
+        <div class="card-body" id="filterBody">
+            <div class="row">
+                <!-- Time Period -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label"><i class="bi bi-calendar3 me-2"></i>Time Period</label>
+                    <div class="btn-group d-flex" role="group">
+                        <input type="radio" class="btn-check" name="timePeriod" id="allTime" autocomplete="off" checked>
+                        <label class="btn btn-outline-secondary" for="allTime">All Time</label>
+
+                        <input type="radio" class="btn-check" name="timePeriod" id="7days" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="7days">7 Days</label>
+
+                        <input type="radio" class="btn-check" name="timePeriod" id="30days" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="30days">30 Days</label>
+
+                        <input type="radio" class="btn-check" name="timePeriod" id="90days" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="90days">90 Days</label>
+
+                        <input type="radio" class="btn-check" name="timePeriod" id="thisYear" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="thisYear">This Year</label>
+
+                        <input type="radio" class="btn-check" name="timePeriod" id="customRange" autocomplete="off">
+                        <label class="btn btn-outline-secondary" for="customRange">Custom Range</label>
                     </div>
                 </div>
-                <div class="col-12 col-xl-4" id="customDateInputs" style="display:none;">
-                    <label class="form-label fw-medium mb-2"><i class="bi bi-calendar3-range me-1"></i> Custom Date Range</label>
-                    <div class="d-flex align-items-center gap-2">
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
-                            <input type="date" class="form-control filter-input" id="filterStart" placeholder="Start date">
-                        </div>
-                        <span class="text-muted fw-medium px-1">to</span>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="bi bi-calendar3"></i></span>
-                            <input type="date" class="form-control filter-input" id="filterEnd" placeholder="End date">
-                        </div>
+                
+                <!-- Plan Categories -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label"><i class="bi bi-diagram-3 me-2"></i>Plan Categories</label>
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="planTypesDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            All plan types<span class="badge bg-primary rounded-pill ms-2 filter-count">All</span>
+                        </button>
+                        <ul class="dropdown-menu w-100 plan-types-menu" aria-labelledby="planTypesDropdown">
+                            <li><a class="dropdown-item" href="#" data-value="all">All plan types</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="weight-loss">Weight Loss</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="muscle-gain">Muscle Gain</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="maintenance">Maintenance</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="athletic">Athletic Performance</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="rehabilitation">Rehabilitation</a></li>
+                        </ul>
                     </div>
                 </div>
-                <div class="col-12 col-md-4 col-xl-3">
-                    <label class="form-label fw-medium mb-2"><i class="bi bi-filter me-1"></i> Plan Categories</label>
-                    <div class="row g-3">
-                        <div class="col-6">
-                            <select id="filterPlanType" class="form-select">
-                                <option value="all" selected>All plan types</option>
-                                <option value="workout">Workout</option>
-                                <option value="nutrition">Nutrition</option>
-                                <option value="hybrid">Hybrid</option>
-                            </select>
-                        </div>
-                        <div class="col-6">
-                            <select id="filterSegment" class="form-select">
-                                <option value="all" selected>All segments</option>
-                                <option value="new">New (≤30d)</option>
-                                <option value="high_risk">High-risk</option>
-                                <option value="top_10">Top 10</option>
-                            </select>
-                        </div>
+                
+                <!-- Client Segments -->
+                <div class="col-md-4 mb-3">
+                    <label class="form-label"><i class="bi bi-people me-2"></i>All segments</label>
+                    <div class="dropdown w-100">
+                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="segmentsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                            All segments<span class="badge bg-primary rounded-pill ms-2 filter-count">All</span>
+                        </button>
+                        <ul class="dropdown-menu w-100 segments-menu" aria-labelledby="segmentsDropdown">
+                            <li><a class="dropdown-item" href="#" data-value="all">All segments</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="active">Active clients</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="new">New clients (< 30 days)</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="at-risk">At risk (no activity > 14 days)</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="inactive">Inactive (no activity > 30 days)</a></li>
+                        </ul>
                     </div>
                 </div>
-                <div class="col-12 col-md-8 col-xl-4">
-                    <label class="form-label fw-medium mb-2"><i class="bi bi-search me-1"></i> Search Clients</label>
-                    <div class="position-relative">
-                        <div class="search-icon-wrapper">
+                
+                <!-- Search Clients -->
+                <div class="col-12 mb-3">
+                    <label class="form-label"><i class="bi bi-search me-2"></i>Search Clients</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="searchClients" placeholder="Enter client name or ID">
+                        <button class="btn btn-outline-secondary" type="button" id="btnSearch">
                             <i class="bi bi-search"></i>
-                        </div>
-                        <input type="search" class="form-control filter-input" id="filterSearch" placeholder="Enter client name or ID">
+                        </button>
                     </div>
                 </div>
             </div>
@@ -374,13 +391,15 @@
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Top Clients Table -->
-    <div class="modern-card mb-4">
+<!-- Top Clients Table - Full Width Section -->
+<div class="container-fluid px-0 mt-4">
+    <div class="modern-card mb-4 top-clients-card">
         <div class="card-header py-3 bg-white">
             <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h5 class="card-title mb-0">Top Clients by Activity</h5>
+                    <h5 class="card-title mb-0"><i class="bi bi-star-fill me-2 text-warning"></i>Top Clients by Activity</h5>
                     <p class="text-muted small mb-0">Based on measurement frequency and engagement</p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
@@ -411,21 +430,23 @@
         </div>
         <div class="card-body p-0">
             <div class="table-responsive">
-                <table class="table modern-table mb-0" id="topClientsTable">
-                    <thead>
+                <table class="table modern-table table-hover align-middle mb-0" id="topClientsTable">
+                    <thead class="table-light">
                         <tr>
-                            <th scope="col">#</th>
-                            <th scope="col">Client Name</th>
+                            <th scope="col" width="40">#</th>
+                            <th scope="col">Client</th>
                             <th scope="col">Plan Type</th>
+                            <th scope="col">Status</th>
                             <th scope="col">Measurements</th>
+                            <th scope="col">Last Activity</th>
                             <th scope="col">Progress</th>
-                            <th scope="col">Actions</th>
+                            <th scope="col" class="text-end">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <!-- Filled via CoachAnalyticsAPI.loadTopClientsIntoTable -->
                         <tr>
-                            <td colspan="6" class="text-center py-4">
+                            <td colspan="8" class="text-center py-4">
                                 <div class="spinner-border text-primary" role="status">
                                     <span class="visually-hidden">Loading...</span>
                                 </div>
@@ -444,6 +465,7 @@
             </div>
         </div>
     </div>
+</div>
 </div>
 {% endblock %}
 

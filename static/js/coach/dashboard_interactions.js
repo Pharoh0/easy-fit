@@ -10,6 +10,7 @@ class DashboardInteractions {
         this.initFilterInteractions();
         this.initChartAnimations();
         this.initScrollEffects();
+        this.initCollapsibleFilterPanel();
     }
 
     /**
@@ -144,6 +145,113 @@ class DashboardInteractions {
         // Add reveal animations for cards
         const cards = dashboard.querySelectorAll('.modern-card');
         this.setupScrollReveal(cards);
+    }
+    
+    /**
+     * Initialize collapsible filter panel with sticky behavior
+     */
+    initCollapsibleFilterPanel() {
+        const filterPanel = document.getElementById('filterPanel');
+        const filterBody = document.getElementById('filterBody');
+        const filterCollapseIcon = document.getElementById('filterCollapseIcon');
+        const btnToggleFilters = document.getElementById('btnToggleFilters');
+        const filterToggleHeader = document.getElementById('filterToggleHeader');
+        
+        if (!filterPanel || !filterBody || !filterCollapseIcon) return;
+        
+        // Toggle filter panel when button is clicked
+        if (btnToggleFilters) {
+            btnToggleFilters.addEventListener('click', () => {
+                this.toggleFilterPanel(filterPanel, filterBody, filterCollapseIcon);
+            });
+        }
+        
+        // Allow clicking on header to toggle filters (except buttons)
+        if (filterToggleHeader) {
+            filterToggleHeader.addEventListener('click', (e) => {
+                // Only toggle if clicking directly on header (not on buttons)
+                if (!e.target.closest('button') && 
+                    !e.target.closest('.form-control') &&
+                    (e.target === filterToggleHeader || 
+                     (e.target.closest('#filterToggleHeader') && 
+                      !e.target.closest('button') && 
+                      !e.target.closest('.form-control')))) {
+                    this.toggleFilterPanel(filterPanel, filterBody, filterCollapseIcon);
+                }
+            });
+        }
+        
+        // Check if filter panel was collapsed in previous session
+        if (sessionStorage.getItem('filterPanelCollapsed') === 'true') {
+            filterBody.style.display = 'none';
+            filterCollapseIcon.classList.remove('bi-chevron-up');
+            filterCollapseIcon.classList.add('bi-chevron-down');
+            filterPanel.classList.add('filter-panel-collapsed');
+        }
+        
+        // Make filter panel sticky when scrolling
+        this.initStickyFilterPanel(filterPanel);
+    }
+    
+    /**
+     * Toggle the filter panel visibility
+     */
+    toggleFilterPanel(filterPanel, filterBody, filterCollapseIcon) {
+        const isCollapsed = filterPanel.classList.contains('filter-panel-collapsed');
+        
+        if (isCollapsed) {
+            // Expand panel
+            $(filterBody).slideDown(300);
+            filterCollapseIcon.classList.remove('bi-chevron-down');
+            filterCollapseIcon.classList.add('bi-chevron-up');
+            filterPanel.classList.remove('filter-panel-collapsed');
+            sessionStorage.setItem('filterPanelCollapsed', 'false');
+        } else {
+            // Collapse panel
+            $(filterBody).slideUp(300);
+            filterCollapseIcon.classList.remove('bi-chevron-up');
+            filterCollapseIcon.classList.add('bi-chevron-down');
+            filterPanel.classList.add('filter-panel-collapsed');
+            sessionStorage.setItem('filterPanelCollapsed', 'true');
+        }
+    }
+    
+    /**
+     * Make filter panel sticky when scrolling
+     */
+    initStickyFilterPanel(filterPanel) {
+        if (!filterPanel) return;
+        
+        const filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
+        let filterPanelWidth = filterPanel.offsetWidth;
+        
+        window.addEventListener('scroll', () => {
+            const scrollPos = window.scrollY;
+            const shouldStick = scrollPos > filterPanelOffset;
+            
+            if (shouldStick) {
+                if (!filterPanel.classList.contains('sticky-filter-panel')) {
+                    filterPanel.classList.add('sticky-filter-panel');
+                    filterPanel.style.width = filterPanelWidth + 'px';
+                    document.querySelector('.container').style.paddingTop = filterPanel.offsetHeight + 'px';
+                }
+            } else {
+                if (filterPanel.classList.contains('sticky-filter-panel')) {
+                    filterPanel.classList.remove('sticky-filter-panel');
+                    filterPanel.style.width = '';
+                    document.querySelector('.container').style.paddingTop = '';
+                }
+            }
+        });
+        
+        // Update filter panel width on window resize
+        window.addEventListener('resize', () => {
+            if (!filterPanel.classList.contains('sticky-filter-panel')) {
+                filterPanelWidth = filterPanel.offsetWidth;
+            } else {
+                filterPanel.style.width = document.querySelector('.container').offsetWidth + 'px';
+            }
+        });
     }
 
     /**
