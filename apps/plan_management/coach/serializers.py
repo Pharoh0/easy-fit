@@ -1,5 +1,12 @@
 from rest_framework import serializers
+from django.db.models import Count
 from .models import ProductPlan, PlanItem
+from apps.plan_management.models import (
+    PlanRequest, PlanCancellation
+)
+from apps.plan_management.client.models import PlanSubscription
+from apps.plan_management.ratings.models import PlanRating
+from apps.profiles.utils import get_avatar_url
 from rest_framework.exceptions import PermissionDenied
 
 
@@ -43,15 +50,10 @@ class ProductPlanSerializer(serializers.ModelSerializer):
             display_name = (user.get_full_name() or '').strip() or user.username
         except Exception:
             display_name = 'Unknown Coach'
-        avatar_url = None
-        try:
-            if getattr(obj.coach, 'avatar', None) and getattr(obj.coach.avatar, 'url', None):
-                avatar_url = obj.coach.avatar.url
-                request = self.context.get('request')
-                if request is not None and not avatar_url.startswith('http'):
-                    avatar_url = request.build_absolute_uri(avatar_url)
-        except Exception:
-            avatar_url = None
+            
+        request = self.context.get('request')
+        avatar_url = get_avatar_url(obj.coach, request) if hasattr(obj, 'coach') else None
+            
         return {
             'id': getattr(obj.coach, 'id', None),
             'display_name': display_name,
