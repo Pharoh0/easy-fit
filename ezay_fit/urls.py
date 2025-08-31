@@ -19,6 +19,15 @@ from django.urls import include, path
 from django.conf.urls.static import static
 from django.conf import settings
 from django.views.generic import TemplateView
+from rest_framework.routers import DefaultRouter
+from apps.plan_management.coach.template_views import PlanTemplateViewSet, WorkoutTemplateViewSet, ExerciseTemplateViewSet, MealTemplateViewSet
+
+# API router for direct API access
+api_router = DefaultRouter()
+api_router.register(r'plan-templates', PlanTemplateViewSet)
+api_router.register(r'workout-templates', WorkoutTemplateViewSet)
+api_router.register(r'exercise-templates', ExerciseTemplateViewSet)
+api_router.register(r'meal-templates', MealTemplateViewSet)
 
 urlpatterns = [
     path('', TemplateView.as_view(template_name="landing/index.html"), name="home"),
@@ -31,6 +40,13 @@ urlpatterns = [
     path("messaging/", include("apps.messaging.urls", namespace="messaging")),
     
     path("search/", include("apps.search.urls", namespace="search")),
+
+    # APIs
+    path("api/v1/", include(api_router.urls)),  # Direct API router
+    path("api/staff/", include(("apps.staff.api.urls", "staff_api"), namespace="staff_api")),
+
+    # Staff UI
+    path("staff/", include(("apps.staff.urls", "staff"), namespace="staff")),
 
     path("user-friendship/", include("apps.user_friendship.urls", namespace="user_friendship")),
     

@@ -56,6 +56,7 @@ LOCAL_INSTALLED_APPS = [
     "apps.plan_management.apps.PlanManagementConfig",
     "apps.messaging.apps.MessagingConfig",
     "apps.search.apps.SearchConfig",
+    "apps.staff.apps.StaffConfig",
     ]
 
 THIRD_PARTIES_INSTALLED_APPS = [
