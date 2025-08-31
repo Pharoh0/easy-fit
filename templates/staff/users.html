@@ -1,0 +1,87 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Staff • Users{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'vendor/datatables/datatables.min.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
+<style>
+  .filters .form-select { min-width: 140px; }
+  .dt-actions .btn { margin-right: .25rem; margin-bottom: .25rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <h3 class="mb-0">Manage Users</h3>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body">
+    <div class="row g-2 align-items-end filters">
+      <div class="col-6 col-md-3">
+        <label class="form-label">User Type</label>
+        <select id="filterUserType" class="form-select">
+          <option value="">All</option>
+          <option value="client">Client</option>
+          <option value="coach">Coach</option>
+          <option value="staff">Staff</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label">Active</label>
+        <select id="filterActive" class="form-select">
+          <option value="">All</option>
+          <option value="true">Active</option>
+          <option value="false">Inactive</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label">Enabled</label>
+        <select id="filterEnabled" class="form-select">
+          <option value="">All</option>
+          <option value="true">Enabled</option>
+          <option value="false">Disabled</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label class="form-label">Whitelisted</label>
+        <select id="filterWhitelisted" class="form-select">
+          <option value="">All</option>
+          <option value="true">Whitelisted</option>
+          <option value="false">Not whitelisted</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <table id="usersTable" class="table table-striped" style="width:100%">
+      <thead>
+        <tr>
+          <th>Username</th>
+          <th>Email</th>
+          <th>User Type</th>
+          <th>Active</th>
+          <th>Enabled</th>
+          <th>Whitelisted</th>
+          <th>Date Joined</th>
+          <th>Last Login</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'js/api/staff_api.js' %}"></script>
+<script src="{% static 'js/staff/users.js' %}"></script>
+{% endblock %}
