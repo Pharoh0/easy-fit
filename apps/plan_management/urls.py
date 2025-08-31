@@ -3,6 +3,7 @@ from rest_framework.routers import DefaultRouter
 from .coach import apis as coach_apis
 from .client import apis as client_apis
 from .coach import views as coach_views
+from .coach.template_views import PlanTemplateViewSet, WorkoutTemplateViewSet, ExerciseTemplateViewSet, MealTemplateViewSet
 from . import views
 from .daily_entries import views as daily_views
 from .ratings import views as rating_views
@@ -52,8 +53,14 @@ router.register(r'notification-templates', notification_views.NotificationTempla
 # Coach client access endpoints
 router.register(r'coach-client-access', views_coach.CoachClientAccessViewSet, basename='coachclientaccess')
 
+# Coach Template endpoints
+router.register(r'plan-templates', PlanTemplateViewSet)
+router.register(r'workout-templates', WorkoutTemplateViewSet)
+router.register(r'exercise-templates', ExerciseTemplateViewSet)
+router.register(r'meal-templates', MealTemplateViewSet)
+
 urlpatterns = [
-    path('api/v1/', include(router.urls)),
+    path('', include(router.urls)),
     
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),
     
@@ -61,8 +68,8 @@ urlpatterns = [
     path('coach/client-measurements/', views_coach_templates.coach_client_measurements_view, name='coach_client_measurements'),
     path('coach/plan-creation/', views_coach_templates.coach_plan_creation_view, name='coach_plan_creation'),
     path('coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats'),
-    path('api/v1/coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api'),
-    path('api/v1/coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights'),
+    path('coach/client-stats-api/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api'),
+    path('coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights'),
     path('coach/measurements-widget/', views_coach_templates.coach_dashboard_measurements_widget, name='coach_measurements_widget'),
     path('coach/dashboard/', views_coach_templates.coach_dashboard_view, name='coach_dashboard'),
     
@@ -70,13 +77,13 @@ urlpatterns = [
     path('coach/plan-management/', views_coach_templates.coach_plan_management_view, name='coach_plan_management'),
     path('coach/client-plan/<int:subscription_id>/', views_coach_templates.coach_client_plan_detail_view, name='coach_client_plan_detail'),
     path('coach/plan-customization/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization'),
-    path('api/v1/coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),
+    path('coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),
     
     # Client plan management views
     path('client/browse-plans/', views_client_templates.client_plan_browser_view, name='client_plan_browser'),
     path('client/dashboard/', views_client_templates.client_dashboard_view, name='client_dashboard'),
     path('client/plan-detail/<int:subscription_id>/', views_client_templates.client_plan_detail_view, name='client_plan_detail'),
-    path('api/v1/client/plan-progress/<int:subscription_id>/', views_client_templates.client_plan_progress, name='client_plan_progress'),
+    path('client/plan-progress/<int:subscription_id>/', views_client_templates.client_plan_progress, name='client_plan_progress'),
     path('client/ratings/', views_client_templates.client_ratings_view, name='client_ratings'),
 
 ]
