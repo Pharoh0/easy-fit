@@ -1,0 +1,733 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Create Plan - Eazy Fit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/coach/plan_creation.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card hero-gradient shadow-sm">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                        <div class="mb-3 mb-md-0">
+                            <h1 class="h3 mb-2 text-white fw-bold">Create a New Plan</h1>
+                            <p class="text-white-50 mb-0">Design comprehensive fitness and nutrition plans for your clients</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'plan_management:coach_dashboard' %}" class="btn btn-light">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-4">
+            <!-- Plan Creation Navigation -->
+            <div class="modern-card mb-4">
+                <div class="card-body p-0">
+                    <div class="plan-nav">
+                        <div class="plan-nav-header p-3">
+                            <h5 class="mb-0">Plan Creation Steps</h5>
+                        </div>
+                        <div class="plan-nav-body">
+                            <ul class="nav flex-column plan-steps" id="planCreationSteps" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="plan-basics-tab" data-bs-toggle="pill" data-bs-target="#plan-basics" type="button" role="tab" aria-controls="plan-basics" aria-selected="true">
+                                        <div class="step-number">1</div>
+                                        <div class="step-content">
+                                            <span class="step-title">Plan Basics</span>
+                                            <span class="step-desc">Name, type, duration, pricing</span>
+                                        </div>
+                                        <div class="step-status">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                        </div>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="plan-structure-tab" data-bs-toggle="pill" data-bs-target="#plan-structure" type="button" role="tab" aria-controls="plan-structure" aria-selected="false">
+                                        <div class="step-number">2</div>
+                                        <div class="step-content">
+                                            <span class="step-title">Plan Structure</span>
+                                            <span class="step-desc">Workout & nutrition settings</span>
+                                        </div>
+                                        <div class="step-status">
+                                            <i class="bi bi-circle text-secondary"></i>
+                                        </div>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="workout-template-tab" data-bs-toggle="pill" data-bs-target="#workout-template" type="button" role="tab" aria-controls="workout-template" aria-selected="false">
+                                        <div class="step-number">3</div>
+                                        <div class="step-content">
+                                            <span class="step-title">Workout Templates</span>
+                                            <span class="step-desc">Exercise templates & blocks</span>
+                                        </div>
+                                        <div class="step-status">
+                                            <i class="bi bi-circle text-secondary"></i>
+                                        </div>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="meal-template-tab" data-bs-toggle="pill" data-bs-target="#meal-template" type="button" role="tab" aria-controls="meal-template" aria-selected="false">
+                                        <div class="step-number">4</div>
+                                        <div class="step-content">
+                                            <span class="step-title">Meal Templates</span>
+                                            <span class="step-desc">Nutrition templates & recipes</span>
+                                        </div>
+                                        <div class="step-status">
+                                            <i class="bi bi-circle text-secondary"></i>
+                                        </div>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="plan-review-tab" data-bs-toggle="pill" data-bs-target="#plan-review" type="button" role="tab" aria-controls="plan-review" aria-selected="false">
+                                        <div class="step-number">5</div>
+                                        <div class="step-content">
+                                            <span class="step-title">Review & Publish</span>
+                                            <span class="step-desc">Finalize plan details</span>
+                                        </div>
+                                        <div class="step-status">
+                                            <i class="bi bi-circle text-secondary"></i>
+                                        </div>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Template Library -->
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Template Library</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="templateLibrary">
+                        <div class="template-category">
+                            <div class="template-category-header p-3" data-bs-toggle="collapse" data-bs-target="#workoutTemplates">
+                                <h6 class="mb-0 d-flex align-items-center">
+                                    <i class="bi bi-lightning-charge-fill me-2"></i>
+                                    Workout Templates
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </h6>
+                            </div>
+                            <div class="collapse show" id="workoutTemplates">
+                                <div class="template-items p-3 pt-0">
+                                    <div class="template-loading-placeholder">
+                                        Loading workout templates...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="template-category">
+                            <div class="template-category-header p-3" data-bs-toggle="collapse" data-bs-target="#mealTemplates">
+                                <h6 class="mb-0 d-flex align-items-center">
+                                    <i class="bi bi-egg-fried me-2"></i>
+                                    Meal Templates
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </h6>
+                            </div>
+                            <div class="collapse" id="mealTemplates">
+                                <div class="template-items p-3 pt-0">
+                                    <div class="template-loading-placeholder">
+                                        Loading meal templates...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="template-category">
+                            <div class="template-category-header p-3" data-bs-toggle="collapse" data-bs-target="#planTemplates">
+                                <h6 class="mb-0 d-flex align-items-center">
+                                    <i class="bi bi-journal-check me-2"></i>
+                                    Plan Templates
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </h6>
+                            </div>
+                            <div class="collapse" id="planTemplates">
+                                <div class="template-items p-3 pt-0">
+                                    <div class="template-loading-placeholder">
+                                        Loading plan templates...
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-8">
+            <!-- Main Content Area -->
+            <div class="tab-content" id="planCreationContent">
+                <!-- Plan Basics Tab -->
+                <div class="tab-pane fade show active" id="plan-basics" role="tabpanel" aria-labelledby="plan-basics-tab">
+                    <div class="modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Plan Basics</h5>
+                            <p class="text-muted small mb-0">Enter the fundamental details of your new plan</p>
+                        </div>
+                        <div class="card-body">
+                            <form id="planBasicsForm">
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label for="planName" class="form-label">Plan Name <span class="text-danger">*</span></label>
+                                        <input type="text" class="form-control" id="planName" required placeholder="Enter a descriptive name for this plan">
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="planType" class="form-label">Plan Type <span class="text-danger">*</span></label>
+                                        <select class="form-select" id="planType" required>
+                                            <option value="" selected disabled>Select plan type</option>
+                                            <option value="workout">Workout Only</option>
+                                            <option value="diet">Diet/Nutrition Only</option>
+                                            <option value="combined">Combined (Workout & Diet)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="difficultyLevel" class="form-label">Difficulty Level</label>
+                                        <select class="form-select" id="difficultyLevel">
+                                            <option value="1">Beginner (1)</option>
+                                            <option value="2">Easy (2)</option>
+                                            <option value="3" selected>Moderate (3)</option>
+                                            <option value="4">Challenging (4)</option>
+                                            <option value="5">Advanced (5)</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="planDuration" class="form-label">Duration (Days) <span class="text-danger">*</span></label>
+                                        <input type="number" class="form-control" id="planDuration" min="1" max="365" value="30" required>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="maxClients" class="form-label">Maximum Clients</label>
+                                        <input type="number" class="form-control" id="maxClients" min="1" value="50">
+                                        <div class="form-text">Leave blank for unlimited</div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="planPrice" class="form-label">Price <span class="text-danger">*</span></label>
+                                        <div class="input-group">
+                                            <span class="input-group-text">$</span>
+                                            <input type="number" class="form-control" id="planPrice" min="0" step="0.01" required>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="col-md-6">
+                                        <label for="renewalPeriod" class="form-label">Renewal Period</label>
+                                        <select class="form-select" id="renewalPeriod">
+                                            <option value="none" selected>No automatic renewal</option>
+                                            <option value="monthly">Monthly</option>
+                                            <option value="quarterly">Quarterly</option>
+                                            <option value="semi-annually">Semi-annually</option>
+                                            <option value="annually">Annually</option>
+                                        </select>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <label for="planDescription" class="form-label">Description <span class="text-danger">*</span></label>
+                                        <textarea class="form-control" id="planDescription" rows="4" required placeholder="Provide a detailed description of this plan"></textarea>
+                                    </div>
+                                    
+                                    <div class="col-12">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="isActive">
+                                            <label class="form-check-label" for="isActive">
+                                                Make this plan active immediately
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                        <div class="card-footer bg-light d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary">
+                                <i class="bi bi-save me-1"></i> Save as Draft
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextToStructure">
+                                Next: Plan Structure <i class="bi bi-chevron-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Plan Structure Tab -->
+                <div class="tab-pane fade" id="plan-structure" role="tabpanel" aria-labelledby="plan-structure-tab">
+                    <div class="modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Plan Structure</h5>
+                            <p class="text-muted small mb-0">Define the workout and nutrition structure of your plan</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                The settings below will be used to generate a default plan structure. You can customize individual days later.
+                            </div>
+                            
+                            <div id="workoutStructureSection">
+                                <h5 class="section-title"><i class="bi bi-activity me-2"></i>Workout Structure</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="workoutDaysPerWeek" class="form-label">Workout Days Per Week</label>
+                                        <input type="number" class="form-control" id="workoutDaysPerWeek" min="0" max="7" value="5">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="restDaysPerWeek" class="form-label">Rest Days Per Week</label>
+                                        <input type="number" class="form-control" id="restDaysPerWeek" min="0" max="7" value="2" readonly>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <hr class="my-4">
+                            
+                            <div id="nutritionStructureSection">
+                                <h5 class="section-title"><i class="bi bi-cup-hot me-2"></i>Nutrition Structure</h5>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label for="mealsPerDay" class="form-label">Meals Per Day</label>
+                                        <input type="number" class="form-control" id="mealsPerDay" min="0" max="10" value="3">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label for="snacksPerDay" class="form-label">Snacks Per Day</label>
+                                        <input type="number" class="form-control" id="snacksPerDay" min="0" max="10" value="2">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="backToBasics">
+                                <i class="bi bi-chevron-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextToWorkoutTemplate">
+                                Next: Workout Templates <i class="bi bi-chevron-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Workout Template Tab -->
+                <div class="tab-pane fade" id="workout-template" role="tabpanel" aria-labelledby="workout-template-tab">
+                    <div class="modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Workout Templates</h5>
+                            <p class="text-muted small mb-0">Create and manage workout templates for this plan</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        Workout templates define exercise blocks and exercises that can be applied to plan days. Create templates for different workout types.
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end mb-3">
+                                        <button type="button" class="btn btn-primary" id="createWorkoutTemplateBtn">
+                                            <i class="bi bi-plus-circle me-1"></i> Create New Workout Template
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="workout-templates-container">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="section-title mb-0">Your Workout Templates</h5>
+                                    <div class="selected-count badge bg-primary" id="selectedWorkoutTemplatesCounter">
+                                        <span id="selectedWorkoutTemplatesCount">0</span> selected
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Select templates to include in your plan. These will be available when assigning workouts to plan days.
+                                </div>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle" id="workoutTemplatesTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="40">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="selectAllWorkoutTemplates">
+                                                    </div>
+                                                </th>
+                                                <th>Template Name</th>
+                                                <th>Category</th>
+                                                <th>Difficulty</th>
+                                                <th>Blocks</th>
+                                                <th>Exercises</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="workoutTemplatesTableBody">
+                                        </tbody>
+                                    </table>
+                                        
+                                    <!-- Loading Indicator -->
+                                    <div id="workoutTemplatesLoading" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading templates...</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Empty State -->
+                                    <div id="noWorkoutTemplates" class="text-center py-4" style="display: none;">
+                                        <div class="alert alert-light">
+                                            <i class="bi bi-info-circle-fill me-2 text-muted"></i>
+                                            No workout templates found. Create your first template to get started.
+                                        </div>
+                                        <button class="btn btn-primary btn-sm" id="emptyStateCreateTemplate">
+                                            <i class="bi bi-plus-circle me-1"></i> Create Workout Template
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="workoutTemplateEditor" class="template-editor mt-4" style="display: none;">
+                                <h5 class="section-title">Workout Template Editor</h5>
+                                <div class="editor-container p-3 border rounded">
+                                    <form id="workoutTemplateForm">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-6">
+                                                <label for="workoutTemplateName" class="form-label">Template Name</label>
+                                                <input type="text" class="form-control" id="workoutTemplateName" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="workoutTemplateCategory" class="form-label">Category</label>
+                                                <input type="text" class="form-control" id="workoutTemplateCategory" 
+                                                       placeholder="e.g., Upper Body, Cardio, Full Body">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="workoutTemplateDifficulty" class="form-label">Difficulty</label>
+                                                <select class="form-select" id="workoutTemplateDifficulty">
+                                                    <option value="1">Beginner (1)</option>
+                                                    <option value="2">Easy (2)</option>
+                                                    <option value="3" selected>Moderate (3)</option>
+                                                    <option value="4">Challenging (4)</option>
+                                                    <option value="5">Advanced (5)</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="workoutTemplateDuration" class="form-label">Est. Duration (minutes)</label>
+                                                <input type="number" class="form-control" id="workoutTemplateDuration" min="5" step="5" value="45">
+                                            </div>
+                                            <div class="col-12">
+                                                <label for="workoutTemplateDescription" class="form-label">Description</label>
+                                                <textarea class="form-control" id="workoutTemplateDescription" rows="2"></textarea>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label">Instructions/Notes</label>
+                                                <textarea class="form-control" id="workoutTemplateInstructions" rows="3"></textarea>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="mb-3">Exercise Blocks</h6>
+                                        <div class="exercise-blocks-container" id="exerciseBlocksContainer">
+                                            <!-- Exercise blocks will be dynamically added here -->
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary mt-3" id="addExerciseBlockBtn">
+                                            <i class="bi bi-plus-circle me-1"></i> Add Exercise Block
+                                        </button>
+                                        
+                                        <div class="d-flex justify-content-end mt-4">
+                                            <button type="button" class="btn btn-secondary me-2" id="cancelWorkoutTemplateBtn">Cancel</button>
+                                            <button type="submit" class="btn btn-primary" id="saveWorkoutTemplateBtn">Save Template</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <div class="workout-template-preview mt-4" id="workoutTemplatePreview" style="display: none;">
+                                <!-- Preview content will be dynamically populated -->
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="backToStructure">
+                                <i class="bi bi-chevron-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextToMealTemplate">
+                                Next: Meal Templates <i class="bi bi-chevron-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Meal Template Tab -->
+                <div class="tab-pane fade" id="meal-template" role="tabpanel" aria-labelledby="meal-template-tab">
+                    <div class="modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Meal Templates</h5>
+                            <p class="text-muted small mb-0">Create and manage meal templates for this plan</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle-fill me-2"></i>
+                                        Meal templates define nutritional content and ingredients that can be applied to plan days. Create templates for different meal types.
+                                    </div>
+                                    
+                                    <div class="d-flex justify-content-end mb-3">
+                                        <button type="button" class="btn btn-primary" id="createMealTemplateBtn">
+                                            <i class="bi bi-plus-circle me-1"></i> Create New Meal Template
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="meal-templates-container">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="section-title mb-0">Your Meal Templates</h5>
+                                    <div class="selected-count badge bg-primary" id="selectedMealTemplatesCounter">
+                                        <span id="selectedMealTemplatesCount">0</span> selected
+                                    </div>
+                                </div>
+                                <div class="alert alert-info mb-3">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    Select templates to include in your plan. These will be available when assigning meals to plan days.
+                                </div>
+                                
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle" id="mealTemplatesTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th width="40">
+                                                    <div class="form-check">
+                                                        <input class="form-check-input" type="checkbox" id="selectAllMealTemplates">
+                                                    </div>
+                                                </th>
+                                                <th>Template Name</th>
+                                                <th>Meal Type</th>
+                                                <th>Category</th>
+                                                <th>Calories</th>
+                                                <th>Ingredients</th>
+                                                <th class="text-end">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="mealTemplatesTableBody">
+                                        </tbody>
+                                    </table>
+                                        
+                                    <!-- Loading Indicator -->
+                                    <div id="mealTemplatesLoading" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading templates...</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Empty State -->
+                                    <div id="noMealTemplates" class="text-center py-4" style="display: none;">
+                                        <div class="alert alert-light">
+                                            <i class="bi bi-info-circle-fill me-2 text-muted"></i>
+                                            No meal templates found. Create your first template to get started.
+                                        </div>
+                                        <button class="btn btn-primary btn-sm" id="emptyStateCreateMealTemplate">
+                                            <i class="bi bi-plus-circle me-1"></i> Create Meal Template
+                                        </button>
+                                    </div>
+                                </div>
+                                
+                                <div class="mt-4 d-flex justify-content-between">
+                                    <button type="button" class="btn btn-outline-secondary" id="backToWorkoutTemplates">
+                                        <i class="bi bi-arrow-left me-1"></i> Back to Workout Templates
+                                    </button>
+                                    <button type="button" class="btn btn-primary" id="nextToReview" disabled>
+                                        Next: Review & Publish <i class="bi bi-arrow-right ms-1"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div id="mealTemplateEditor" class="template-editor mt-4" style="display: none;">
+                                <h5 class="section-title">Meal Template Editor</h5>
+                                <div class="editor-container p-3 border rounded">
+                                    <form id="mealTemplateForm">
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-6">
+                                                <label for="mealTemplateName" class="form-label">Template Name</label>
+                                                <input type="text" class="form-control" id="mealTemplateName" required>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="mealTemplateType" class="form-label">Meal Type</label>
+                                                <select class="form-select" id="mealTemplateType">
+                                                    <option value="breakfast">Breakfast</option>
+                                                    <option value="lunch">Lunch</option>
+                                                    <option value="dinner">Dinner</option>
+                                                    <option value="snack">Snack</option>
+                                                    <option value="pre_workout">Pre-Workout</option>
+                                                    <option value="post_workout">Post-Workout</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="mealTemplateCategory" class="form-label">Category</label>
+                                                <input type="text" class="form-control" id="mealTemplateCategory" 
+                                                       placeholder="e.g., High Protein, Vegetarian, Keto">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label for="mealTemplatePreparationTime" class="form-label">Preparation Time (minutes)</label>
+                                                <input type="number" class="form-control" id="mealTemplatePreparationTime" min="5" step="5" value="15">
+                                            </div>
+                                            <div class="col-12">
+                                                <label for="mealTemplateDescription" class="form-label">Description</label>
+                                                <textarea class="form-control" id="mealTemplateDescription" rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="mb-2 mt-3">Nutritional Information</h6>
+                                        <div class="row g-3 mb-3">
+                                            <div class="col-md-3">
+                                                <label for="mealTemplateCalories" class="form-label">Calories</label>
+                                                <input type="number" class="form-control" id="mealTemplateCalories" min="0" value="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="mealTemplateProtein" class="form-label">Protein (g)</label>
+                                                <input type="number" class="form-control" id="mealTemplateProtein" min="0" value="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="mealTemplateCarbs" class="form-label">Carbs (g)</label>
+                                                <input type="number" class="form-control" id="mealTemplateCarbs" min="0" value="0">
+                                            </div>
+                                            <div class="col-md-3">
+                                                <label for="mealTemplateFat" class="form-label">Fat (g)</label>
+                                                <input type="number" class="form-control" id="mealTemplateFat" min="0" value="0">
+                                            </div>
+                                        </div>
+                                        
+                                        <h6 class="mb-3">Ingredients</h6>
+                                        <div class="ingredients-container" id="ingredientsContainer">
+                                            <!-- Ingredients will be dynamically added here -->
+                                        </div>
+                                        
+                                        <button type="button" class="btn btn-outline-primary mt-3" id="addIngredientBtn">
+                                            <i class="bi bi-plus-circle me-1"></i> Add Ingredient
+                                        </button>
+                                        
+                                        <h6 class="mb-3 mt-4">Preparation Instructions</h6>
+                                        <textarea class="form-control" id="mealTemplateInstructions" rows="3"></textarea>
+                                        
+                                        <div class="d-flex justify-content-end mt-4">
+                                            <button type="button" class="btn btn-secondary me-2" id="cancelMealTemplateBtn">Cancel</button>
+                                            <button type="submit" class="btn btn-primary" id="saveMealTemplateBtn">Save Template</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                            
+                            <div class="meal-template-preview mt-4" id="mealTemplatePreview" style="display: none;">
+                                <!-- Preview content will be dynamically populated -->
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="backToWorkoutTemplate">
+                                <i class="bi bi-chevron-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary" id="nextToPlanReview">
+                                Next: Review & Publish <i class="bi bi-chevron-right ms-1"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Plan Review Tab -->
+                <div class="tab-pane fade" id="plan-review" role="tabpanel" aria-labelledby="plan-review-tab">
+                    <div class="modern-card mb-4">
+                        <div class="card-header bg-white">
+                            <h5 class="mb-0">Review & Publish</h5>
+                            <p class="text-muted small mb-0">Review your plan before publishing</p>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                Review your plan details below. Once published, clients will be able to request this plan.
+                            </div>
+                            
+                            <div id="planSummary" class="mt-4">
+                                <h5 class="section-title">Plan Summary</h5>
+                                <!-- Will be populated dynamically -->
+                                <div class="placeholder-content text-center py-4">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading plan summary...</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div id="planItemsPreview" class="mt-4">
+                                <h5 class="section-title">Plan Days Structure</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-hover" id="planItemsTable">
+                                        <thead class="table-light">
+                                            <tr>
+                                                <th>Day</th>
+                                                <th>Type</th>
+                                                <th>Workout</th>
+                                                <th>Nutrition</th>
+                                                <th>Notes</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="planItemsTableBody">
+                                            <tr class="placeholder-row">
+                                                <td colspan="5" class="text-center py-4">
+                                                    <div class="spinner-border text-primary" role="status">
+                                                        <span class="visually-hidden">Loading plan items...</span>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" id="publishPlanCheck">
+                                <label class="form-check-label" for="publishPlanCheck">
+                                    Make this plan available to clients immediately upon publishing
+                                </label>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary" id="backToMealTemplate">
+                                <i class="bi bi-chevron-left me-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-success" id="publishPlanBtn">
+                                <i class="bi bi-check-circle me-1"></i> Publish Plan
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Modal -->
+<div class="modal fade" id="templateModal" tabindex="-1" aria-labelledby="templateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templateModalLabel">Create New Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Template form will be dynamically loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveTemplateBtn">Save Template</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/coach/plan_creation.js' %}"></script>
+{% endblock %}

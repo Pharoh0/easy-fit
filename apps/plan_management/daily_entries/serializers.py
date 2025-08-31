@@ -24,6 +24,7 @@ class MealPlanSerializer(serializers.ModelSerializer):
     """Serializer for meal plans"""
     ingredients = MealIngredientSerializer(many=True, read_only=True)
     meal_image_url = serializers.SerializerMethodField()
+    additional_images_urls = serializers.SerializerMethodField()
     total_prep_time = serializers.SerializerMethodField()
     completion_status = serializers.SerializerMethodField()
     
@@ -33,9 +34,12 @@ class MealPlanSerializer(serializers.ModelSerializer):
             'id', 'meal_type', 'meal_order', 'meal_name', 'meal_description',
             'recipe_instructions', 'preparation_time_minutes', 'cooking_time_minutes',
             'calories_per_serving', 'protein_grams', 'carbs_grams', 'fats_grams', 'fiber_grams',
-            'servings_count', 'serving_size_description', 'meal_image', 'meal_image_url',
-            'recipe_video_url', 'is_completed', 'completed_at', 'client_rating',
-            'client_notes', 'alternative_options', 'ingredients', 'total_prep_time',
+            'sugar_grams', 'sodium_mg', 'servings_count', 'serving_size_description', 
+            'meal_image', 'meal_image_url', 'additional_images', 'additional_images_urls',
+            'recipe_video', 'recipe_video_url', 'dietary_tags', 'allergens',
+            'recommended_timing', 'grocery_list', 'meal_prep_tips',
+            'is_completed', 'completed_at', 'client_rating', 'client_notes', 'client_photo',
+            'alternative_options', 'ingredient_substitutions', 'ingredients', 'total_prep_time',
             'completion_status'
         ]
         read_only_fields = ['id', 'completed_at']
@@ -47,6 +51,24 @@ class MealPlanSerializer(serializers.ModelSerializer):
             if request:
                 return request.build_absolute_uri(obj.meal_image.url)
         return None
+    
+    def get_additional_images_urls(self, obj):
+        """Get full URLs for additional images"""
+        request = self.context.get('request')
+        if not request or not obj.additional_images:
+            return []
+        
+        # Convert JSON stored paths to full URLs
+        urls = []
+        try:
+            for img_path in obj.additional_images:
+                if img_path and not img_path.startswith('http'):
+                    urls.append(request.build_absolute_uri(img_path))
+                else:
+                    urls.append(img_path)
+            return urls
+        except (TypeError, AttributeError):
+            return []
     
     def get_total_prep_time(self, obj):
         """Calculate total preparation time"""
@@ -105,6 +127,8 @@ class NutritionPlanSerializer(serializers.ModelSerializer):
 class ExerciseSerializer(serializers.ModelSerializer):
     """Serializer for exercises"""
     demonstration_image_url = serializers.SerializerMethodField()
+    secondary_images_urls = serializers.SerializerMethodField()
+    demonstration_video_url = serializers.SerializerMethodField()
     completion_status = serializers.SerializerMethodField()
     
     class Meta:
@@ -113,10 +137,13 @@ class ExerciseSerializer(serializers.ModelSerializer):
             'id', 'exercise_name', 'exercise_category', 'exercise_order',
             'sets_count', 'reps_per_set', 'duration_seconds', 'weight_kg', 'distance_meters',
             'rest_between_sets_seconds', 'tempo_description', 'form_instructions',
-            'common_mistakes', 'modifications', 'demonstration_video_url',
-            'demonstration_image', 'demonstration_image_url', 'is_completed',
-            'actual_sets_completed', 'actual_reps_completed', 'actual_weight_used',
-            'completion_status'
+            'common_mistakes', 'modifications', 
+            'demonstration_video', 'demonstration_video_url', 'animation_url',
+            'detailed_instructions_url', 'demonstration_image', 'demonstration_image_url', 
+            'secondary_images', 'secondary_images_urls', 'equipment_needed', 
+            'equipment_alternatives', 'primary_muscles', 'secondary_muscles',
+            'is_completed', 'actual_sets_completed', 'actual_reps_completed', 
+            'actual_weight_used', 'perceived_difficulty', 'completion_status'
         ]
     
     def get_demonstration_image_url(self, obj):
@@ -127,13 +154,43 @@ class ExerciseSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.demonstration_image.url)
         return None
     
+    def get_secondary_images_urls(self, obj):
+        """Get full URLs for secondary images"""
+        request = self.context.get('request')
+        if not request or not obj.secondary_images:
+            return []
+        
+        # Convert JSON stored paths to full URLs
+        urls = []
+        try:
+            for img_path in obj.secondary_images:
+                if img_path and not img_path.startswith('http'):
+                    urls.append(request.build_absolute_uri(img_path))
+                else:
+                    urls.append(img_path)
+            return urls
+        except (TypeError, AttributeError):
+            return []
+    
+    def get_demonstration_video_url(self, obj):
+        """Get full URL for demonstration video if it's a file"""
+        if obj.demonstration_video_url:
+            # Return existing external URL
+            return obj.demonstration_video_url
+        elif obj.demonstration_video:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.demonstration_video.url)
+        return None
+    
     def get_completion_status(self, obj):
         """Get exercise completion details"""
         return {
             'is_completed': obj.is_completed,
             'sets_completed': obj.actual_sets_completed,
             'reps_completed': obj.actual_reps_completed,
-            'weight_used': float(obj.actual_weight_used) if obj.actual_weight_used else None
+            'weight_used': float(obj.actual_weight_used) if obj.actual_weight_used else None,
+            'perceived_difficulty': obj.perceived_difficulty
         }
 
 

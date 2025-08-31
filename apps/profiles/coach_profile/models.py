@@ -27,6 +27,16 @@ class CoachProfile(models.Model):
     tiktok_profilel_url = models.TextField(null=True, blank=True)
     linkedin_profile_url = models.TextField(null=True, blank=True)
     
+    approval_status = models.CharField(max_length=20, choices=[('pending','Pending'),('approved','Approved'),('rejected','Rejected')], default='pending', db_index=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approved_coaches')
+    approval_notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['approval_status']),
+        ]
+    
     def __str__(self):
         return f"{self.id}: {self.user}"
 
@@ -46,6 +56,15 @@ class Certification(models.Model):
     coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='certifications')
     file = models.FileField(upload_to='certifications/')
     description = models.CharField(max_length=255, null=True, blank=True)
+    status = models.CharField(max_length=20, choices=[('pending','Pending'),('approved','Approved'),('rejected','Rejected')], default='pending', db_index=True)
+    verified_at = models.DateTimeField(null=True, blank=True)
+    verified_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_certifications')
+    notes = models.TextField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['status']),
+        ]
     
     def __str__(self):
         return f"{self.id}: {self.coach_profile}"

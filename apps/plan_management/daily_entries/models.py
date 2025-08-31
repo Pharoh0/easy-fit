@@ -149,14 +149,35 @@ class MealPlan(models.Model):
     carbs_grams = models.DecimalField(max_digits=6, decimal_places=2)
     fats_grams = models.DecimalField(max_digits=6, decimal_places=2)
     fiber_grams = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sugar_grams = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)
+    sodium_mg = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
     
     # Serving information
     servings_count = models.PositiveSmallIntegerField(default=1)
     serving_size_description = models.CharField(max_length=100, blank=True)
     
-    # Media and resources
-    meal_image = models.ImageField(upload_to='meal_plans/', null=True, blank=True)
-    recipe_video_url = models.URLField(blank=True)
+    # Enhanced media content
+    meal_image = models.ImageField(upload_to='meal_plans/images/', null=True, blank=True, 
+                                help_text="Main image of the prepared meal")
+    additional_images = models.JSONField(null=True, blank=True, 
+                                      help_text="Additional images of preparation steps or plating")
+    recipe_video = models.FileField(upload_to='meal_plans/videos/', null=True, blank=True, 
+                                 help_text="Video showing meal preparation")
+    recipe_video_url = models.URLField(blank=True, help_text="External video URL for recipe")
+    
+    # Dietary information
+    dietary_tags = models.JSONField(null=True, blank=True, 
+                                 help_text="Tags like 'vegan', 'gluten-free', 'keto-friendly', etc.")
+    allergens = models.CharField(max_length=255, blank=True, 
+                             help_text="Common allergens present in this meal")
+    
+    # Nutrition timing
+    recommended_timing = models.CharField(max_length=100, blank=True, 
+                                      help_text="Best time to consume this meal, e.g., '1 hour before workout'")
+    
+    # Shopping and preparation
+    grocery_list = models.TextField(blank=True, help_text="Ingredients to buy for this meal")
+    meal_prep_tips = models.TextField(blank=True, help_text="Tips for meal prepping or batch cooking")
     
     # Completion tracking
     is_completed = models.BooleanField(default=False)
@@ -164,9 +185,13 @@ class MealPlan(models.Model):
     client_rating = models.PositiveSmallIntegerField(null=True, blank=True,
                                                    validators=[MinValueValidator(1), MaxValueValidator(5)])
     client_notes = models.TextField(blank=True)
+    client_photo = models.ImageField(upload_to='meal_plans/client_photos/', null=True, blank=True, 
+                                  help_text="Client can upload a photo of their prepared meal")
     
     # Alternatives and substitutions
     alternative_options = models.TextField(blank=True, help_text="Alternative meal options")
+    ingredient_substitutions = models.JSONField(null=True, blank=True, 
+                                           help_text="Possible substitutions for specific ingredients")
     
     def __str__(self):
         return f"{self.meal_name} ({self.meal_type}) - {self.nutrition_plan.plan_day}"
@@ -337,15 +362,34 @@ class Exercise(models.Model):
     common_mistakes = models.TextField(blank=True)
     modifications = models.TextField(blank=True)
     
-    # Media
-    demonstration_video_url = models.URLField(blank=True)
-    demonstration_image = models.ImageField(upload_to='exercise_demos/', null=True, blank=True)
+    # Media content - enhanced to support multiple formats
+    demonstration_video = models.FileField(upload_to='exercise_demos/videos/', null=True, blank=True, 
+                                        help_text="Upload demonstration video for this exercise")
+    demonstration_video_url = models.URLField(blank=True, help_text="External video URL (YouTube, Vimeo, etc.)")
+    demonstration_image = models.ImageField(upload_to='exercise_demos/images/', null=True, blank=True, 
+                                         help_text="Upload image showing proper form")
+    secondary_images = models.JSONField(null=True, blank=True, 
+                                     help_text="Additional images showing different angles or steps")
+    
+    # Additional guidance resources
+    animation_url = models.URLField(blank=True, help_text="Link to animated demonstration if available")
+    detailed_instructions_url = models.URLField(blank=True, help_text="Link to detailed instructions or article")
+    
+    # Equipment details
+    equipment_needed = models.TextField(blank=True, help_text="Specific equipment needed for this exercise")
+    equipment_alternatives = models.TextField(blank=True, help_text="Alternative equipment options that can be used")
+    
+    # Muscle targeting
+    primary_muscles = models.CharField(max_length=255, blank=True, help_text="Primary muscles targeted")
+    secondary_muscles = models.CharField(max_length=255, blank=True, help_text="Secondary muscles engaged")
     
     # Completion tracking
     is_completed = models.BooleanField(default=False)
     actual_sets_completed = models.PositiveIntegerField(null=True, blank=True)
     actual_reps_completed = models.PositiveIntegerField(null=True, blank=True)
     actual_weight_used = models.DecimalField(max_digits=6, decimal_places=2, null=True, blank=True)
+    perceived_difficulty = models.PositiveSmallIntegerField(null=True, blank=True, 
+                                                       help_text="Client's perceived difficulty (1-10)")
     
     def __str__(self):
         return f"{self.exercise_name} - {self.exercise_block}"
