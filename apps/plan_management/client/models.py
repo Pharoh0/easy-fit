@@ -14,7 +14,7 @@ class PlanSubscription(models.Model):
     client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='client_subscriptions')
     product_plan = models.ForeignKey(ProductPlan, on_delete=models.CASCADE, related_name='plan_subscriptions')
     subscribed_at = models.DateTimeField(auto_now_add=True)
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
     # status = models.CharField(max_length=20, default='active')  # active, cancelled, etc.
     status = models.CharField(max_length=20, choices=PLAN_SUBSCRIPTION_CHOICES, default='pending', null=True, blank=True )
 
@@ -90,11 +90,15 @@ class PlanSubscription(models.Model):
     def save(self, *args, **kwargs):
         if self.is_expired:
             self.status = 'completed'
-        # keep is_active in sync with status
-        if self.status in ['cancelled', 'completed']:
-            self.is_active = False
+        # keep is_active in sync with status: only 'active' means True
+        self.is_active = (self.status == 'active')
         super().save(*args, **kwargs)
         
+    class Meta:
+        indexes = [
+            models.Index(fields=['client', 'product_plan', 'status']),
+            models.Index(fields=['status']),
+        ]
 
     def __str__(self):
         return f"{self.client.username} subscribed to {self.product_plan.name}"

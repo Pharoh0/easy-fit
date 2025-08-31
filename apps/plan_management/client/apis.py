@@ -33,12 +33,12 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
         qs = PlanSubscription.objects.select_related(
             'product_plan__coach__user', 'product_plan', 'client'
         )
-        # Coach context
-        coach_profile = getattr(user, 'coach_profile', None)
-        if coach_profile is not None:
-            qs = qs.filter(product_plan__coach=coach_profile)
+        # Scope by role without directly touching reverse OneToOne to avoid DoesNotExist for clients
+        if getattr(user, 'is_coach', False):
+            # Coach: subscriptions to their own plans
+            qs = qs.filter(product_plan__coach__user=user)
         else:
-            # Client context
+            # Client: own subscriptions
             qs = qs.filter(client=user)
 
         # Optional filtering by query params

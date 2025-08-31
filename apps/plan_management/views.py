@@ -3,20 +3,31 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q
 from django.utils import timezone
+from django.db import transaction
 from .models import PlanRequest, PlanCancellation
-from .serializers import PlanRequestSerializer, PlanCancellationSerializer
+from .serializers import (
+    PlanRequestSerializer, PlanCancellationSerializer,
+    PlanRequestCreateSerializer, PlanCancellationCreateSerializer,
+)
 from .client.models import PlanSubscription
 from .coach.models import ProductPlan
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+import logging
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class PlanRequestViewSet(viewsets.ModelViewSet):
     """ViewSet for managing plan requests"""
     serializer_class = PlanRequestSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PlanRequestCreateSerializer
+        return PlanRequestSerializer
     
     def get_queryset(self):
         """Get requests based on user role"""
@@ -66,9 +77,11 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create a new plan request"""
+        logger.info("PlanRequest create initiated", extra={'user_id': request.user.id})
         plan_id = request.data.get('plan_id')
         
         if not plan_id:
+            logger.warning("PlanRequest create missing plan_id", extra={'user_id': request.user.id})
             return Response(
                 {'error': 'plan_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -77,12 +90,19 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
         try:
             plan = ProductPlan.objects.get(id=plan_id)
         except ProductPlan.DoesNotExist:
+            logger.warning("PlanRequest create plan not found", extra={'plan_id': plan_id})
             return Response(
                 {'error': 'Plan not found'},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        # Ensure plan is available (active and not finished)
+        if not plan.is_active:
+            return Response({'error': 'This plan is not available.'}, status=status.HTTP_400_BAD_REQUEST)
+        if plan.end_date < timezone.now().date():
+            return Response({'error': 'This plan has already ended.'}, status=status.HTTP_400_BAD_REQUEST)
         
-        # Check if user already has an active subscription to this plan
+        # Check if user already has an active or pending subscription to this plan
         existing_subscription = PlanSubscription.objects.filter(
             client=request.user,
             product_plan=plan,
@@ -90,8 +110,9 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
         ).first()
         
         if existing_subscription:
+            logger.info("PlanRequest blocked due to existing subscription", extra={'user_id': request.user.id, 'plan_id': plan_id})
             return Response(
-                {'error': 'You already have an active subscription to this plan'},
+                {'error': 'You already have an active or pending subscription to this plan'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
@@ -103,24 +124,31 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
         ).first()
         
         if existing_request:
+            logger.info("PlanRequest blocked due to existing pending request", extra={'user_id': request.user.id, 'plan_id': plan_id})
             return Response(
                 {'error': 'You already have a pending request for this plan'},
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        # Create the request
+        # Create the request and a pending subscription atomically
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            plan_request = serializer.save(
-                client=request.user,
-                plan=plan
-            )
-            
-            # Send notification to coach
+            with transaction.atomic():
+                plan_request = serializer.save(
+                    client=request.user,
+                    plan=plan
+                )
+                # Create a pending subscription so the client can see it immediately
+                PlanSubscription.objects.create(
+                    client=request.user,
+                    product_plan=plan,
+                )
+
+            # Send notification to coach (non-blocking)
             from .notifications.utils import send_plan_notification_email
             try:
                 send_plan_notification_email(
-                    None,  # No subscription yet
+                    None,  # We created a pending subscription but email template for request doesn't require it
                     'plan_request_received',
                     {
                         'plan_request': plan_request,
@@ -131,13 +159,12 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                 )
             except Exception as e:
                 # Don't fail the request if email fails
-                pass
-            
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+                logger.exception("Failed to send plan request email notification", exc_info=e)
+
+            display_serializer = PlanRequestSerializer(plan_request, context={'request': request})
+            return Response(display_serializer.data, status=status.HTTP_201_CREATED)
         
+        logger.warning("PlanRequest create validation failed", extra={'errors': serializer.errors})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])
@@ -157,6 +184,13 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                 {'error': 'Only pending requests can be approved'},
                 status=status.HTTP_400_BAD_REQUEST
             )
+        
+        # Ensure plan is still available (active and not finished)
+        plan = plan_request.plan
+        if not plan.is_active:
+            return Response({'error': 'This plan is no longer active.'}, status=status.HTTP_400_BAD_REQUEST)
+        if plan.end_date < timezone.now().date():
+            return Response({'error': 'This plan has already ended.'}, status=status.HTTP_400_BAD_REQUEST)
         
         # Get customization data from request
         customization_notes = request.data.get('customization_notes', '')
@@ -209,7 +243,16 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
             )
         
         rejection_reason = request.data.get('rejection_reason', '')
-        plan_request.reject(rejection_reason)
+        with transaction.atomic():
+            plan_request.reject(rejection_reason)
+            # Also cancel any pending subscription created for this request
+            pending_sub = PlanSubscription.objects.filter(
+                client=plan_request.client,
+                product_plan=plan_request.plan,
+                status='pending'
+            ).first()
+            if pending_sub:
+                pending_sub.cancel()
         
         # Send notification to client
         from .notifications.utils import send_plan_notification_email
@@ -249,8 +292,17 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        plan_request.status = 'cancelled'
-        plan_request.save()
+        with transaction.atomic():
+            plan_request.status = 'cancelled'
+            plan_request.save()
+            # Also cancel any pending subscription created for this request
+            pending_sub = PlanSubscription.objects.filter(
+                client=plan_request.client,
+                product_plan=plan_request.plan,
+                status='pending'
+            ).first()
+            if pending_sub:
+                pending_sub.cancel()
         
         serializer = self.get_serializer(plan_request)
         return Response(serializer.data)
@@ -260,6 +312,11 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
     """ViewSet for managing plan cancellations"""
     serializer_class = PlanCancellationSerializer
     permission_classes = [IsAuthenticated]
+    
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return PlanCancellationCreateSerializer
+        return PlanCancellationSerializer
     
     def get_queryset(self):
         """Get cancellations based on user role"""
@@ -305,9 +362,11 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create a cancellation request"""
+        logger.info("PlanCancellation create initiated", extra={'user_id': request.user.id})
         subscription_id = request.data.get('subscription_id')
         
         if not subscription_id:
+            logger.warning("PlanCancellation missing subscription_id", extra={'user_id': request.user.id})
             return Response(
                 {'error': 'subscription_id is required'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -320,6 +379,7 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
                 status='active'
             )
         except PlanSubscription.DoesNotExist:
+            logger.warning("Active subscription not found for cancellation", extra={'subscription_id': subscription_id, 'user_id': request.user.id})
             return Response(
                 {'error': 'Active subscription not found'},
                 status=status.HTTP_404_NOT_FOUND
@@ -327,6 +387,7 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
         
         # Check if cancellation already exists
         if hasattr(subscription, 'cancellation'):
+            logger.info("Cancellation already exists", extra={'subscription_id': subscription.id})
             return Response(
                 {'error': 'Cancellation request already exists for this subscription'},
                 status=status.HTTP_400_BAD_REQUEST
@@ -353,13 +414,12 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
                     }
                 )
             except Exception as e:
-                pass
+                logger.exception("Failed to send plan cancelled email notification", exc_info=e)
             
-            return Response(
-                serializer.data,
-                status=status.HTTP_201_CREATED
-            )
+            display_serializer = PlanCancellationSerializer(cancellation, context={'request': request})
+            return Response(display_serializer.data, status=status.HTTP_201_CREATED)
         
+        logger.warning("PlanCancellation create validation failed", extra={'errors': serializer.errors})
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     @action(detail=True, methods=['post'])

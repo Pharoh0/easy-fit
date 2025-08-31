@@ -118,6 +118,11 @@ class PlanRequestCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Plan not found")
         return value
 
+    def create(self, validated_data):
+        # Remove write-only helper field; view supplies `plan` and `client` via save() kwargs
+        validated_data.pop('plan_id', None)
+        return PlanRequest.objects.create(**validated_data)
+
 
 class PlanCancellationCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating plan cancellations"""
@@ -147,6 +152,11 @@ class PlanCancellationCreateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Active subscription not found")
         
         return value
+
+    def create(self, validated_data):
+        # Remove write-only helper field; view supplies `subscription` via save() kwargs
+        validated_data.pop('subscription_id', None)
+        return PlanCancellation.objects.create(**validated_data)
 
 
 # Import and re-export serializers from submodules for easy access

@@ -71,6 +71,82 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         return None
 
 
+def send_plan_notification_email(subscription, notification_type, additional_context=None):
+    """Backward-compatible wrapper used by various call sites.
+
+    - If `subscription` is provided: delegate to `send_plan_notification` (normal flow).
+    - If `subscription` is None and `notification_type` is 'plan_request_received':
+      send a direct email to the coach about the new plan request using provided context.
+    - Otherwise: log and return gracefully without raising.
+    """
+    try:
+        # Normal path: use the subscription-backed notification system
+        if subscription is not None:
+            return send_plan_notification(subscription, notification_type, additional_context)
+
+        # Handle plan request notification before a subscription exists
+        if notification_type == 'plan_request_received':
+            context = additional_context or {}
+            plan = context.get('plan')
+            coach = context.get('coach')  # expected to be a User
+            client = context.get('client')  # expected to be a User
+            plan_request = context.get('plan_request')
+
+            # Ensure we have a coach email to send to
+            coach_email = getattr(coach, 'email', None)
+            if not coach or not coach_email:
+                logger.warning("Coach email missing; cannot send plan_request_received email")
+                return None
+
+            # Build email subject/body with template fallback
+            template_ctx = {
+                'plan': plan,
+                'coach': coach,
+                'client': client,
+                'plan_request': plan_request,
+                'site_name': getattr(settings, 'SITE_NAME', 'Eazy Fit'),
+            }
+            try:
+                subject = render_to_string('plan_management/emails/plan_request_received_subject.txt', template_ctx).strip()
+                html_content = render_to_string('plan_management/emails/plan_request_received.html', template_ctx)
+            except Exception as template_error:
+                logger.error(f"Template rendering error for plan_request_received: {template_error}")
+                # Fallback subject/content
+                client_name = None
+                try:
+                    client_name = client.get_full_name() if client else None
+                except Exception:
+                    client_name = None
+                client_name = client_name or getattr(client, 'username', 'client')
+                plan_name = getattr(plan, 'name', 'a plan')
+                subject = f"New Plan Request from {client_name}"
+                html_content = (
+                    f"<p>You have a new plan request for: {plan_name}</p>"
+                    f"<p>Client: {client_name}</p>"
+                    f"<p>Please review it in your dashboard.</p>"
+                )
+
+            send_mail(
+                subject=subject,
+                message='',
+                html_message=html_content,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@eazyfit.com'),
+                recipient_list=[coach_email],
+                fail_silently=True,
+            )
+            logger.info(f"Coach notification email sent for new plan request to {coach_email}")
+            return None
+
+        # Unknown scenario without subscription: log and move on
+        logger.warning(
+            f"send_plan_notification_email called without subscription for type: {notification_type}"
+        )
+        return None
+    except Exception as e:
+        logger.exception("Failed in send_plan_notification_email", exc_info=e)
+        return None
+
+
 def get_notification_priority(notification_type):
     """Get priority level for different notification types"""
     priority_map = {

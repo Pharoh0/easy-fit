@@ -315,6 +315,7 @@ def coach_client_quick_stats(request):
     from apps.profiles.client_profile.models import ClientMeasurement
 
     filters = _extract_filters(request)
+    # No caching here; quick stats are lightweight and frequently updated
 
     # Determine client universe after applying search/segment/plan_type
     client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
@@ -697,28 +698,48 @@ def coach_plan_analytics(request):
 
     filters = _extract_filters(request)
 
+    # Cache per coach + filters for a short duration
+    key_payload = {
+        'coach_id': coach_profile.id,
+        'preset': filters.get('preset') or '',
+        'start_date': (filters.get('start_date').isoformat() if filters.get('start_date') else ''),
+        'end_date': (filters.get('end_date').isoformat() if filters.get('end_date') else ''),
+        'plan_type': (request.GET.get('plan_type') or ''),
+        'segment': filters.get('segment') or '',
+        'q': filters.get('q') or '',
+    }
+    cache_key = 'coach_plan_analytics:' + hashlib.md5(json.dumps(key_payload, sort_keys=True).encode('utf-8')).hexdigest()
+    cached = cache.get(cache_key)
+    if cached is not None:
+        return Response({'success': True, 'analytics': cached})
+
     # Plan days for this coach with filters applied
     base_qs = PlanDay.objects.all()
     plan_days = _apply_plan_day_filters(base_qs, coach_profile, filters)
 
-    # Calculate completion stats and rates
-    total_days = plan_days.count()
+    # Calculate completion stats, total days, and average rating in a single aggregate query
+    agg = plan_days.aggregate(
+        total_days=Count('id'),
+        completed=Count('id', filter=Q(completion_status='completed')),
+        in_progress=Count('id', filter=Q(completion_status='in_progress')),
+        not_started=Count('id', filter=Q(completion_status='not_started')),
+        skipped=Count('id', filter=Q(completion_status='skipped')),
+        rescheduled=Count('id', filter=Q(completion_status='rescheduled')),
+        avg_rating=Avg('client_rating'),
+    )
+    total_days = agg['total_days'] or 0
     completion_stats = {
-        'completed': plan_days.filter(completion_status='completed').count(),
-        'in_progress': plan_days.filter(completion_status='in_progress').count(),
-        'not_started': plan_days.filter(completion_status='not_started').count(),
-        'skipped': plan_days.filter(completion_status='skipped').count(),
-        'rescheduled': plan_days.filter(completion_status='rescheduled').count(),
+        'completed': agg['completed'] or 0,
+        'in_progress': agg['in_progress'] or 0,
+        'not_started': agg['not_started'] or 0,
+        'skipped': agg['skipped'] or 0,
+        'rescheduled': agg['rescheduled'] or 0,
     }
     completion_rates = {
         status: round((cnt / total_days * 100) if total_days > 0 else 0, 1)
         for status, cnt in completion_stats.items()
     }
-
-    # Average client rating within filtered window
-    avg_rating = plan_days.filter(client_rating__isnull=False).aggregate(
-        avg_rating=Avg('client_rating')
-    )['avg_rating'] or 0
+    avg_rating = agg['avg_rating'] or 0
 
     # Plan type adherence with filters (respect plan_type filter, date range, and client filters)
     pt_qs = ProductPlan.objects.filter(coach=coach_profile)
@@ -756,5 +777,6 @@ def coach_plan_analytics(request):
         'avg_client_rating': round(avg_rating, 1),
         'plan_type_adherence': list(plan_types),
     }
-
+    # Cache analytics briefly (e.g., 60 seconds)
+    cache.set(cache_key, analytics, 60)
     return Response({'success': True, 'analytics': analytics})

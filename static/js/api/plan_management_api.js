@@ -307,5 +307,96 @@ class PlanManagementAPI {
     }
 }
 
+/**
+ * Plan Requests API
+ * Handles listing, creating, and cancelling plan requests for clients
+ */
+class PlanRequestsAPI {
+    /**
+     * API endpoint base path
+     */
+    static BASE_PATH = (typeof PlanManagementAPI !== 'undefined' && PlanManagementAPI.BASE_PATH) ? PlanManagementAPI.BASE_PATH : '/plan-management/api/v1';
+
+    /**
+     * List plan requests with optional filters and pagination
+     * @param {Object} options - { page, page_size, plan, status, client, pending_only }
+     * @returns {Promise<Object>} { success, requests, pagination } or error response
+     */
+    static async list(options = {}) {
+        let url = `${this.BASE_PATH}/plan-requests/`;
+
+        // Build query params using shared pagination utils
+        const params = PaginationUtils.getPaginationQueryParams(
+            options.page || 1,
+            options.page_size || 10,
+            {
+                plan: options.plan,
+                status: options.status,
+                client: options.client,
+                pending_only: options.pending_only
+            }
+        );
+        url += `?${params}`;
+
+        const response = await APIBase.request(url);
+        if (response.success) {
+            const data = response.data;
+            const requests = (data && data.results) ? data.results : (Array.isArray(data) ? data : []);
+            const count = (data && typeof data.count === 'number') ? data.count : requests.length;
+            const pageSize = options.page_size || 10;
+            return {
+                success: true,
+                requests,
+                pagination: {
+                    count,
+                    next: data ? data.next : null,
+                    previous: data ? data.previous : null,
+                    current_page: options.page || 1,
+                    total_pages: Math.max(1, Math.ceil(count / pageSize)),
+                    page_size: pageSize
+                }
+            };
+        }
+        return response; // error response from APIBase
+    }
+
+    /**
+     * Create a new plan request
+     * @param {Object} requestData - { plan_id, message, goals, ... }
+     * @returns {Promise<Object>} { success, request } or error response
+     */
+    static async create(requestData) {
+        const url = `${this.BASE_PATH}/plan-requests/`;
+        const options = {
+            method: 'POST',
+            body: JSON.stringify(requestData)
+        };
+        const response = await APIBase.request(url, options);
+        if (response.success) {
+            return { success: true, request: response.data };
+        }
+        return response;
+    }
+
+    /**
+     * Cancel an existing pending plan request (client only)
+     * @param {number} requestId - Plan request ID
+     * @returns {Promise<Object>} { success, request } or error response
+     */
+    static async cancel(requestId) {
+        const url = `${this.BASE_PATH}/plan-requests/${requestId}/cancel/`;
+        const options = {
+            method: 'POST',
+            body: JSON.stringify({})
+        };
+        const response = await APIBase.request(url, options);
+        if (response.success) {
+            return { success: true, request: response.data };
+        }
+        return response;
+    }
+}
+
 // Make available globally
 window.PlanManagementAPI = PlanManagementAPI;
+window.PlanRequestsAPI = PlanRequestsAPI;

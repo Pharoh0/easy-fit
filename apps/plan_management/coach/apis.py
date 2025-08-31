@@ -1,4 +1,4 @@
-from .models import CoachProfile
+from apps.profiles.coach_profile.models import CoachProfile
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from .models import ProductPlan, PlanItem
@@ -12,12 +12,13 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from django.shortcuts import get_object_or_404
 from django.db import transaction
-from django.db.models import Q, Count, Avg
+from django.db.models import Q, Count, Avg, F, ExpressionWrapper, DurationField
 from django.utils import timezone
 from ..client.models import PlanSubscription
 from ..client.serializers import PlanSubscriptionSerializer
 from ..daily_entries.models import PlanDay, NutritionPlan, WorkoutPlan
 from ..daily_entries.serializers import PlanDaySerializer, NutritionPlanSerializer, WorkoutPlanSerializer
+from datetime import timedelta
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -33,31 +34,74 @@ class ProductPlanViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly]
     
     def get_queryset(self):
-        # Check if is_active filter is applied (typically for clients browsing plans)
-        is_active = self.request.query_params.get('is_active')
-        
-        # If client is browsing active plans
-        if is_active and is_active.lower() == 'true':
-            return ProductPlan.objects.filter(is_active=True).select_related('coach', 'coach__user')
-        
-        # Fetch plans based on the query parameter for another coach
-        coach_profile_id = self.request.query_params.get('coach_profile_id')
-        
+        request = self.request
+        params = request.query_params
+        user = request.user
+
+        # Base queryset with related coach for performance
+        qs = ProductPlan.objects.all().select_related('coach', 'coach__user')
+
+        # Scope by coach or active status
+        coach_profile_id = params.get('coach_profile_id')
         if coach_profile_id:
+            coach = get_object_or_404(CoachProfile, id=coach_profile_id)
+            qs = qs.filter(coach=coach)
+        elif hasattr(user, 'coach_profile'):
+            qs = qs.filter(coach=user.coach_profile)
+        else:
+            is_active = params.get('is_active')
+            if is_active is not None:
+                if is_active.lower() == 'true':
+                    qs = qs.filter(is_active=True)
+                elif is_active.lower() == 'false':
+                    qs = qs.filter(is_active=False)
+            else:
+                # Default for anonymous/clients: only active plans
+                qs = qs.filter(is_active=True)
+
+        # Annotations for ratings and duration
+        qs = qs.annotate(
+            rating_average=Avg('plan_subscriptions__rating__overall_rating'),
+            rating_count=Count('plan_subscriptions__rating', distinct=True),
+            duration_delta=ExpressionWrapper(F('end_date') - F('start_date'), output_field=DurationField()),
+        )
+
+        # Filters expected from frontend
+        plan_type = params.get('plan_type')
+        if plan_type:
+            qs = qs.filter(plan_type=plan_type)
+
+        price_range = params.get('price_range')
+        if price_range:
             try:
-                coach = CoachProfile.objects.get(id=coach_profile_id)
-            except CoachProfile.DoesNotExist:
-                raise NotFound("Coach profile not found.")
-            
-            return ProductPlan.objects.filter(coach=coach)
-        
-        # Otherwise, fetch plans for the logged-in coach
-        if hasattr(self.request.user, 'coach_profile'):
-            coach = self.request.user.coach_profile
-            return ProductPlan.objects.filter(coach=coach)
-        
-        # If no specific filter and not a coach, show only active plans
-        return ProductPlan.objects.filter(is_active=True).select_related('coach', 'coach__user')
+                if price_range.endswith('+'):
+                    min_price = int(price_range[:-1])
+                    qs = qs.filter(price__gte=min_price)
+                else:
+                    low_str, high_str = price_range.split('-')
+                    low, high = int(low_str), int(high_str)
+                    qs = qs.filter(price__gte=low, price__lte=high)
+            except Exception:
+                pass  # Ignore malformed filter
+
+        duration = params.get('duration')
+        if duration:
+            try:
+                days = int(duration)
+                # (end - start) is exclusive; <= days-1 approximates inclusive day count
+                qs = qs.filter(duration_delta__lte=timedelta(days=days - 1))
+            except Exception:
+                pass
+
+        min_rating = params.get('min_rating')
+        if min_rating:
+            try:
+                threshold = float(min_rating)
+                qs = qs.filter(rating_average__gte=threshold)
+            except Exception:
+                pass
+
+        return qs
 
 
 

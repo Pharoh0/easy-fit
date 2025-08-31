@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from .choices import PLAN_TYPE_CHOICES
@@ -46,24 +46,31 @@ class PlanRequest(models.Model):
         return f"Plan request from {self.client.username} for {self.plan.name}"
 
     def approve(self, customization_notes='', custom_price=None, custom_duration=None):
-        """Approve the request: create an active subscription and update status."""
-        # Save customization details
-        self.customization_notes = customization_notes or ''
-        if custom_price is not None:
-            self.custom_price = custom_price
-        if custom_duration is not None:
-            self.custom_duration = custom_duration
-        self.status = 'accepted'
-        self.save()
+        """Approve the request: activate existing pending subscription or create one, then update status."""
+        with transaction.atomic():
+            # Save customization details
+            self.customization_notes = customization_notes or ''
+            if custom_price is not None:
+                self.custom_price = custom_price
+            if custom_duration is not None:
+                self.custom_duration = custom_duration
+            self.status = 'accepted'
+            self.save()
 
-        # Create and activate subscription
-        from .client.models import PlanSubscription  # local import to avoid circulars
-        subscription = PlanSubscription.objects.create(
-            client=self.client,
-            product_plan=self.plan,
-        )
-        subscription.activate()
-        return subscription
+            # Activate existing pending subscription if exists, otherwise create a new one
+            from .client.models import PlanSubscription  # local import to avoid circulars
+            subscription = PlanSubscription.objects.select_for_update().filter(
+                client=self.client,
+                product_plan=self.plan,
+                status='pending'
+            ).first()
+            if subscription is None:
+                subscription = PlanSubscription.objects.create(
+                    client=self.client,
+                    product_plan=self.plan,
+                )
+            subscription.activate()
+            return subscription
 
     def reject(self, reason=""):
         """Reject the plan request with a reason."""
@@ -73,6 +80,10 @@ class PlanRequest(models.Model):
 
     class Meta:
         ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['client', 'plan', 'status']),
+            models.Index(fields=['status']),
+        ]
 
 
 class PlanCancellation(models.Model):

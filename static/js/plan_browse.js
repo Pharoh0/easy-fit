@@ -247,21 +247,46 @@ class PlanBrowseManager {
         this.selectedPlan = plan;
     }
 
-    showPlanRequestModal() {
+    async showPlanRequestModal() {
         if (!this.selectedPlan) {
             utils.showToast('Please select a plan first', 'warning');
             return;
         }
 
-        const modal = new bootstrap.Modal(document.getElementById('planRequestModal'));
-        modal.show();
+        try {
+            // Pre-check for existing pending request for this plan
+            const listRes = await PlanRequestsAPI.list({ plan: this.selectedPlan.id, pending_only: 'true', page_size: 1 });
+            if (listRes.success && listRes.requests && listRes.requests.length > 0) {
+                const pending = listRes.requests[0];
+                const confirmed = await utils.confirm({
+                    title: 'Pending Request Exists',
+                    message: 'You already have a pending request for this plan. Do you want to cancel it and continue?',
+                    confirmText: 'Cancel & Continue',
+                    variant: 'danger'
+                });
+                if (!confirmed) return;
+
+                const cancelRes = await PlanRequestsAPI.cancel(pending.id);
+                if (!cancelRes.success) {
+                    const msg = this._extractErrorMessage(cancelRes);
+                    utils.showToast(msg || 'Failed to cancel existing request', 'danger');
+                    return;
+                }
+                utils.showToast('Previous pending request cancelled. You can proceed now.', 'success');
+            }
+
+            const modal = new bootstrap.Modal(document.getElementById('planRequestModal'));
+            modal.show();
+        } catch (error) {
+            utils.handleApiError(error, 'Failed to prepare plan request');
+        }
     }
 
     async handlePlanRequest(e) {
         e.preventDefault();
         
         if (!this.selectedPlan) {
-            utils.showToast('No plan selected', 'error');
+            utils.showToast('No plan selected', 'danger');
             return;
         }
 
@@ -278,30 +303,85 @@ class PlanBrowseManager {
         };
 
         try {
-            const response = await api.post('/plan-management/api/v1/plan-requests/', requestData);
-            
-            if (response.ok) {
+            // Create plan request via API helper (handles JWT, CSRF, refresh)
+            let createRes = await PlanRequestsAPI.create(requestData);
+            if (createRes.success) {
                 utils.showToast('Plan request sent successfully!', 'success');
-                
-                // Close modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('planRequestModal'));
-                modal.hide();
-                
-                // Reset form
+                modal && modal.hide();
                 e.target.reset();
                 this.selectedPlan = null;
-                
-                // Redirect to unified client dashboard
-                setTimeout(() => {
-                    window.location.href = '/plan-management/client/dashboard/';
-                }, 2000);
-            } else {
-                const errorData = await response.json();
-                utils.showToast(errorData.error || 'Failed to send plan request', 'danger');
+                setTimeout(() => { window.location.href = '/plan-management/client/dashboard/'; }, 1200);
+                return;
             }
+
+            // Handle error cases gracefully
+            const errMsg = this._extractErrorMessage(createRes).toLowerCase();
+            if (errMsg.includes('pending request')) {
+                // Offer to cancel existing pending request then retry
+                const listRes = await PlanRequestsAPI.list({ plan: this.selectedPlan.id, pending_only: 'true', page_size: 1 });
+                const pending = (listRes.success && listRes.requests && listRes.requests.length) ? listRes.requests[0] : null;
+                if (pending) {
+                    const confirmed = await utils.confirm({
+                        title: 'Pending Request Exists',
+                        message: 'You already have a pending request for this plan. Cancel it and send a new one?',
+                        confirmText: 'Cancel & Retry',
+                        variant: 'danger'
+                    });
+                    if (confirmed) {
+                        const cancelRes = await PlanRequestsAPI.cancel(pending.id);
+                        if (cancelRes.success) {
+                            utils.showToast('Previous request cancelled. Sending new request...', 'info');
+                            createRes = await PlanRequestsAPI.create(requestData);
+                            if (createRes.success) {
+                                utils.showToast('Plan request sent successfully!', 'success');
+                                const modal = bootstrap.Modal.getInstance(document.getElementById('planRequestModal'));
+                                modal && modal.hide();
+                                e.target.reset();
+                                this.selectedPlan = null;
+                                setTimeout(() => { window.location.href = '/plan-management/client/dashboard/'; }, 1200);
+                                return;
+                            }
+                        }
+                        const msg = this._extractErrorMessage(cancelRes);
+                        utils.showToast(msg || 'Failed to cancel existing request', 'danger');
+                        return;
+                    }
+                    // User declined cancellation
+                    return;
+                }
+            }
+
+            if (errMsg.includes('active subscription')) {
+                utils.showToast('You already have an active or pending subscription for this plan.', 'warning');
+                setTimeout(() => { window.location.href = '/plan-management/client/dashboard/'; }, 1200);
+                return;
+            }
+
+            utils.showToast(this._extractErrorMessage(createRes) || 'Failed to send plan request', 'danger');
         } catch (error) {
             utils.handleApiError(error, 'Failed to send plan request');
         }
+    }
+
+    // Helper: extract readable error message from APIBase error responses
+    _extractErrorMessage(resp) {
+        if (!resp) return 'Request failed';
+        const raw = resp.error || resp.message || '';
+        if (!raw) return 'Request failed';
+        try {
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed === 'object') {
+                if (typeof parsed.error === 'string') return parsed.error;
+                // Collect first validation error if present
+                const firstKey = Object.keys(parsed)[0];
+                const v = parsed[firstKey];
+                if (Array.isArray(v)) return String(v[0]);
+                if (typeof v === 'string') return v;
+                return JSON.stringify(parsed);
+            }
+        } catch (_) { /* not JSON */ }
+        return String(raw);
     }
 
     applyFilters() {

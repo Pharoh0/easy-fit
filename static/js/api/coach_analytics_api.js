@@ -21,7 +21,7 @@ class CoachAnalyticsAPI {
         try {
             const response = await APIBase.request(url);
             
-            if (response.success && response.data && response.data.analytics) {
+            if (response.success && response.data && response.data.success === true && response.data.analytics) {
                 console.debug('Plan analytics data received successfully');
                 return { 
                     success: true, 
@@ -39,7 +39,8 @@ class CoachAnalyticsAPI {
             console.error('Error fetching plan analytics:', error);
             return { 
                 success: false, 
-                error: error.message || 'Failed to connect to analytics service'
+                error: error.message || 'Failed to connect to analytics service',
+                strictSuccessCheck: true
             };
         }
     }
@@ -155,6 +156,16 @@ class CoachAnalyticsAPI {
     }
     
     /**
+     * Map backend plan_type codes to friendly labels
+     */
+    static formatPlanTypeLabel(code) {
+        if (!code) return '';
+        const map = { 'diet': 'Nutrition', 'workout': 'Workout' };
+        const lower = String(code).toLowerCase();
+        return map[lower] || (String(code).charAt(0).toUpperCase() + String(code).slice(1));
+    }
+
+    /**
      * Render analytics data into element
      * @param {HTMLElement} element - Element to render analytics into
      * @param {Object} data - Analytics data
@@ -241,7 +252,7 @@ class CoachAnalyticsAPI {
                         <div class="card-body">
                             <h5 class="card-title">Plan Type Adherence</h5>
                             <div class="table-responsive">
-                                <table class="table table-sm">
+                                <table class="table table-sm table-striped" id="planTypeAdherenceTable">
                                     <thead>
                                         <tr>
                                             <th>Plan Type</th>
@@ -253,7 +264,7 @@ class CoachAnalyticsAPI {
                                     <tbody>
                                         ${data.plan_type_adherence.map(plan => `
                                             <tr>
-                                                <td>${plan.plan_type}</td>
+                                                <td>${this.formatPlanTypeLabel(plan.plan_type)}</td>
                                                 <td>${plan.total_days}</td>
                                                 <td>${plan.completed_days}</td>
                                                 <td>
@@ -279,7 +290,7 @@ class CoachAnalyticsAPI {
             </div>
         `;
         
-        // Initialize chart
+        // Initialize chart and DataTable
         setTimeout(() => {
             const ctx = document.getElementById('completionChart').getContext('2d');
             new Chart(ctx, {
@@ -295,6 +306,26 @@ class CoachAnalyticsAPI {
                     }
                 }
             });
+
+            // Initialize DataTable for adherence table (local vendor assets)
+            try {
+                const $ = window.jQuery || window.$;
+                if ($ && $.fn && typeof $.fn.DataTable === 'function') {
+                    const sel = '#planTypeAdherenceTable';
+                    if ($.fn.DataTable.isDataTable(sel)) {
+                        $(sel).DataTable().clear().destroy();
+                    }
+                    $(sel).DataTable({
+                        paging: false,
+                        searching: false,
+                        info: false,
+                        order: [],
+                        autoWidth: false
+                    });
+                }
+            } catch (e) {
+                console.warn('DataTable initialization for planTypeAdherenceTable failed:', e);
+            }
         }, 0);
     }
 
