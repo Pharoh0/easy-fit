@@ -6,25 +6,24 @@
 const CoachPlanAPI = (() => {
     // API endpoints
     const API_ENDPOINTS = {
-        productPlans: '/api/coach/product-plans/',
-        planItems: '/api/coach/plan-items/',
-        planTemplates: '/api/coach/plan-templates/',
-        workoutTemplates: '/api/coach/workout-templates/',
-        exerciseTemplates: '/api/coach/exercise-templates/',
-        mealTemplates: '/api/coach/meal-templates/',
-        planCustomization: '/api/coach/plan-customization/',
+        productPlans: '/api/v1/product-plans/',
+        planItems: '/api/v1/plan-items/',
+        planTemplates: '/api/v1/plan-templates/',
+        workoutTemplates: '/api/v1/workout-templates/',
+        exerciseTemplates: '/api/v1/exercise-templates/',
+        mealTemplates: '/api/v1/meal-templates/',
+        planCustomization: '/api/v1/coach-plan-customization/',
     };
     
     // Get authentication headers
     function getAuthHeaders(includeContentType = true) {
-        const headers = {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-        };
-        
-        if (includeContentType) {
-            headers['Content-Type'] = 'application/json';
-        }
-        
+        // Prefer APIBase unified token storage; fall back to legacy keys
+        const token = (typeof APIBase !== 'undefined')
+            ? APIBase.getJWTToken()
+            : (localStorage.getItem('access_token') || localStorage.getItem('jwt_token') || localStorage.getItem('token'));
+        const headers = {};
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        if (includeContentType) headers['Content-Type'] = 'application/json';
         return headers;
     }
     
@@ -38,8 +37,19 @@ const CoachPlanAPI = (() => {
         switch (response.status) {
             case 401:
                 // Unauthorized - clear token and redirect to login
-                localStorage.removeItem('token');
-                window.location.href = '/login/';
+                // Let APIBase handle login redirect if available; otherwise fallback
+                try {
+                    const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+                    localStorage.removeItem('access_token');
+                    localStorage.removeItem('refresh_token');
+                    localStorage.removeItem('jwt_token');
+                    const nextUrl = encodeURIComponent(window.location.href);
+                    if (window.location.pathname !== loginUrl) {
+                        window.location.href = `${loginUrl}?next=${nextUrl}`;
+                    }
+                } catch (e) {
+                    window.location.href = '/auth-users/login/';
+                }
                 break;
             case 403:
                 // Forbidden
@@ -59,110 +69,100 @@ const CoachPlanAPI = (() => {
     const productPlans = {
         getAll(params = {}) {
             const queryParams = new URLSearchParams();
-            
-            // Add query parameters
             Object.keys(params).forEach(key => {
                 if (params[key] !== null && params[key] !== undefined) {
                     queryParams.append(key, params[key]);
                 }
             });
-            
             const url = `${API_ENDPOINTS.productPlans}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            
-            return fetch(url, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            })
-            .then(handleResponse);
+            return APIBase.request(url, { method: 'GET' })
+                .then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to load product plans');
+                });
         },
         
         getById(planId) {
-            return fetch(`${API_ENDPOINTS.productPlans}${planId}/`, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            })
-            .then(handleResponse);
+            return APIBase.request(`${API_ENDPOINTS.productPlans}${planId}/`, { method: 'GET' })
+                .then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to load plan');
+                });
         },
         
         create(planData) {
-            return fetch(API_ENDPOINTS.productPlans, {
+            return APIBase.request(API_ENDPOINTS.productPlans, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(planData)
-            })
-            .then(handleResponse);
-        },
-        
-        update(planId, planData) {
-            return fetch(`${API_ENDPOINTS.productPlans}${planId}/`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(planData)
-            })
-            .then(handleResponse);
-        },
-        
-        delete(planId) {
-            return fetch(`${API_ENDPOINTS.productPlans}${planId}/`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return handleResponse(response);
-                }
-                return { success: true };
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to create plan');
             });
         },
         
+        update(planId, planData) {
+            return APIBase.request(`${API_ENDPOINTS.productPlans}${planId}/`, {
+                method: 'PATCH',
+                body: JSON.stringify(planData)
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to update plan');
+            });
+        },
+        
+        delete(planId) {
+            return APIBase.request(`${API_ENDPOINTS.productPlans}${planId}/`, { method: 'DELETE' })
+                .then(res => {
+                    if (res && res.success) return { success: true };
+                    throw new Error((res && res.error) || 'Failed to delete plan');
+                });
+        },
+        
         duplicate(planId) {
-            return fetch(`${API_ENDPOINTS.productPlans}${planId}/duplicate/`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            })
-            .then(handleResponse);
+            return APIBase.request(`${API_ENDPOINTS.productPlans}${planId}/duplicate/`, { method: 'POST' })
+                .then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to duplicate plan');
+                });
         }
     };
     
     // Plan Items API
     const planItems = {
         getByPlanId(planId) {
-            return fetch(`${API_ENDPOINTS.planItems}?plan=${planId}`, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            })
-            .then(handleResponse);
+            return APIBase.request(`${API_ENDPOINTS.planItems}?plan=${planId}`, { method: 'GET' })
+                .then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to load plan items');
+                });
         },
         
         create(itemData) {
-            return fetch(API_ENDPOINTS.planItems, {
+            return APIBase.request(API_ENDPOINTS.planItems, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(itemData)
-            })
-            .then(handleResponse);
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to create plan item');
+            });
         },
         
         update(itemId, itemData) {
-            return fetch(`${API_ENDPOINTS.planItems}${itemId}/`, {
+            return APIBase.request(`${API_ENDPOINTS.planItems}${itemId}/`, {
                 method: 'PATCH',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(itemData)
-            })
-            .then(handleResponse);
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to update plan item');
+            });
         },
         
         delete(itemId) {
-            return fetch(`${API_ENDPOINTS.planItems}${itemId}/`, {
-                method: 'DELETE',
-                headers: getAuthHeaders()
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return handleResponse(response);
-                }
-                return { success: true };
-            });
+            return APIBase.request(`${API_ENDPOINTS.planItems}${itemId}/`, { method: 'DELETE' })
+                .then(res => {
+                    if (res && res.success) return { success: true };
+                    throw new Error((res && res.error) || 'Failed to delete plan item');
+                });
         }
     };
     
@@ -171,60 +171,53 @@ const CoachPlanAPI = (() => {
         return {
             getAll(params = {}) {
                 const queryParams = new URLSearchParams();
-                
-                // Add query parameters
                 Object.keys(params).forEach(key => {
                     if (params[key] !== null && params[key] !== undefined) {
                         queryParams.append(key, params[key]);
                     }
                 });
-                
                 const url = `${endpoint}${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-                
-                return fetch(url, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                })
-                .then(handleResponse);
+                return APIBase.request(url, { method: 'GET' })
+                    .then(res => {
+                        if (res && res.success) return res.data;
+                        throw new Error((res && res.error) || 'Failed to load templates');
+                    });
             },
             
             getById(templateId) {
-                return fetch(`${endpoint}${templateId}/`, {
-                    method: 'GET',
-                    headers: getAuthHeaders()
-                })
-                .then(handleResponse);
+                return APIBase.request(`${endpoint}${templateId}/`, { method: 'GET' })
+                    .then(res => {
+                        if (res && res.success) return res.data;
+                        throw new Error((res && res.error) || 'Failed to load template');
+                    });
             },
             
             create(templateData) {
-                return fetch(endpoint, {
+                return APIBase.request(endpoint, {
                     method: 'POST',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify(templateData)
-                })
-                .then(handleResponse);
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to create template');
+                });
             },
             
             update(templateId, templateData) {
-                return fetch(`${endpoint}${templateId}/`, {
+                return APIBase.request(`${endpoint}${templateId}/`, {
                     method: 'PATCH',
-                    headers: getAuthHeaders(),
                     body: JSON.stringify(templateData)
-                })
-                .then(handleResponse);
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to update template');
+                });
             },
             
             delete(templateId) {
-                return fetch(`${endpoint}${templateId}/`, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        return handleResponse(response);
-                    }
-                    return { success: true };
-                });
+                return APIBase.request(`${endpoint}${templateId}/`, { method: 'DELETE' })
+                    .then(res => {
+                        if (res && res.success) return { success: true };
+                        throw new Error((res && res.error) || 'Failed to delete template');
+                    });
             }
         };
     }
@@ -238,40 +231,38 @@ const CoachPlanAPI = (() => {
     // Plan Customization API
     const planCustomization = {
         customizePlanDay(subscriptionId, planDayId, customizationData) {
-            return fetch(`${API_ENDPOINTS.planCustomization}${subscriptionId}/customize_plan_day/${planDayId}/`, {
+            return APIBase.request(`${API_ENDPOINTS.planCustomization}${subscriptionId}/customize_plan_day/${planDayId}/`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(customizationData)
-            })
-            .then(handleResponse);
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to customize plan day');
+            });
         },
         
         applyTemplate(subscriptionId, planDayId, templateData) {
-            return fetch(`${API_ENDPOINTS.planCustomization}${subscriptionId}/apply_template/${planDayId}/`, {
+            return APIBase.request(`${API_ENDPOINTS.planCustomization}${subscriptionId}/apply_template/${planDayId}/`, {
                 method: 'POST',
-                headers: getAuthHeaders(),
                 body: JSON.stringify(templateData)
-            })
-            .then(handleResponse);
+            }).then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'Failed to apply template');
+            });
         },
         
         clientProgressSummary(params = {}) {
             const queryParams = new URLSearchParams();
-            
-            // Add query parameters
             Object.keys(params).forEach(key => {
                 if (params[key] !== null && params[key] !== undefined) {
                     queryParams.append(key, params[key]);
                 }
             });
-            
             const url = `${API_ENDPOINTS.planCustomization}client_progress_summary/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-            
-            return fetch(url, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            })
-            .then(handleResponse);
+            return APIBase.request(url, { method: 'GET' })
+                .then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to load client progress summary');
+                });
         }
     };
     
@@ -279,18 +270,16 @@ const CoachPlanAPI = (() => {
     function uploadFile(endpoint, file, metadata = {}) {
         const formData = new FormData();
         formData.append('file', file);
-        
         // Add metadata
         Object.keys(metadata).forEach(key => {
             formData.append(key, metadata[key]);
         });
-        
-        return fetch(endpoint, {
-            method: 'POST',
-            headers: getAuthHeaders(false), // Don't include Content-Type for FormData
-            body: formData
-        })
-        .then(handleResponse);
+        // APIBase.request will drop Content-Type so browser can set boundary
+        return APIBase.request(endpoint, { method: 'POST', body: formData })
+            .then(res => {
+                if (res && res.success) return res.data;
+                throw new Error((res && res.error) || 'File upload failed');
+            });
     }
     
     // Error handler helper

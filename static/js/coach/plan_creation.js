@@ -14,195 +14,9 @@ let currentTemplates = {
     meals: []
 };
 
-// API endpoints
-const API_ENDPOINTS = {
-    productPlans: '/api/coach/product-plans/',
-    planTemplates: '/api/coach/plan-templates/',
-    workoutTemplates: '/api/coach/workout-templates/',
-    exerciseTemplates: '/api/coach/exercise-templates/',
-    mealTemplates: '/api/coach/meal-templates/',
-};
-
-// JWT token handling
-function getAuthToken() {
-    return localStorage.getItem('token');
-}
-
-function getAuthHeaders() {
-    return {
-        'Authorization': `Bearer ${getAuthToken()}`,
-        'Content-Type': 'application/json'
-    };
-}
-
-// API functions
-const PlanAPI = {
-    // Product Plans
-    async createPlan(planData) {
-        try {
-            const response = await fetch(API_ENDPOINTS.productPlans, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(planData)
-            });
-            
-            if (!response.ok) throw new Error(`Error creating plan: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error('Error creating plan:', error);
-            showToast('error', 'Failed to create plan');
-            throw error;
-        }
-    },
-    
-    async updatePlan(planId, planData) {
-        try {
-            const response = await fetch(`${API_ENDPOINTS.productPlans}${planId}/`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(planData)
-            });
-            
-            if (!response.ok) throw new Error(`Error updating plan: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error('Error updating plan:', error);
-            showToast('error', 'Failed to update plan');
-            throw error;
-        }
-    },
-    
-    async duplicatePlan(planId) {
-        try {
-            const response = await fetch(`${API_ENDPOINTS.productPlans}${planId}/duplicate/`, {
-                method: 'POST',
-                headers: getAuthHeaders()
-            });
-            
-            if (!response.ok) throw new Error(`Error duplicating plan: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error('Error duplicating plan:', error);
-            showToast('error', 'Failed to duplicate plan');
-            throw error;
-        }
-    },
-    
-    // Templates
-    async fetchTemplates(templateType) {
-        let endpoint;
-        switch (templateType) {
-            case 'plan':
-                endpoint = API_ENDPOINTS.planTemplates;
-                break;
-            case 'workout':
-                endpoint = API_ENDPOINTS.workoutTemplates;
-                break;
-            case 'exercise':
-                endpoint = API_ENDPOINTS.exerciseTemplates;
-                break;
-            case 'meal':
-                endpoint = API_ENDPOINTS.mealTemplates;
-                break;
-            default:
-                throw new Error(`Unknown template type: ${templateType}`);
-        }
-        
-        try {
-            const response = await fetch(endpoint, {
-                method: 'GET',
-                headers: getAuthHeaders()
-            });
-            
-            if (!response.ok) throw new Error(`Error fetching ${templateType} templates: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error(`Error fetching ${templateType} templates:`, error);
-            showToast('error', `Failed to load ${templateType} templates`);
-            throw error;
-        }
-    },
-    
-    async createTemplate(templateType, templateData) {
-        let endpoint;
-        switch (templateType) {
-            case 'plan':
-                endpoint = API_ENDPOINTS.planTemplates;
-                break;
-            case 'workout':
-                endpoint = API_ENDPOINTS.workoutTemplates;
-                break;
-            case 'exercise':
-                endpoint = API_ENDPOINTS.exerciseTemplates;
-                break;
-            case 'meal':
-                endpoint = API_ENDPOINTS.mealTemplates;
-                break;
-            default:
-                throw new Error(`Unknown template type: ${templateType}`);
-        }
-        
-        try {
-            const response = await fetch(endpoint, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(templateData)
-            });
-            
-            if (!response.ok) throw new Error(`Error creating ${templateType} template: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error(`Error creating ${templateType} template:`, error);
-            showToast('error', `Failed to create ${templateType} template`);
-            throw error;
-        }
-    },
-    
-    async updateTemplate(templateType, templateId, templateData) {
-        let endpoint;
-        switch (templateType) {
-            case 'plan':
-                endpoint = `${API_ENDPOINTS.planTemplates}${templateId}/`;
-                break;
-            case 'workout':
-                endpoint = `${API_ENDPOINTS.workoutTemplates}${templateId}/`;
-                break;
-            case 'exercise':
-                endpoint = `${API_ENDPOINTS.exerciseTemplates}${templateId}/`;
-                break;
-            case 'meal':
-                endpoint = `${API_ENDPOINTS.mealTemplates}${templateId}/`;
-                break;
-            default:
-                throw new Error(`Unknown template type: ${templateType}`);
-        }
-        
-        try {
-            const response = await fetch(endpoint, {
-                method: 'PATCH',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(templateData)
-            });
-            
-            if (!response.ok) throw new Error(`Error updating ${templateType} template: ${response.statusText}`);
-            return await response.json();
-        } catch (error) {
-            console.error(`Error updating ${templateType} template:`, error);
-            showToast('error', `Failed to update ${templateType} template`);
-            throw error;
-        }
-    }
-};
+// CoachPlanAPI is imported from static/js/api/coach_plan_api.js
 
 // Utility functions
-function showToast(type, message) {
-    const toastEl = document.getElementById('toast');
-    toastEl.className = `toast align-items-center text-white bg-${type} border-0`;
-    document.getElementById('toastBody').textContent = message;
-    
-    const toast = new bootstrap.Toast(toastEl);
-    toast.show();
-}
 
 function capitalizeFirst(str) {
     if (!str) return '';
@@ -335,23 +149,24 @@ function updateWorkoutDaysCalculation() {
 // Template handling
 function loadTemplates() {
     Promise.all([
-        PlanAPI.fetchTemplates('workout').then(data => {
+        CoachPlanAPI.workoutTemplates.getAll().then(data => {
             workoutTemplates = data;
             renderTemplateItems('workout', data);
         }),
-        PlanAPI.fetchTemplates('meal').then(data => {
+        CoachPlanAPI.mealTemplates.getAll().then(data => {
             mealTemplates = data;
             renderTemplateItems('meal', data);
         }),
-        PlanAPI.fetchTemplates('plan').then(data => {
+        CoachPlanAPI.planTemplates.getAll().then(data => {
             planTemplates = data;
             renderTemplateItems('plan', data);
         }),
-        PlanAPI.fetchTemplates('exercise').then(data => {
+        CoachPlanAPI.exerciseTemplates.getAll().then(data => {
             exerciseTemplates = data;
         })
     ]).catch(error => {
         console.error('Error loading templates:', error);
+        showToast('error', 'Failed to load templates. Please refresh the page and try again.');
     });
 }
 
@@ -454,23 +269,47 @@ function showTemplateForm(type, templateData = null) {
     saveBtn.onclick = () => {
         const formData = collectTemplateFormData(type);
         
+        let apiCall;
         if (templateData) {
-            PlanAPI.updateTemplate(type, templateData.id, formData)
-                .then(updated => {
-                    showToast('success', `${capitalizeFirst(type)} template updated successfully`);
-                    loadTemplates(); // Reload templates
-                    $('#templateModal').modal('hide');
-                })
-                .catch(error => console.error('Error updating template:', error));
+            switch (type) {
+                case 'workout':
+                    apiCall = CoachPlanAPI.workoutTemplates.update(templateData.id, formData);
+                    break;
+                case 'meal':
+                    apiCall = CoachPlanAPI.mealTemplates.update(templateData.id, formData);
+                    break;
+                case 'plan':
+                    apiCall = CoachPlanAPI.planTemplates.update(templateData.id, formData);
+                    break;
+                default:
+                    showToast('error', 'Unknown template type');
+                    return;
+            }
         } else {
-            PlanAPI.createTemplate(type, formData)
-                .then(created => {
-                    showToast('success', `${capitalizeFirst(type)} template created successfully`);
-                    loadTemplates(); // Reload templates
-                    $('#templateModal').modal('hide');
-                })
-                .catch(error => console.error('Error creating template:', error));
+            switch (type) {
+                case 'workout':
+                    apiCall = CoachPlanAPI.workoutTemplates.create(formData);
+                    break;
+                case 'meal':
+                    apiCall = CoachPlanAPI.mealTemplates.create(formData);
+                    break;
+                case 'plan':
+                    apiCall = CoachPlanAPI.planTemplates.create(formData);
+                    break;
+                default:
+                    showToast('error', 'Unknown template type');
+                    return;
+            }
         }
+        
+        apiCall.then(result => {
+            showToast('success', `${capitalizeFirst(type)} template ${templateData ? 'updated' : 'created'} successfully`);
+            loadTemplates(); // Reload templates
+            $('#templateModal').modal('hide');
+        }).catch(error => {
+            console.error(`Error ${templateData ? 'updating' : 'creating'} template:`, error);
+            showToast('error', `Failed to ${templateData ? 'update' : 'create'} ${type} template`);
+        });
     };
     
     // Show the modal
@@ -1590,7 +1429,7 @@ function loadPlanReview() {
     }
     
     // Fetch the current plan data from the backend to ensure we have the most up-to-date information
-    CoachPlanAPI.productPlans.get(currentPlanId)
+    CoachPlanAPI.productPlans.getById(currentPlanId)
         .then(plan => {
             // Render plan summary
             renderPlanSummary(plan, planSummary);
@@ -1676,7 +1515,7 @@ function renderSelectedTemplates(plan) {
     
     // Fetch full workout templates data
     if (selectedWorkoutTemplateIds.length > 0) {
-        CoachPlanAPI.workoutTemplates.list()
+        CoachPlanAPI.workoutTemplates.getAll()
             .then(templates => {
                 const selectedTemplates = templates.filter(t => selectedWorkoutTemplateIds.includes(t.id));
                 renderWorkoutTemplatesPreview(selectedTemplates);
@@ -1707,7 +1546,7 @@ function renderSelectedTemplates(plan) {
     
     // Fetch full meal templates data
     if (selectedMealTemplateIds.length > 0) {
-        CoachPlanAPI.mealTemplates.list()
+        CoachPlanAPI.mealTemplates.getAll()
             .then(templates => {
                 const selectedTemplates = templates.filter(t => selectedMealTemplateIds.includes(t.id));
                 renderMealTemplatesPreview(selectedTemplates);
@@ -2100,7 +1939,7 @@ function loadPlanReview() {
     }
     
     // Fetch the current plan data from the backend to ensure we have the most up-to-date information
-    CoachPlanAPI.productPlans.get(currentPlanId)
+    CoachPlanAPI.productPlans.getById(currentPlanId)
         .then(plan => {
             // Render plan summary
             renderPlanSummary(plan, planSummary);
