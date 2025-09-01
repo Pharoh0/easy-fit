@@ -33,7 +33,7 @@ router.register(r'plan-cancellations', views.PlanCancellationViewSet, basename='
 router.register(r'plan-days', daily_views.PlanDayViewSet, basename='planday')
 router.register(r'meal-plans', daily_views.MealPlanViewSet, basename='mealplan')
 router.register(r'workout-plans', daily_views.WorkoutPlanViewSet, basename='workoutplan')
-router.register(r'exercises', daily_views.ExerciseViewSet, basename='exercises')
+router.register(r'exercises', daily_views.ExerciseViewSet, basename='exercise')
 
 # Rating endpoints
 router.register(r'plan-ratings', rating_views.PlanRatingViewSet, basename='planrating')
