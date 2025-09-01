@@ -60,7 +60,12 @@ router.register(r'exercise-templates', ExerciseTemplateViewSet)
 router.register(r'meal-templates', MealTemplateViewSet)
 
 urlpatterns = [
-    path('', include(router.urls)),
+    path('api/v1/', include(router.urls)),
+    
+    # Coach analytics API endpoints (for JS BASE_PATH = '/plan-management/api/v1/coach')
+    path('api/v1/coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics_api'),
+    path('api/v1/coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights_api'),
+    path('api/v1/coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api_v1'),
     
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),
     
