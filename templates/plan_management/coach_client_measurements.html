@@ -135,10 +135,23 @@
                 <div class="measurement-card slide-up">
                     <div class="card-header-custom">
                         <h5><i class="fas fa-camera me-2"></i>Progress Photos</h5>
+                        <div class="header-actions">
+                            <select id="photoViewFilter" class="form-select form-select-sm">
+                                <option value="all">All Photos</option>
+                                <option value="front">Front View</option>
+                                <option value="side">Side View</option>
+                                <option value="back">Back View</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="card-body-custom">
                         <div id="measurementPhotos" class="measurement-photos">
                             <!-- Dynamic content -->
+                        </div>
+                        <div class="text-center mt-3">
+                            <button id="viewAllPhotosBtn" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-images me-1"></i> View All Photos
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -208,6 +221,9 @@
             </div>
         </div>
     </div>
+    
+    <!-- Include photo lightbox component -->
+    {% include 'components/photo_lightbox.html' %}
 
 </div>
 
@@ -217,5 +233,7 @@
 {% if include_charts %}
     <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 {% endif %}
+<!-- Add the lightbox script -->
+<script src="{% static 'js/coach/lightbox.js' %}"></script>
 <script src="{% static 'js/coach_measurements.js' %}"></script>
 {% endblock %}

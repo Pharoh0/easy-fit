@@ -1,0 +1,122 @@
+<!-- Photo Lightbox Modal Component -->
+<div class="modal fade" id="photoLightboxModal" tabindex="-1" aria-labelledby="photoLightboxLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-fullscreen-sm-down">
+        <div class="modal-content lightbox-content">
+            <!-- Header -->
+            <div class="lightbox-header">
+                <div class="header-left">
+                    <h5 class="lightbox-title" id="photoLightboxLabel">Progress Photo</h5>
+                    <span class="photo-type-badge" id="photoTypeBadge"></span>
+                </div>
+                <div class="lightbox-controls">
+                    <span id="photoCounter" class="photo-counter">1 / 1</span>
+                    <button type="button" class="btn-icon" id="downloadPhotoBtn" title="Download photo">
+                        <i class="fas fa-download"></i>
+                    </button>
+                    <button type="button" class="btn-icon" id="expandFullscreenBtn" title="Toggle fullscreen">
+                        <i class="fas fa-expand"></i>
+                    </button>
+                    <button type="button" class="btn-icon" id="closeLightboxBtn" data-bs-dismiss="modal" title="Close">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Body -->
+            <div class="lightbox-body">
+                <!-- Main Image Container -->
+                <div class="lightbox-image-container">
+                    <!-- Photo navigation controls -->
+                    <div class="photo-navigation">
+                        <button type="button" class="nav-btn prev-btn pulse-on-hover" id="prevPhotoBtn" title="Previous photo">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button type="button" class="nav-btn next-btn pulse-on-hover" id="nextPhotoBtn" title="Next photo">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                    
+                    <!-- Main image with wrapper for centering -->
+                    <div class="main-image-wrapper">
+                        <div class="image-loading-indicator" id="imageLoading">
+                            <div class="spinner-border text-light" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        <img src="" alt="Progress Photo" id="lightboxImage" class="lightbox-image fade-in">
+                    </div>
+                    
+                    <!-- Photo date overlay -->
+                    <div class="photo-date-overlay" id="photoDateOverlay"></div>
+                </div>
+                
+                <!-- Sidebar with metadata and thumbnails -->
+                <div class="lightbox-sidebar">
+                    <!-- Photo Metadata -->
+                    <div class="photo-metadata-card">
+                        <h6 class="sidebar-heading"><i class="fas fa-info-circle"></i> Photo Information</h6>
+                        <div class="metadata-grid">
+                            <div class="metadata-item">
+                                <div class="metadata-icon">
+                                    <i class="fas fa-calendar-alt"></i>
+                                </div>
+                                <div class="metadata-content">
+                                    <span class="metadata-label">Date</span>
+                                    <span class="metadata-value" id="photoDate"></span>
+                                </div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-icon">
+                                    <i class="fas fa-camera"></i>
+                                </div>
+                                <div class="metadata-content">
+                                    <span class="metadata-label">Type</span>
+                                    <span class="metadata-value" id="photoType"></span>
+                                </div>
+                            </div>
+                            <div class="metadata-item">
+                                <div class="metadata-icon">
+                                    <i class="fas fa-weight"></i>
+                                </div>
+                                <div class="metadata-content">
+                                    <span class="metadata-label">Weight</span>
+                                    <span class="metadata-value" id="photoWeight"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Comparison Section -->
+                    <div class="comparison-section">
+                        <h6 class="sidebar-heading"><i class="fas fa-clone"></i> Compare Photos</h6>
+                        <div class="comparison-selector-wrapper">
+                            <select class="form-select" id="comparisonSelect">
+                                <option value="">Select a date to compare...</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Photo Comparison Container -->
+                        <div class="comparison-container" id="comparisonContainer">
+                            <div class="comparison-placeholder">Select a date to compare progress</div>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+            
+            <!-- Mobile Controls Footer (visible only on small screens) -->
+            <div class="mobile-controls">
+                <button type="button" class="mobile-btn" id="mobilePrevBtn">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="mobile-counter" id="mobilePhotoCounter">1/1</span>
+                <button type="button" class="mobile-btn" id="mobileNextBtn">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Required for comparison download feature -->
+<script src="/static/js/html2canvas.min.js"></script>

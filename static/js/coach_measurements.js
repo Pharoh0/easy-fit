@@ -907,10 +907,28 @@ updateProgressPhotos(measurement) {
             return;
         }
         
+        // Add filter dropdown to header
+        const filterContainer = document.querySelector('.measurement-photos-header .header-actions');
+        if (filterContainer && !document.getElementById('photoFilterSelect')) {
+            const filterSelect = document.createElement('select');
+            filterSelect.id = 'photoFilterSelect';
+            filterSelect.className = 'form-select form-select-sm';
+            filterSelect.innerHTML = `
+                <option value="all">All Photos</option>
+                <option value="front">Front View</option>
+                <option value="side">Side View</option>
+                <option value="back">Back View</option>
+            `;
+            filterSelect.addEventListener('change', (e) => {
+                this.filterProgressPhotos(e.target.value);
+            });
+            filterContainer.appendChild(filterSelect);
+        }
+        
         const photos = [
-            { label: 'Front', photo: measurement.front_photo, icon: 'user', delay: 0 },
-            { label: 'Side', photo: measurement.side_photo, icon: 'user-friends', delay: 0.1 },
-            { label: 'Back', photo: measurement.back_photo, icon: 'user-shield', delay: 0.2 }
+            { label: 'Front', photo: measurement.front_photo, icon: 'user', delay: 0, type: 'front' },
+            { label: 'Side', photo: measurement.side_photo, icon: 'user-friends', delay: 0.1, type: 'side' },
+            { label: 'Back', photo: measurement.back_photo, icon: 'user-shield', delay: 0.2, type: 'back' }
         ];
         
         // Check if any photos exist
@@ -929,32 +947,78 @@ updateProgressPhotos(measurement) {
         
         // Create photo grid container
         const photoGrid = document.createElement('div');
-        photoGrid.className = 'photo-grid';
+        photoGrid.className = 'measurement-photos';
         container.appendChild(photoGrid);
         
-        photos.forEach(p => {
+        // Store all photos data for lightbox
+        this.allPhotos = [];
+        
+        // Process all measurements to build a complete photo gallery
+        this.currentMeasurements.forEach((m, measurementIndex) => {
+            if (!m) return;
+            
+            const photoTypes = [
+                { type: 'front', photo: m.front_photo, label: 'Front View', icon: 'user' },
+                { type: 'side', photo: m.side_photo, label: 'Side View', icon: 'user-friends' },
+                { type: 'back', photo: m.back_photo, label: 'Back View', icon: 'user-shield' }
+            ];
+            
+            photoTypes.forEach(p => {
+                if (p.photo) {
+                    this.allPhotos.push({
+                        src: p.photo,
+                        type: p.label,
+                        date: m.date,
+                        weight: m.weight,
+                        measurementId: m.id,
+                        photoType: p.type
+                    });
+                }
+            });
+        });
+        
+        // Display only the latest measurement photos in the grid
+        photos.forEach((p, photoIndex) => {
             const photoContainer = document.createElement('div');
-            photoContainer.className = 'photo-container animate-on-scroll';
+            photoContainer.className = `photo-container animate-on-scroll ${p.type}-view`;
             photoContainer.style.animationDelay = `${p.delay}s`;
             
             if (p.photo) {
                 photoContainer.innerHTML = `
                     <div class="photo-card">
                         <div class="photo-wrapper">
-                            <img src="${p.photo}" alt="${p.label} Photo" 
-                                onclick="coachMeasurements.viewPhotoModal('${p.photo}', '${p.label}')">
+                            <img src="${p.photo}" alt="${p.label} Photo">
                             <div class="photo-overlay">
-                                <button class="btn btn-sm btn-light rounded-circle">
+                                <div class="photo-date-tag">${this.formatDate(measurement.date, 'short')}</div>
+                                <div class="photo-type-tag">${p.label}</div>
+                                <button class="btn btn-sm btn-light rounded-circle zoom-btn">
                                     <i class="fas fa-search-plus"></i>
                                 </button>
                             </div>
                         </div>
-                        <div class="photo-label">
-                            <i class="fas fa-${p.icon} me-1"></i>
-                            ${p.label}
-                        </div>
                     </div>
                 `;
+                
+                // Add click event to open lightbox
+                const img = photoContainer.querySelector('img');
+                const zoomBtn = photoContainer.querySelector('.zoom-btn');
+                
+                const openPhotoLightbox = (e) => {
+                    e.preventDefault();
+                    // Find the index of this photo in the allPhotos array
+                    const photoData = this.allPhotos.find(photo => 
+                        photo.src === p.photo && 
+                        photo.measurementId === measurement.id
+                    );
+                    const photoIndex = this.allPhotos.indexOf(photoData);
+                    
+                    if (window.progressPhotosLightbox) {
+                        window.progressPhotosLightbox.openLightbox(this.allPhotos, photoIndex);
+                    }
+                };
+                
+                img.addEventListener('click', openPhotoLightbox);
+                zoomBtn.addEventListener('click', openPhotoLightbox);
             } else {
                 photoContainer.innerHTML = `
                     <div class="photo-card empty-photo">
@@ -963,16 +1027,21 @@ updateProgressPhotos(measurement) {
                             <p class="mb-0">${p.label}</p>
                             <small>No photo</small>
                         </div>
-                        <div class="photo-label">
-                            <i class="fas fa-${p.icon} me-1"></i>
-                            ${p.label}
-                        </div>
                     </div>
                 `;
             }
             
             photoGrid.appendChild(photoContainer);
         });
+        
+        // Add view all button if we have more than the latest measurement
+        if (this.currentMeasurements.length > 1 && this.allPhotos.length > 3) {
+            const viewAllBtn = document.createElement('button');
+            viewAllBtn.className = 'btn btn-outline-primary btn-sm mt-3 d-block mx-auto view-all-photos-btn';
+            viewAllBtn.innerHTML = '<i class="fas fa-images me-1"></i> View All Photos';
+            viewAllBtn.addEventListener('click', () => this.viewAllPhotos());
+            container.appendChild(viewAllBtn);
+        }
         
         // Add date information if available
         if (measurement.date) {
@@ -993,6 +1062,37 @@ updateProgressPhotos(measurement) {
                 el.classList.add('animated');
             });
         }, 100);
+    }
+    
+    /**
+     * Filter progress photos by type
+     * @param {string} type - Type of photos to filter by
+     */
+    filterProgressPhotos(type) {
+        // Filter photos by type
+        if (type === 'all') {
+            document.querySelectorAll('.photo-container').forEach(el => {
+                el.style.display = 'block';
+            });
+        } else {
+            document.querySelectorAll('.photo-container').forEach(el => {
+                if (el.classList.contains(`${type}-view`)) {
+                    el.style.display = 'block';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+        }
+    }
+    
+    /**
+     * View all progress photos
+     */
+    viewAllPhotos() {
+        // Open the lightbox with all photos
+        if (window.progressPhotosLightbox && this.allPhotos && this.allPhotos.length > 0) {
+            window.progressPhotosLightbox.openLightbox(this.allPhotos, 0);
+        }
     }
     
     /**
