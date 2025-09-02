@@ -25,19 +25,21 @@ class StaffAPI {
             const url = StaffAPI.buildListUrl('users', options);
             const resp = await APIBase.request(url);
             if (resp.success) {
-                const data = resp.data || {};
+                const data = resp.data;
+                const results = Array.isArray(data) ? data : ((data && data.results) ? data.results : []);
+                const count = (data && typeof data.count === 'number') ? data.count : results.length;
                 return {
                     success: true,
-                    results: data.results || [],
-                    count: typeof data.count === 'number' ? data.count : (data.results ? data.results.length : 0),
+                    results,
+                    count,
                     raw: data
                 };
             }
             return resp;
         },
-        async block(userId) {
+        async block(userId, reason = '') {
             const url = `${StaffAPI.BASE_PATH}/users/${userId}/block/`;
-            return await APIBase.request(url, { method: 'POST', body: JSON.stringify({}) });
+            return await APIBase.request(url, { method: 'POST', body: JSON.stringify({ reason }) });
         },
         async unblock(userId) {
             const url = `${StaffAPI.BASE_PATH}/users/${userId}/unblock/`;
@@ -54,11 +56,13 @@ class StaffAPI {
             const url = StaffAPI.buildListUrl('coaches', options);
             const resp = await APIBase.request(url);
             if (resp.success) {
-                const data = resp.data || {};
+                const data = resp.data;
+                const results = Array.isArray(data) ? data : ((data && data.results) ? data.results : []);
+                const count = (data && typeof data.count === 'number') ? data.count : results.length;
                 return {
                     success: true,
-                    results: data.results || [],
-                    count: typeof data.count === 'number' ? data.count : (data.results ? data.results.length : 0),
+                    results,
+                    count,
                     raw: data
                 };
             }
@@ -79,11 +83,13 @@ class StaffAPI {
             const url = StaffAPI.buildListUrl('certifications', options);
             const resp = await APIBase.request(url);
             if (resp.success) {
-                const data = resp.data || {};
+                const data = resp.data;
+                const results = Array.isArray(data) ? data : ((data && data.results) ? data.results : []);
+                const count = (data && typeof data.count === 'number') ? data.count : results.length;
                 return {
                     success: true,
-                    results: data.results || [],
-                    count: typeof data.count === 'number' ? data.count : (data.results ? data.results.length : 0),
+                    results,
+                    count,
                     raw: data
                 };
             }

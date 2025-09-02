@@ -100,7 +100,7 @@
                             </a>
                             {% endif %}
                             
-                            {% if request.user.is_superuser or request.user.is_staff_member %}
+                            {% if request.user.user_type == 'staff' or request.user.is_superuser %}
                             <a href="{% url 'staff:dashboard' %}" class="app-item">
                                 <i class="bi bi-shield-lock app-icon"></i>
                                 <span class="app-name">Staff Dashboard</span>
@@ -187,7 +187,7 @@
                 {% endif %}
                 
                 <!-- Staff Management (Staff/Superuser Only) -->
-                {% if request.user.is_superuser or request.user.is_staff_member %}
+                {% if request.user.user_type == 'staff' or request.user.is_superuser %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="staffDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-shield-lock nav-icon"></i>

@@ -31,12 +31,6 @@
 #     # objects = CustomUserManager()
 
 #     def __str__(self):
-#         return self.username
-    
-# UserModel.groups.field.remote_field.related_name = "custom_user_set"
-# UserModel.user_permissions.field.remote_field.related_name = "custom_user_set"
-
-
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -46,6 +40,14 @@ class CustomUser(AbstractUser):
         ('coach', 'Coach'),
         ('staff', 'Staff'),
     )
+    
+    STAFF_ROLE_CHOICES = (
+        ('admin', 'Administrator'),
+        ('moderator', 'Moderator'),
+        ('support', 'Support Staff'),
+        ('viewer', 'Viewer'),
+    )
+    
     user_type = models.CharField(max_length=10, null=True, choices=USER_TYPE_CHOICES)
     username = models.CharField(max_length=150, unique=True)
     email = models.EmailField(unique=True)
@@ -54,6 +56,12 @@ class CustomUser(AbstractUser):
     is_online = models.BooleanField(default=False)
     last_activity = models.DateTimeField(null=True, blank=True)
     request_ip = models.CharField(max_length=50, blank=True, null=True)
+    
+    # New fields for improved staff control
+    block_reason = models.TextField(blank=True, null=True)
+    blocked_at = models.DateTimeField(null=True, blank=True)
+    blocked_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='blocked_users')
+    staff_role = models.CharField(max_length=20, choices=STAFF_ROLE_CHOICES, null=True, blank=True)
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["email"]
@@ -72,7 +80,30 @@ class CustomUser(AbstractUser):
     @property
     def is_staff_member(self):
         return self.user_type == 'staff'
+        
+    @property
+    def has_admin_access(self):
+        """Staff members with admin role or superusers have full admin access"""
+        return self.is_superuser or (self.is_staff_member and self.staff_role == 'admin')
+        
+    @property
+    def staff_permission_level(self):
+        """Return numeric permission level (higher is more access)"""
+        if not self.is_staff_member and not self.is_superuser:
+            return 0
+            
+        if self.is_superuser:
+            return 100
+            
+        role_levels = {
+            'admin': 90,
+            'moderator': 70,
+            'support': 50,
+            'viewer': 10,
+            None: 5
+        }
+        return role_levels.get(self.staff_role, 5)
 
-# Set the related_name attributes for the groups and user_permissions fieldss
+# Set the related_name attributes for the groups and user_permissions fields
 CustomUser.groups.field.remote_field.related_name = "custom_user_set"
 CustomUser.user_permissions.field.remote_field.related_name = "custom_user_set"

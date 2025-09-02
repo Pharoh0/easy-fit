@@ -40,7 +40,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize DataTable
     function initTable() {
         const tableEl = document.getElementById('certificationsTable');
-        if (!tableEl) return;
+        if (!tableEl) {
+            console.error("CertificationsTable element not found");
+            return;
+        }
         
         // Destroy existing table if it exists
         if (certificationsTable) {
@@ -48,8 +51,9 @@ document.addEventListener('DOMContentLoaded', function() {
             certificationsTable = null;
         }
         
-        // Initialize DataTable with server-side processing
-        certificationsTable = $(tableEl).DataTable({
+        try {
+            // Initialize DataTable with server-side processing
+            certificationsTable = $(tableEl).DataTable({
             processing: true,
             serverSide: true,
             pageLength: 10,
@@ -74,6 +78,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Get current filters
                 const filters = getCurrentFilters();
                 
+                console.log('Fetching certifications with filters:', filters);
+                
                 // Fetch certifications with pagination, search, ordering, and filters
                 StaffAPI.certifications.list({
                     page,
@@ -83,25 +89,45 @@ document.addEventListener('DOMContentLoaded', function() {
                     ...filters
                 })
                 .then(response => {
+                    console.log('Certifications API response:', response);
+                    
+                    // Transform data for DataTables if needed
+                    const results = response.results || [];
+                    
                     // Return data to DataTables
                     callback({
-                        draw: settings.sAjaxDataProp,
-                        recordsTotal: response.count,
-                        recordsFiltered: response.count,
-                        data: response.results
+                        draw: parseInt(data.draw) || 1,
+                        recordsTotal: response.count || 0,
+                        recordsFiltered: response.count || 0,
+                        data: results
                     });
                 })
                 .catch(error => {
                     console.error("Error fetching certifications:", error);
                     window.utils.showToast('Failed to load certifications data', 'danger');
                     
-                    // Return empty data
+                    // Return empty data with proper draw parameter
                     callback({
-                        draw: settings.sAjaxDataProp,
+                        draw: parseInt(data.draw) || 1,
                         recordsTotal: 0,
                         recordsFiltered: 0,
                         data: []
                     });
+                    
+                    // Show user-friendly error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-warning mt-3';
+                    errorDiv.innerHTML = `<strong>Error loading certifications data:</strong> ${error.message || 'Server error, please try again'}`;
+                    
+                    const tableContainer = tableEl.closest('.dataTables_wrapper');
+                    if (tableContainer) {
+                        // Remove any existing error messages
+                        const existingErrors = tableContainer.querySelectorAll('.alert-warning');
+                        existingErrors.forEach(el => el.remove());
+                        
+                        // Insert error message before the table
+                        tableContainer.insertBefore(errorDiv, tableContainer.firstChild);
+                    }
                 });
             },
             columns: [
@@ -201,6 +227,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 attachActionHandlers();
             }
         });
+        } catch (error) {
+            console.error('Error initializing DataTable:', error);
+            window.utils.showToast('Failed to initialize certifications table', 'danger');
+        }
     }
     
     // Attach handlers for action buttons
@@ -223,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (notes !== null) {
                 try {
-                    await StaffAPI.certifications.approve(certId, notes || '');
+                    await StaffAPI.certifications.approve(certId, { notes: notes || '' });
                     window.utils.showToast('Certification has been approved successfully', 'success');
                     certificationsTable.ajax.reload(null, false);
                 } catch (error) {
@@ -254,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function() {
             
             if (notes !== null) {
                 try {
-                    await StaffAPI.certifications.reject(certId, notes);
+                    await StaffAPI.certifications.reject(certId, { notes: notes });
                     window.utils.showToast('Certification has been rejected successfully', 'success');
                     certificationsTable.ajax.reload(null, false);
                 } catch (error) {
@@ -265,6 +295,191 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Function to test table with sample data
+    function testTableWithSampleData() {
+        // Sample data for testing
+        const sampleCertifications = [
+            {
+                id: 1,
+                coach_profile: {
+                    id: 1,
+                    user: {
+                        username: 'coach1',
+                        email: 'coach1@example.com'
+                    }
+                },
+                coach_username: 'coach1',
+                description: 'Personal Training Certificate',
+                file: '/media/certifications/cert1.pdf',
+                status: 'pending',
+                verified_at: null,
+                verified_by_username: null
+            },
+            {
+                id: 2,
+                coach_profile: {
+                    id: 2,
+                    user: {
+                        username: 'coach2',
+                        email: 'coach2@example.com'
+                    }
+                },
+                coach_username: 'coach2',
+                description: 'Nutrition Certificate',
+                file: '/media/certifications/cert2.pdf',
+                status: 'approved',
+                verified_at: '2023-03-15T10:30:00Z',
+                verified_by_username: 'admin'
+            },
+            {
+                id: 3,
+                coach_profile: {
+                    id: 3,
+                    user: {
+                        username: 'coach3',
+                        email: 'coach3@example.com'
+                    }
+                },
+                coach_username: 'coach3',
+                description: 'Fitness Specialist Certificate',
+                file: '/media/certifications/cert3.pdf',
+                status: 'rejected',
+                verified_at: '2023-03-20T14:45:00Z',
+                verified_by_username: 'admin'
+            }
+        ];
+
+        const tableEl = document.getElementById('certificationsTable');
+        if (!tableEl) return;
+
+        // Clear any existing DataTable
+        if (certificationsTable) {
+            certificationsTable.destroy();
+            certificationsTable = null;
+        }
+
+        // Initialize DataTable with sample data
+        certificationsTable = $(tableEl).DataTable({
+            data: sampleCertifications,
+            columns: [
+                { 
+                    data: 'coach_username', 
+                    name: 'coach_profile__user__username', 
+                    title: 'Coach'
+                },
+                { 
+                    data: 'description',
+                    name: 'description',
+                    title: 'Description',
+                    render: function(data) {
+                        return data || '-';
+                    }
+                },
+                { 
+                    data: 'file',
+                    name: 'file',
+                    title: 'File',
+                    render: function(data) {
+                        if (!data) return '-';
+                        const filename = data.split('/').pop();
+                        return `<a href="${data}" target="_blank" class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark"></i> ${filename}</a>`;
+                    }
+                },
+                { 
+                    data: 'status',
+                    name: 'status',
+                    title: 'Status',
+                    render: function(data) {
+                        const statusMap = {
+                            'pending': '<span class="badge bg-warning text-dark">Pending</span>',
+                            'approved': '<span class="badge bg-success">Approved</span>',
+                            'rejected': '<span class="badge bg-danger">Rejected</span>'
+                        };
+                        return statusMap[data] || data;
+                    }
+                },
+                { 
+                    data: 'verified_at',
+                    name: 'verified_at',
+                    title: 'Verified At',
+                    render: function(data) {
+                        if (!data) return '-';
+                        return new Date(data).toLocaleDateString(undefined, {
+                            year: 'numeric', 
+                            month: 'short', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        });
+                    }
+                },
+                { 
+                    data: 'verified_by_username',
+                    name: 'verified_by__username',
+                    title: 'Verified By',
+                    render: function(data) {
+                        return data || '-';
+                    }
+                },
+                { 
+                    data: 'id',
+                    title: 'Actions',
+                    orderable: false,
+                    render: function(data, type, row) {
+                        // Only show actions for pending certifications
+                        if (row.status !== 'pending') {
+                            return '<span class="text-muted">No actions</span>';
+                        }
+                        
+                        return `<div class="dt-actions">
+                            <button class="btn btn-sm btn-success approve-cert" data-cert-id="${data}">Approve</button>
+                            <button class="btn btn-sm btn-danger reject-cert" data-cert-id="${data}">Reject</button>
+                        </div>`;
+                    }
+                }
+            ],
+            order: [[0, 'asc']]
+        });
+
+        // Show success message
+        window.utils.showToast('Test data loaded successfully', 'success');
+        console.log('Sample certifications data loaded:', sampleCertifications);
+        
+        // Attach event handlers
+        attachActionHandlers();
+        
+        // Add test indicator
+        const testBadge = document.createElement('div');
+        testBadge.className = 'alert alert-info mb-3';
+        testBadge.innerHTML = '<strong>Test Mode:</strong> Table is showing sample data for testing purposes';
+        tableEl.parentNode.insertBefore(testBadge, tableEl);
+    }
+
+    // For testing purposes, add a test button to the DOM
+    function addTestButton() {
+        const controlsArea = document.querySelector('.dt-buttons');
+        if (controlsArea) {
+            const testButton = document.createElement('button');
+            testButton.className = 'btn btn-info ms-2';
+            testButton.innerHTML = 'Test with Sample Data';
+            testButton.addEventListener('click', testTableWithSampleData);
+            controlsArea.appendChild(testButton);
+        } else {
+            const tableEl = document.getElementById('certificationsTable');
+            if (tableEl) {
+                const testButton = document.createElement('button');
+                testButton.className = 'btn btn-info mb-3';
+                testButton.innerHTML = 'Test with Sample Data';
+                testButton.addEventListener('click', testTableWithSampleData);
+                tableEl.parentNode.insertBefore(testButton, tableEl);
+            }
+        }
+    }
+
     // Initialize
     initCertifications();
+    // Add test button only in dev mode
+    if (localStorage.getItem('dev_mode') === '1') {
+        setTimeout(addTestButton, 500);
+    }
 });

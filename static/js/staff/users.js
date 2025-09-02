@@ -65,7 +65,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize DataTable
     function initTable() {
         const tableEl = document.getElementById('usersTable');
-        if (!tableEl) return;
+        if (!tableEl) {
+            console.error("UsersTable element not found");
+            return;
+        }
         
         // Destroy existing table if it exists
         if (usersTable) {
@@ -73,8 +76,9 @@ document.addEventListener('DOMContentLoaded', function() {
             usersTable = null;
         }
         
-        // Initialize DataTable with server-side processing
-        usersTable = $(tableEl).DataTable({
+        try {
+            // Initialize DataTable with server-side processing
+            usersTable = $(tableEl).DataTable({
             processing: true,
             serverSide: true,
             pageLength: 10,
@@ -99,6 +103,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Get current filters
                 const filters = getCurrentFilters();
                 
+                console.log('Fetching users with filters:', filters);
+                
                 // Fetch users with pagination, search, ordering, and filters
                 StaffAPI.users.list({
                     page,
@@ -108,8 +114,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     ...filters
                 })
                 .then(response => {
+                    console.log('Users API response:', response);
+                    
                     // Transform data for DataTables
-                    const data = response.results.map(user => {
+                    const results = Array.isArray(response.results) ? response.results : [];
+                    console.log('User results length:', results.length);
+                    
+                    // Transform data for DataTables
+                    const tableData = results.map(user => {
                         return {
                             ...user,
                             userTypeFormatted: formatUserType(user.user_type),
@@ -119,31 +131,41 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Return data to DataTables
                     callback({
-                        draw: settings.sAjaxDataProp,
-                        recordsTotal: response.count,
-                        recordsFiltered: response.count,
-                        data: data
+                        draw: parseInt(data.draw) || 1,
+                        recordsTotal: response.count || 0,
+                        recordsFiltered: response.count || 0,
+                        data: tableData
                     });
                 })
                 .catch(error => {
                     console.error("Error fetching users:", error);
                     window.utils.showToast('Failed to load users data', 'danger');
                     
-                    // Return empty data
+                    // Return empty data with proper draw parameter
                     callback({
-                        draw: settings.sAjaxDataProp,
+                        draw: parseInt(data.draw) || 1,
                         recordsTotal: 0,
                         recordsFiltered: 0,
                         data: []
                     });
+                    
+                    // Show user-friendly error message
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'alert alert-warning mt-3';
+                    errorDiv.innerHTML = `<strong>Error loading data:</strong> ${error.message || 'Server error, please try again'}`;
+                    
+                    const tableContainer = tableEl.closest('.dataTables_wrapper');
+                    if (tableContainer) {
+                        // Remove any existing error messages
+                        const existingErrors = tableContainer.querySelectorAll('.alert-warning');
+                        existingErrors.forEach(el => el.remove());
+                        
+                        // Insert error message before the table
+                        tableContainer.insertBefore(errorDiv, tableContainer.firstChild);
+                    }
                 });
             },
             columns: [
-                { 
-                    data: 'id', 
-                    name: 'id', 
-                    title: 'ID'
-                },
                 { 
                     data: 'username', 
                     name: 'username',
@@ -155,25 +177,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Email'
                 },
                 { 
-                    data: 'first_name',
-                    name: 'first_name', 
-                    title: 'First Name',
-                    render: function(data, type, row) {
-                        return data || '-';
-                    }
-                },
-                { 
-                    data: 'last_name',
-                    name: 'last_name',
-                    title: 'Last Name',
-                    render: function(data, type, row) {
-                        return data || '-';
-                    }
-                },
-                { 
                     data: 'userTypeFormatted',
                     name: 'user_type',
-                    title: 'Type'
+                    title: 'User Type'
                 },
                 { 
                     data: 'is_active',
@@ -206,25 +212,31 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
                 },
                 { 
+                    data: 'date_joined',
+                    name: 'date_joined',
+                    title: 'Date Joined',
+                    render: function(data) {
+                        return data ? new Date(data).toLocaleDateString() : '-';
+                    }
+                },
+                { 
+                    data: 'last_login',
+                    name: 'last_login',
+                    title: 'Last Login',
+                    render: function(data) {
+                        return data ? new Date(data).toLocaleDateString() : '-';
+                    }
+                },
+                {
                     data: 'actions',
+                    name: 'actions',
                     title: 'Actions',
                     orderable: false,
-                    render: function(data, type, row) {
-                        const blockAction = row.is_active ? 
-                            `<button class="btn btn-sm btn-danger block-user" data-user-id="${row.id}">Block</button>` : 
-                            `<button class="btn btn-sm btn-success unblock-user" data-user-id="${row.id}">Unblock</button>`;
-                        
-                        const changeTypeBtn = `<button class="btn btn-sm btn-info change-user-type" data-user-id="${row.id}" data-current-type="${row.user_type}">Change Type</button>`;
-                        
-                        return `<div class="dt-actions">${blockAction} ${changeTypeBtn}</div>`;
-                    }
+                    searchable: false,
+                    render: renderActions
                 }
             ],
-            columnDefs: [
-                { className: 'text-center', targets: [6, 7, 8] },
-                { className: 'text-nowrap', targets: [9] }
-            ],
-            order: [[1, 'asc']], // Default sort by username
+            order: [[0, 'asc']], // Default sort by username
             dom: '<"row"<"col-sm-12 col-md-6"l><"col-sm-12 col-md-6"f>>' +
                  '<"row"<"col-sm-12"tr>>' +
                  '<"row"<"col-sm-12 col-md-5"i><"col-sm-12 col-md-7"p>>',
@@ -240,6 +252,9 @@ document.addEventListener('DOMContentLoaded', function() {
                 attachActionHandlers();
             }
         });
+        } catch (error) {
+            console.error('Error initializing DataTable:', error);
+        }
     }
     
     // Format user type for display
@@ -252,6 +267,39 @@ document.addEventListener('DOMContentLoaded', function() {
         return types[userType] || `<span class="badge bg-secondary">${userType}</span>`;
     }
     
+    // Render action buttons for each user row
+    function renderActions(data, type, row) {
+        if (type !== 'display') return '';
+        
+        const isActive = row.is_active;
+        const userId = row.id;
+        const userType = row.user_type;
+        const username = row.username;
+        
+        return `
+            <div class="d-flex justify-content-center">
+                ${isActive ? 
+                    `<button class="btn btn-sm btn-outline-danger me-1 block-user" 
+                        data-user-id="${userId}" 
+                        data-username="${username}">
+                        <i class="bi bi-x-octagon"></i> Block
+                    </button>` :
+                    `<button class="btn btn-sm btn-outline-success me-1 unblock-user" 
+                        data-user-id="${userId}" 
+                        data-username="${username}">
+                        <i class="bi bi-check-circle"></i> Unblock
+                    </button>`
+                }
+                <button class="btn btn-sm btn-outline-primary change-user-type" 
+                        data-user-id="${userId}" 
+                        data-username="${username}" 
+                        data-current-type="${userType || ''}">
+                    <i class="bi bi-person-gear"></i> Change Type
+                </button>
+            </div>
+        `;
+    }
+    
     // Attach handlers for action buttons
     function attachActionHandlers() {
         const tableEl = document.getElementById('usersTable');
@@ -260,17 +308,32 @@ document.addEventListener('DOMContentLoaded', function() {
         // Block user handler
         $(tableEl).on('click', '.block-user', async function() {
             const userId = $(this).data('user-id');
+            const username = $(this).data('username');
             
+            // First get block reason
+            const reason = await window.utils.prompt({
+                title: `Block User: ${username}`,
+                message: 'Please provide a reason for blocking this user:',
+                inputType: 'textarea',
+                placeholder: 'Reason for blocking',
+                required: true,
+                confirmText: 'Continue',
+                variant: 'danger'
+            });
+            
+            if (reason === null) return; // User cancelled
+            
+            // Then confirm block action
             const confirmed = await window.utils.confirm({
-                title: 'Block User',
-                message: 'Are you sure you want to block this user? They will no longer be able to login.',
+                title: 'Confirm Block User',
+                message: `Are you sure you want to block this user? They will no longer be able to login.<br><br><strong>Reason:</strong> ${reason}`,
                 confirmText: 'Block User',
                 variant: 'danger'
             });
             
             if (confirmed) {
                 try {
-                    await StaffAPI.users.block(userId);
+                    await StaffAPI.users.block(userId, reason);
                     window.utils.showToast('User has been blocked successfully', 'success');
                     usersTable.ajax.reload(null, false);
                 } catch (error) {
@@ -307,52 +370,188 @@ document.addEventListener('DOMContentLoaded', function() {
         $(tableEl).on('click', '.change-user-type', async function() {
             const userId = $(this).data('user-id');
             const currentType = $(this).data('current-type');
-            
-            // Build options HTML
-            const optionsHtml = userTypeOptions.map(opt => 
-                `<option value="${opt.value}" ${currentType === opt.value ? 'selected' : ''}>${opt.label}</option>`
-            ).join('');
-            
-            const result = await window.utils.prompt({
+            const newUserType = await window.utils.prompt({
                 title: 'Change User Type',
-                message: `
-                    <p>Select the new user type:</p>
-                    <select class="form-select" id="newUserTypeSelect">
-                        ${optionsHtml}
-                    </select>
-                `,
+                message: 'Select the new user type:',
+                inputType: 'select',
+                selectOptions: userTypeOptions,
+                defaultValue: currentType,
                 confirmText: 'Change Type',
                 variant: 'primary',
-                required: true,
-                // Custom validation to extract the select value
-                validate: function() {
-                    const selectEl = document.getElementById('newUserTypeSelect');
-                    return selectEl ? null : 'Please select a user type';
-                }
+                required: true
             });
-            
-            if (result !== null) {
-                // Get the selected value from the dropdown
-                const selectEl = document.getElementById('newUserTypeSelect');
-                if (!selectEl) return;
-                
-                const newUserType = selectEl.value;
-                
-                // Only proceed if the type has changed
-                if (newUserType !== currentType) {
-                    try {
-                        await StaffAPI.users.setUserType(userId, newUserType);
-                        window.utils.showToast(`User type has been changed to ${newUserType}`, 'success');
-                        usersTable.ajax.reload(null, false);
-                    } catch (error) {
-                        console.error('Error changing user type:', error);
-                        window.utils.showToast('Failed to change user type', 'danger');
-                    }
+            if (newUserType !== null && newUserType !== currentType) {
+                try {
+                    await StaffAPI.users.setUserType(userId, newUserType);
+                    window.utils.showToast(`User type has been changed to ${newUserType}`, 'success');
+                    usersTable.ajax.reload(null, false);
+                } catch (error) {
+                    console.error('Error changing user type:', error);
+                    window.utils.showToast('Failed to change user type', 'danger');
                 }
             }
         });
     }
 
+    // Function to test table with sample data
+    function testTableWithSampleData() {
+        // Sample data for testing
+        const sampleUsers = [
+            {
+                id: 1,
+                username: 'test_user1',
+                email: 'user1@example.com',
+                first_name: 'Test',
+                last_name: 'User1',
+                user_type: 'client',
+                is_active: true,
+                is_enabled: true,
+                is_whitelisted: true,
+                date_joined: '2023-01-01T00:00:00Z',
+                last_login: '2023-02-01T00:00:00Z'
+            },
+            {
+                id: 2,
+                username: 'test_user2',
+                email: 'user2@example.com',
+                first_name: 'Test',
+                last_name: 'User2',
+                user_type: 'coach',
+                is_active: true,
+                is_enabled: false,
+                is_whitelisted: true,
+                date_joined: '2023-01-02T00:00:00Z',
+                last_login: '2023-02-02T00:00:00Z'
+            },
+            {
+                id: 3,
+                username: 'test_user3',
+                email: 'user3@example.com',
+                first_name: 'Test',
+                last_name: 'User3',
+                user_type: 'staff',
+                is_active: false,
+                is_enabled: false,
+                is_whitelisted: false,
+                date_joined: '2023-01-03T00:00:00Z',
+                last_login: null
+            }
+        ];
+
+        const tableEl = document.getElementById('usersTable');
+        if (!tableEl) return;
+
+        // Clear any existing DataTable
+        if (usersTable) {
+            usersTable.destroy();
+            usersTable = null;
+        }
+
+        // Initialize DataTable with sample data
+        usersTable = $(tableEl).DataTable({
+            data: sampleUsers,
+            columns: [
+                { 
+                    data: 'username', 
+                    name: 'username',
+                    title: 'Username'
+                },
+                { 
+                    data: 'email',
+                    name: 'email',
+                    title: 'Email'
+                },
+                { 
+                    data: 'first_name',
+                    name: 'first_name',
+                    title: 'First Name'
+                },
+                { 
+                    data: 'last_name',
+                    name: 'last_name',
+                    title: 'Last Name'
+                },
+                { 
+                    data: 'user_type',
+                    name: 'user_type',
+                    title: 'Type',
+                    render: function(data) {
+                        return formatUserType(data);
+                    }
+                },
+                { 
+                    data: 'is_active',
+                    name: 'is_active',
+                    title: 'Active',
+                    render: function(data) {
+                        return data ? 
+                            '<span class="badge bg-success">Yes</span>' : 
+                            '<span class="badge bg-danger">No</span>';
+                    }
+                },
+                { 
+                    data: 'date_joined',
+                    name: 'date_joined',
+                    title: 'Joined',
+                    render: function(data) {
+                        return data ? new Date(data).toLocaleDateString() : '-';
+                    }
+                },
+                { 
+                    data: 'id',
+                    title: 'Actions',
+                    orderable: false,
+                    render: function(_data, _type, row) {
+                        const blockAction = row.is_active ? 
+                            `<button class="btn btn-sm btn-danger block-user" data-user-id="${row.id}">Block</button>` : 
+                            `<button class="btn btn-sm btn-success unblock-user" data-user-id="${row.id}">Unblock</button>`;
+                        const changeTypeBtn = `<button class="btn btn-sm btn-info change-user-type" data-user-id="${row.id}" data-current-type="${row.user_type}">Change Type</button>`;
+                        return `<div class="dt-actions">${blockAction} ${changeTypeBtn}</div>`;
+                    }
+                }
+            ],
+            order: [[0, 'asc']]
+        });
+
+        // Show success message
+        window.utils.showToast('Test data loaded successfully', 'success');
+        console.log('Sample data loaded:', sampleUsers);
+        
+        // Attach event handlers
+        attachActionHandlers();
+        
+        // Add test indicator
+        const testBadge = document.createElement('div');
+        testBadge.className = 'alert alert-info mb-3';
+        testBadge.innerHTML = '<strong>Test Mode:</strong> Table is showing sample data for testing purposes';
+        tableEl.parentNode.insertBefore(testBadge, tableEl);
+    }
+
+    // For testing purposes, add a test button to the DOM
+    function addTestButton() {
+        const controlsArea = document.querySelector('.dt-buttons');
+        if (controlsArea) {
+            const testButton = document.createElement('button');
+            testButton.className = 'btn btn-info ms-2';
+            testButton.innerHTML = 'Test with Sample Data';
+            testButton.addEventListener('click', testTableWithSampleData);
+            controlsArea.appendChild(testButton);
+        } else {
+            const tableEl = document.getElementById('usersTable');
+            if (tableEl) {
+                const testButton = document.createElement('button');
+                testButton.className = 'btn btn-info mb-3';
+                testButton.innerHTML = 'Test with Sample Data';
+                testButton.addEventListener('click', testTableWithSampleData);
+                tableEl.parentNode.insertBefore(testButton, tableEl);
+            }
+        }
+    }
+
     // Initialize
     initUsers();
+    // Add test button only in dev mode
+    if (localStorage.getItem('dev_mode') === '1') {
+        setTimeout(addTestButton, 500);
+    }
 });

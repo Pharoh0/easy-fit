@@ -53,12 +53,30 @@ class CustomTokenRefreshView(TokenRefreshView):
 
         # Get refresh token object
         refresh_token = RefreshToken(refresh)
+        
+        # Get user from token payload
+        user_id = refresh_token.get('user_id')
+        User = get_user_model()
+        
+        try:
+            user = User.objects.get(id=user_id)
+            
+            # Preserve custom claims in the new access token
+            access_token = refresh_token.access_token
+            access_token['user_type'] = user.user_type
+            access_token['staff_role'] = user.staff_role
+            access_token['is_staff_member'] = user.user_type == 'staff'
+            access_token['staff_permission_level'] = user.staff_permission_level
+            
+            # Debug output
+            print(f"Token refreshed for user: {user.username}")
+            print(f"User type: {user.user_type}")
+            print(f"Staff role: {user.staff_role}")
+        except User.DoesNotExist:
+            print(f"Failed to find user with ID {user_id} during token refresh")
 
         # Calculate refresh token expiration time
         refresh_token_expiration = datetime.datetime.now() + refresh_token.lifetime
-
-        # Generate new access token
-        access_token = refresh_token.access_token
 
         return Response(
             {
@@ -135,9 +153,18 @@ class UserLoginAPIView(APIView):
         # Generate tokens
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
+        
+        # Add custom claims to token payload
+        # This is critical for staff permission checks
+        access_token['user_type'] = user.user_type
+        access_token['staff_role'] = user.staff_role
+        access_token['is_staff_member'] = user.user_type == 'staff'
+        access_token['staff_permission_level'] = user.staff_permission_level
 
         # Debugging output
         print(f"User authenticated: {user.username}")
+        print(f"User type: {user.user_type}")
+        print(f"Staff role: {user.staff_role}")
         print(f"Access Token: {str(access_token)[:20]}...")
         print(f"Refresh Token: {str(refresh)[:20]}...")
 

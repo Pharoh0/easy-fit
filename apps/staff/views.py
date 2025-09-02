@@ -9,8 +9,18 @@ class StaffOnlyMixin:
     """
     def dispatch(self, request, *args, **kwargs):
         user = request.user
-        if not (user.is_authenticated and (getattr(user, 'is_staff_member', False) or getattr(user, 'is_superuser', False))):
+        
+        # First check if user is authenticated
+        if not user.is_authenticated:
+            return HttpResponseForbidden("Authentication required")
+            
+        # Direct attribute check for staff status
+        is_staff = user.user_type == 'staff' if hasattr(user, 'user_type') else False
+        is_superuser = user.is_superuser if hasattr(user, 'is_superuser') else False
+        
+        if not (is_staff or is_superuser):
             return HttpResponseForbidden("Forbidden: Staff access only")
+            
         return super().dispatch(request, *args, **kwargs)
 
 

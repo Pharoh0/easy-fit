@@ -46,9 +46,17 @@ document.addEventListener('DOMContentLoaded', function() {
     async function fetchDashboardMetrics() {
         try {
             showLoading();
-            metricsData = await StaffAPI.dashboard.metrics();
-            updateStats();
-            renderCharts();
+            const response = await StaffAPI.dashboard.metrics();
+            
+            console.log('Dashboard metrics response:', response);
+            
+            if (response && response.success && response.data) {
+                metricsData = response.data;
+                updateStats();
+                renderCharts();
+            } else {
+                throw new Error('Invalid response format');
+            }
         } catch (err) {
             console.error('Error fetching dashboard metrics:', err);
             window.utils.showToast('Failed to load dashboard metrics', 'danger');
@@ -62,14 +70,22 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!metricsData) return;
         
         // User stats
-        document.getElementById('statUsersTotal').textContent = metricsData.users.total || 0;
-        document.getElementById('statUsersClients').textContent = metricsData.users.clients || 0;
-        document.getElementById('statUsersCoaches').textContent = metricsData.users.coaches || 0;
-        document.getElementById('statUsersStaff').textContent = metricsData.users.staff || 0;
+        const users = metricsData.users || {};
+        updateElementText('statUsersTotal', users.total || 0);
+        updateElementText('statUsersClients', users.clients || 0);
+        updateElementText('statUsersCoaches', users.coaches || 0);
+        updateElementText('statUsersStaff', users.staff || 0);
         
-        // Pending approvals
-        document.getElementById('statPendingCoaches').textContent = metricsData.pending_approvals.coaches || 0;
-        document.getElementById('statPendingCerts').textContent = metricsData.pending_approvals.certifications || 0;
+        // Pending approvals - support both structures
+        const approvals = metricsData.approvals || metricsData.pending_approvals || {};
+        updateElementText('statPendingCoaches', approvals.coaches_pending || 0);
+        updateElementText('statPendingCerts', approvals.certifications_pending || 0);
+    }
+    
+    // Safely update element text content
+    function updateElementText(id, value) {
+        const element = document.getElementById(id);
+        if (element) element.textContent = value;
     }
 
     // Render dashboard charts
@@ -82,10 +98,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Render user roles pie chart
     function renderUserRolesChart() {
-        const ctx = document.getElementById('userRolesChart');
+        const ctx = document.getElementById('chartUsersByRole');
         if (!ctx) return;
 
-        const userData = metricsData.users;
+        const userData = metricsData.users || {};
         
         if (charts.userRoles) {
             charts.userRoles.destroy();
@@ -140,13 +156,25 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Render plans overview bar chart
     function renderPlansOverviewChart() {
-        const ctx = document.getElementById('plansOverviewChart');
+        const ctx = document.getElementById('chartPlansOverview');
         if (!ctx) return;
 
-        const plansData = metricsData.plans || {
-            plan_requests: { pending: 0, approved: 0, rejected: 0, cancelled: 0 },
-            plan_subscriptions: { active: 0, pending: 0, expired: 0, cancelled: 0 }
-        };
+        // Handle the specific structure from the backend
+        const plansData = metricsData.plans || {};
+        
+        // Extract request data with fallbacks
+        const requestData = plansData.requests || {};
+        const requestsPending = requestData.pending || 0;
+        const requestsApproved = requestData.approved || 0;
+        const requestsRejected = requestData.rejected || 0;
+        const requestsCancelled = requestData.cancelled || 0;
+        
+        // Extract subscription data with fallbacks
+        const subsData = plansData.subscriptions || {};
+        const subsPending = subsData.pending || 0;
+        const subsActive = subsData.active || 0;
+        const subsExpired = subsData.expired || 0;
+        const subsCancelled = subsData.cancelled || 0;
         
         if (charts.plansOverview) {
             charts.plansOverview.destroy();
@@ -160,22 +188,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     {
                         label: 'Plan Requests',
                         backgroundColor: chartColors.primary,
-                        data: [
-                            plansData.plan_requests.pending || 0,
-                            plansData.plan_requests.approved || 0,
-                            plansData.plan_requests.rejected || 0,
-                            plansData.plan_requests.cancelled || 0
-                        ]
+                        data: [requestsPending, requestsApproved, requestsRejected, requestsCancelled]
                     },
                     {
                         label: 'Plan Subscriptions',
                         backgroundColor: chartColors.success,
-                        data: [
-                            plansData.plan_subscriptions.pending || 0,
-                            plansData.plan_subscriptions.active || 0,
-                            plansData.plan_subscriptions.expired || 0,
-                            plansData.plan_subscriptions.cancelled || 0
-                        ]
+                        data: [subsPending, subsActive, subsExpired, subsCancelled]
                     }
                 ]
             },

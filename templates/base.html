@@ -89,6 +89,7 @@
                     <p id="promptModalMessage" class="mb-2"></p>
                     <input id="promptModalInput" type="text" class="form-control" style="display: none;" />
                     <textarea id="promptModalTextarea" class="form-control" rows="4" style="display: none;"></textarea>
+                    <select id="promptModalSelect" class="form-select" style="display: none;"></select>
                     <div id="promptModalFeedback" class="invalid-feedback"></div>
                 </div>
                 <div class="modal-footer">
@@ -351,6 +352,7 @@
                                 const msgEl = modalEl.querySelector('#promptModalMessage');
                                 const inputEl = modalEl.querySelector('#promptModalInput');
                                 const textareaEl = modalEl.querySelector('#promptModalTextarea');
+                                const selectEl = modalEl.querySelector('#promptModalSelect');
                                 const feedbackEl = modalEl.querySelector('#promptModalFeedback');
                                 const confirmBtn = modalEl.querySelector('#promptModalConfirmBtn');
                                 const cancelBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
@@ -358,15 +360,31 @@
                                 // Reset state
                                 inputEl.style.display = 'none';
                                 textareaEl.style.display = 'none';
+                                selectEl.style.display = 'none';
                                 inputEl.value = '';
                                 textareaEl.value = '';
+                                if (selectEl) selectEl.innerHTML = '';
                                 inputEl.classList.remove('is-invalid');
                                 textareaEl.classList.remove('is-invalid');
+                                selectEl.classList.remove('is-invalid');
                                 if (feedbackEl) feedbackEl.textContent = '';
 
                                 const type = (opts.inputType || 'text').toLowerCase();
                                 let activeEl = inputEl;
-                                if (type === 'textarea') {
+                                if (type === 'select') {
+                                    activeEl = selectEl;
+                                    selectEl.style.display = '';
+                                    // Populate options safely
+                                    const options = Array.isArray(opts.selectOptions) ? opts.selectOptions : [];
+                                    try {
+                                        options.forEach(o => {
+                                            const opt = document.createElement('option');
+                                            opt.value = String(o && o.value != null ? o.value : '');
+                                            opt.textContent = String(o && o.label != null ? o.label : opt.value);
+                                            selectEl.appendChild(opt);
+                                        });
+                                    } catch (e) { /* ignore option population errors */ }
+                                } else if (type === 'textarea') {
                                     activeEl = textareaEl;
                                     textareaEl.style.display = '';
                                 } else {

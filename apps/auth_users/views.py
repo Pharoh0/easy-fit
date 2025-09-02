@@ -20,7 +20,25 @@ class UserLoginView(FormView):
         user = authenticate(self.request, username=username, password=password)
         
         if user is not None:
-            # Log the user in
+            # Check if user is blocked (is_active=False)
+            if not user.is_active:
+                # Get block reason if available
+                block_reason = getattr(user, 'block_reason', 'Your account has been blocked by an administrator.')
+                blocked_at = getattr(user, 'blocked_at', None)
+                
+                # Format block message with reason and date if available
+                block_message = f"Account blocked: {block_reason}"
+                if blocked_at:
+                    block_message += f" (blocked on {blocked_at.strftime('%Y-%m-%d')})"
+                
+                # Redirect to blocked page with reason
+                return JsonResponse({
+                    'status': 'blocked',
+                    'message': block_message,
+                    'redirect_url': reverse_lazy('auth_users:blocked')
+                })
+            
+            # User is active, log them in
             login(self.request, user)
             return JsonResponse({'status': 'ok', 'redirect_url': str(self.success_url)})
         else:
@@ -58,4 +76,16 @@ class UserLogoutView(RedirectView):
         return redirect(self.pattern_name)
 
 
-
+class BlockedView(TemplateView):
+    template_name = 'auth_users/blocked.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        
+        if user.is_authenticated:
+            context['reason'] = getattr(user, 'block_reason', 'Your account has been blocked by an administrator.')
+            context['blocked_at'] = getattr(user, 'blocked_at', None)
+            context['user'] = user
+        
+        return context

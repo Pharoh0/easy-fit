@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Account Blocked{% endblock %}
+
+{% block extra_css %}
+<style>
+    .blocked-container {
+        max-width: 600px;
+        margin: 0 auto;
+        padding: 3rem 1rem;
+        text-align: center;
+    }
+    .blocked-icon {
+        font-size: 5rem;
+        color: #dc3545;
+        margin-bottom: 1.5rem;
+    }
+    .blocked-title {
+        margin-bottom: 1.5rem;
+        font-weight: 600;
+    }
+    .blocked-reason {
+        background-color: #f8f9fa;
+        padding: 1.5rem;
+        border-radius: 8px;
+        margin-bottom: 2rem;
+    }
+    .support-link {
+        margin-top: 1.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="blocked-container">
+    <div class="blocked-icon">
+        <i class="bi bi-shield-lock-fill"></i>
+    </div>
+    <h2 class="blocked-title">Account Blocked</h2>
+    <p>Your account has been temporarily suspended.</p>
+    
+    <div class="blocked-reason">
+        <h5>Reason for suspension:</h5>
+        <p>{{ reason }}</p>
+        <p class="text-muted small">
+            {% if user.blocked_at %}
+            Block date: {{ user.blocked_at|date:"F d, Y" }}
+            {% endif %}
+        </p>
+    </div>
+    
+    <p>If you believe this is a mistake or would like to appeal this decision, please contact our support team.</p>
+    
+    <div class="support-link">
+        <a href="mailto:support@eazy-fit.com" class="btn btn-outline-primary">Contact Support</a>
+    </div>
+    
+    <div class="mt-4">
+        <form method="post" action="{% url 'auth_users:logout' %}">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-link">Sign Out</button>
+        </form>
+    </div>
+</div>
+{% endblock %}

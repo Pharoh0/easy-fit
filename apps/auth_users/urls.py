@@ -16,4 +16,5 @@ urlpatterns = [
     path('register/', views.UserRegistrationView.as_view(), name='user-register'),
     path('dashboard/', views.DashboardView.as_view(), name='dashboard'),
     path('logout/', views.UserLogoutView.as_view(), name='user-logout'),
+    path('blocked/', views.BlockedView.as_view(), name='blocked'),
 ]
