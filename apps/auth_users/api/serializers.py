@@ -45,30 +45,47 @@ class UserLoginSerializer(serializers.Serializer):
         # Print received credentials for debugging (not for production)
         print(f"Login attempt for username: {username}")
         
+        # For debugging - check the request format
+        print(f"Login data received: {data}")
+        
         if not username:
             raise serializers.ValidationError({"username": "Username is required."})
             
         if not password:
             raise serializers.ValidationError({"password": "Password is required."})
             
-        # Try to authenticate the user
-        user = authenticate(username=username, password=password)
-        
-        if not user:
-            # Check if the user exists
-            User = get_user_model()
-            try:
-                existing_user = User.objects.get(username=username)
-                # User exists but password is wrong
-                raise serializers.ValidationError({"detail": "Invalid password. Please try again."})
-            except User.DoesNotExist:
-                # User doesn't exist
-                raise serializers.ValidationError({"detail": "User not found. Please check your username."})
-        
-        if not user.is_active:
-            raise serializers.ValidationError({"detail": "This account is inactive. Please contact an administrator."})
+        # Check if the user exists first
+        User = get_user_model()
+        try:
+            existing_user = User.objects.get(username=username)
             
+            # Check if user is blocked before checking password
+            if not existing_user.is_active:
+                # Check if the user was blocked with a reason
+                if hasattr(existing_user, 'block_reason') and existing_user.block_reason:
+                    # Format non-field errors with __all__ key for proper error handling
+                    raise serializers.ValidationError(
+                        {"__all__": [f"Your account has been blocked. Reason: {existing_user.block_reason}"]}
+                    )
+                else:
+                    # Format non-field errors with __all__ key for proper error handling
+                    raise serializers.ValidationError(
+                        {"__all__": ["Your account has been disabled. Please contact an administrator."]}
+                    )
+            
+            # Now try to authenticate with the correct password
+            user = authenticate(username=username, password=password)
+            if not user:
+                # Password is wrong
+                raise serializers.ValidationError({"__all__": ["Invalid password. Please try again."]})
+        except User.DoesNotExist:
+            # User doesn't exist
+            raise serializers.ValidationError({"__all__": ["User not found. Please check your username."]})
+        
+        # We already checked for blocked users above, so no need to check again
         print(f"User authenticated successfully: {user.username}")
+        # Print validation success for debugging
+        print("Validation completed successfully")
         data["user"] = user
         return data
     

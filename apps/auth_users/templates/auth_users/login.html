@@ -65,6 +65,8 @@
                     </div>
                     <!-- Error Messages -->
                     <div id="error-messages" class="text-danger mb-3"></div>
+                    <!-- Hidden container for raw error data (for debugging) -->
+                    <div id="raw-error-data" style="display: none;"></div>
                     <!-- Login Button -->
                     <div class="d-grid mb-3">
                         <button type="submit" class="btn btn-primary btn-lg fw-semibold" style="background: linear-gradient(to right, #4e73df, #224abe); border: none;">
@@ -104,6 +106,10 @@
         };
         console.log('Login data:', loginData);
         
+        // Store data globally for debugging purposes
+        window.lastLoginResponse = null;
+        window.lastLoginError = null;
+        
         fetch("{% url 'auth_users:api-user-login' %}", {
             method: 'POST',
             body: JSON.stringify(loginData),
@@ -117,18 +123,70 @@
         .then(response => {
             console.log('Login response status:', response.status);
             
-            // Always try to parse JSON first
-            return response.json().then(data => {
-                console.log('Login response data:', data);
-                if (response.ok) {
-                    return data;
-                } else {
-                    throw new Error(data.detail || 'Login failed. Please check your username and password.');
+            // Get raw response text first for debugging
+            return response.text().then(rawText => {
+                try {
+                    // Try to parse as JSON
+                    const data = JSON.parse(rawText);
+                    console.log('Successfully parsed JSON data:', data);
+                    window.lastLoginResponse = data; // Store for debugging
+                    
+                    // If response was OK, return the successful data
+                    if (response.ok) {
+                        return data;
+                    }
+                    
+                    // Handle error format: {status: "error", errors: {__all__: ["message"]}}
+                    if (data.status === "error" && data.errors) {
+                        console.log('Found error format with status:"error" structure');
+                        if (data.errors.__all__ && Array.isArray(data.errors.__all__)) {
+                            const errorMessage = data.errors.__all__[0];
+                            console.log('Extracted error from __all__ array:', errorMessage);
+                            // Store the error message directly in the DOM for debugging
+                            document.getElementById('raw-error-data').textContent = errorMessage;
+                            throw new Error(errorMessage);
+                        }
+                    }
+                    
+                    // Handle other error formats (fallback handling)
+                    let errorMessage = '';
+                    
+                    if (data.__all__ && Array.isArray(data.__all__)) {
+                        errorMessage = data.__all__[0];
+                    } else if (data.errors && typeof data.errors === 'object') {
+                        // Try to find the first useful error message in the errors object
+                        const firstKey = Object.keys(data.errors)[0];
+                        if (firstKey && data.errors[firstKey]) {
+                            if (Array.isArray(data.errors[firstKey])) {
+                                errorMessage = data.errors[firstKey][0];
+                            } else {
+                                errorMessage = data.errors[firstKey];
+                            }
+                        }
+                    } else if (data.detail) {
+                        errorMessage = data.detail;
+                    } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
+                        errorMessage = data.non_field_errors[0];
+                    } else {
+                        // If we can't extract a specific error, use a generic message
+                        errorMessage = 'Login failed. Please check your credentials.';
+                    }
+                    
+                    console.log('Final extracted error message:', errorMessage);
+                    throw new Error(errorMessage);
+                    
+                } catch (e) {
+                    // If JSON parsing fails or any other error occurs during processing
+                    console.log('Error processing response:', e);
+                    window.lastLoginError = e; // Store for debugging
+                    
+                    // If we have raw text from the server that's not parseable JSON
+                    if (typeof rawText === 'string' && rawText.length > 0) {
+                        throw new Error(rawText);
+                    } else {
+                        throw new Error('Login failed. Server response could not be processed.');
+                    }
                 }
-            }).catch(e => {
-                console.log('JSON parsing error:', e);
-                // If JSON parsing fails, throw a generic error
-                throw new Error('Login failed. Please check your username and password.');
             });
         })
         .then(data => {
@@ -146,11 +204,82 @@
         })
         .catch(error => {
             console.error('Login error:', error);
-            // Display error in a more user-friendly way
+            console.log('Error type:', typeof error);
+            console.log('Is error an Error instance:', error instanceof Error);
+            
+            // Get the error message
+            let errorMsg = '';
+            
+            if (error && error.response && error.response.data) {
+                // Handle axios-style error responses
+                const responseData = error.response.data;
+                console.log('Error response data:', responseData);
+                
+                if (responseData.status === 'error' && responseData.errors && responseData.errors.__all__) {
+                    errorMsg = Array.isArray(responseData.errors.__all__) ? 
+                        responseData.errors.__all__[0] : responseData.errors.__all__;
+                } else {
+                    errorMsg = JSON.stringify(responseData);
+                }
+            } else if (error instanceof Error) {
+                // Extract the actual message from Error objects
+                let message = error.message;
+                console.log('Raw error message from Error object:', message);
+                
+                // Check if message is a stringified JSON
+                try {
+                    if (message.startsWith('{') && message.endsWith('}')) {
+                        const jsonData = JSON.parse(message);
+                        if (jsonData.status === 'error' && jsonData.errors && jsonData.errors.__all__) {
+                            errorMsg = Array.isArray(jsonData.errors.__all__) ? 
+                                jsonData.errors.__all__[0] : jsonData.errors.__all__;
+                        } else {
+                            errorMsg = message;
+                        }
+                    } else {
+                        errorMsg = message;
+                    }
+                } catch (e) {
+                    // If it's not valid JSON, just use the message as is
+                    errorMsg = message;
+                }
+                
+                console.log('Processed error message:', errorMsg);
+            } else if (typeof error === 'object') {
+                // Try to extract meaningful message from object
+                try {
+                    const jsonString = JSON.stringify(error);
+                    try {
+                        const jsonData = JSON.parse(jsonString);
+                        if (jsonData.status === 'error' && jsonData.errors && jsonData.errors.__all__) {
+                            errorMsg = Array.isArray(jsonData.errors.__all__) ? 
+                                jsonData.errors.__all__[0] : jsonData.errors.__all__;
+                        } else {
+                            errorMsg = 'Login failed. Please check your credentials.';
+                        }
+                    } catch (e) {
+                        errorMsg = 'Login failed. Please check your credentials.';
+                    }
+                } catch (e) {
+                    errorMsg = 'Unknown error occurred';
+                }
+            } else if (typeof error === 'string') {
+                errorMsg = error;
+            } else {
+                errorMsg = 'Login failed. Please check your username and password.';
+            }
+            
+            // Check if error message contains block information to style differently
+            const isBlocked = errorMsg.toLowerCase().includes('blocked') || errorMsg.toLowerCase().includes('disabled');
+            
+            // Log whether this is a blocked user message
+            console.log('Is blocked user message:', isBlocked);
+            console.log('Final displayed error message:', errorMsg);
+            
             errorMessagesDiv.innerHTML = `
-                <div class="alert alert-danger" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    ${error.message}
+                <div class="alert ${isBlocked ? 'alert-warning' : 'alert-danger'}" role="alert">
+                    <i class="bi ${isBlocked ? 'bi-shield-exclamation' : 'bi-exclamation-triangle-fill'} me-2"></i>
+                    ${errorMsg}
                 </div>`;
             
             // Reset button state

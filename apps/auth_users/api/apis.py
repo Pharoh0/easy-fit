@@ -108,11 +108,21 @@ class UserLoginAPIView(APIView):
             response_data = self.generate_tokens_response(user)
             return self.add_authorization_header(response_data)
             
+        except serializers.ValidationError as e:
+            print(f"Validation error: {e.detail}")
+            # Preserve the validation error structure
+            error_detail = e.detail
+            
+            # Format the response to match what the frontend expects
+            return Response(
+                {"status": "error", "errors": error_detail},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         except Exception as e:
             print(f"Login error: {str(e)}")
             # Return a more detailed error response
             return Response(
-                {"detail": str(e)},
+                {"status": "error", "errors": {"__all__": [str(e)]}},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
