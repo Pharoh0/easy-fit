@@ -282,17 +282,33 @@
                     showToast(message, type = 'info') {
                         try {
                             const toastEl = document.getElementById('globalToast');
+                            // Normalize message to safe string
+                            let text = '';
+                            if (typeof message === 'string') {
+                                text = message;
+                            } else if (message && typeof message === 'object') {
+                                if (message.detail) text = String(message.detail);
+                                else if (message.message) text = String(message.message);
+                                else text = JSON.stringify(message);
+                            } else {
+                                text = String(message ?? '');
+                            }
+                            if (!text) text = 'Notification';
                             if (toastEl) {
                                 const body = toastEl.querySelector('.toast-body');
-                                if (body) body.textContent = message;
+                                if (body) body.textContent = text;
                                 toastEl.classList.remove('text-bg-success','text-bg-danger','text-bg-warning','text-bg-info');
                                 toastEl.classList.add(`text-bg-${type}`);
                                 new bootstrap.Toast(toastEl).show();
                             } else {
-                                alert(message);
+                                alert(text);
                             }
                         } catch (e) {
-                            alert(message);
+                            try {
+                                alert(typeof message === 'string' ? message : JSON.stringify(message));
+                            } catch {
+                                alert('Notification');
+                            }
                         }
                     },
                     confirm(options) {
@@ -309,7 +325,11 @@
                                 const confirmBtn = modalEl.querySelector('#confirmModalConfirmBtn');
                                 const cancelBtn = modalEl.querySelector('[data-bs-dismiss="modal"]');
                                 if (titleEl) titleEl.textContent = opts.title || 'Please confirm';
-                                if (msgEl) msgEl.textContent = opts.message || 'Are you sure?';
+                                if (msgEl) {
+                                    const useHtml = !!opts.allowHTML;
+                                    if (useHtml) msgEl.innerHTML = opts.message || 'Are you sure?';
+                                    else msgEl.textContent = opts.message || 'Are you sure?';
+                                }
                                 if (confirmBtn) {
                                     confirmBtn.textContent = opts.confirmText || 'Confirm';
                                     confirmBtn.classList.remove('btn-primary','btn-danger','btn-success','btn-warning','btn-info','btn-secondary');
@@ -318,19 +338,30 @@
                                 }
                                 const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
                                 let resolved = false;
+                                let result = false;
                                 const onConfirm = () => {
-                                    if (resolved) return;
-                                    resolved = true;
+                                    result = true;
+                                    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
                                     bsModal.hide();
-                                    resolve(true);
                                 };
                                 const onHidden = () => {
                                     if (resolved) return;
                                     resolved = true;
-                                    resolve(false);
+                                    modalEl.removeEventListener('keydown', onKeyDown);
+                                    resolve(!!result);
+                                };
+                                const onKeyDown = (ev) => {
+                                    if (ev.key === 'Enter') {
+                                        ev.preventDefault();
+                                        confirmBtn && confirmBtn.click();
+                                    }
                                 };
                                 confirmBtn && confirmBtn.addEventListener('click', onConfirm, { once: true });
                                 modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+                                modalEl.addEventListener('shown.bs.modal', () => {
+                                    try { (confirmBtn || modalEl).focus(); } catch (e) {}
+                                }, { once: true });
+                                modalEl.addEventListener('keydown', onKeyDown);
                                 bsModal.show();
                             } catch (e) {
                                 const ans = window.confirm(opts.message || 'Are you sure?');
@@ -393,7 +424,11 @@
                                 }
 
                                 if (titleEl) titleEl.textContent = opts.title || 'Input required';
-                                if (msgEl) msgEl.textContent = opts.message || '';
+                                if (msgEl) {
+                                    const useHtml = !!opts.allowHTML;
+                                    if (useHtml) msgEl.innerHTML = opts.message || '';
+                                    else msgEl.textContent = opts.message || '';
+                                }
                                 if (opts.placeholder) activeEl.placeholder = opts.placeholder;
                                 if (opts.defaultValue != null) activeEl.value = String(opts.defaultValue);
                                 if (opts.pattern && activeEl.tagName === 'INPUT') activeEl.pattern = opts.pattern;
@@ -407,7 +442,8 @@
 
                                 const bsModal = bootstrap.Modal.getOrCreateInstance(modalEl);
                                 let resolved = false;
-                                const validateAndResolve = () => {
+                                let resultValue = null;
+                                const validateAndClose = () => {
                                     const raw = (activeEl.value != null) ? String(activeEl.value) : '';
                                     const value = raw;
                                     const required = !!opts.required;
@@ -425,22 +461,29 @@
                                         if (feedbackEl) feedbackEl.textContent = errorMsg;
                                         return;
                                     }
-                                    if (resolved) return;
-                                    resolved = true;
+                                    resultValue = value;
+                                    try { if (document.activeElement && document.activeElement.blur) document.activeElement.blur(); } catch (e) {}
                                     bsModal.hide();
-                                    resolve(value);
                                 };
                                 const onHidden = () => {
                                     if (resolved) return;
                                     resolved = true;
-                                    resolve(null);
+                                    modalEl.removeEventListener('keydown', onKeyDown);
+                                    resolve(resultValue);
+                                };
+                                const onKeyDown = (ev) => {
+                                    if (ev.key === 'Enter') {
+                                        ev.preventDefault();
+                                        confirmBtn && confirmBtn.click();
+                                    }
                                 };
 
-                                confirmBtn && confirmBtn.addEventListener('click', validateAndResolve, { once: true });
+                                confirmBtn && confirmBtn.addEventListener('click', validateAndClose, { once: true });
                                 modalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
                                 modalEl.addEventListener('shown.bs.modal', () => {
                                     try { activeEl.focus(); if (activeEl.select) activeEl.select(); } catch (e) {}
                                 }, { once: true });
+                                modalEl.addEventListener('keydown', onKeyDown);
 
                                 bsModal.show();
                             } catch (e) {

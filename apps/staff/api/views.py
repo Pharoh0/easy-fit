@@ -77,13 +77,27 @@ class UsersViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.Gener
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
     def block(self, request, pk=None):
         user = self.get_object()
-        if user.is_superuser:
-            return Response({'detail': 'Cannot block superuser.'}, status=status.HTTP_400_BAD_REQUEST)
+        requesting_user = request.user
         
-        # Check that blocker has higher permission level than user being blocked
-        if hasattr(user, 'staff_permission_level') and user.staff_permission_level >= request.user.staff_permission_level:
+        # Allow superusers and admin-level staff to block other superusers
+        if user.is_superuser and not (requesting_user.is_superuser or 
+                                      (hasattr(requesting_user, 'staff_role') and 
+                                       requesting_user.staff_role == 'admin')):
+            return Response({'detail': 'Cannot block superuser. Only admins can block superuser accounts.'}, 
+                           status=status.HTTP_400_BAD_REQUEST)
+        
+        # Debug permission levels
+        requester_level = getattr(request.user, 'staff_permission_level', 0)
+        target_level = getattr(user, 'staff_permission_level', 0)
+        print(f"DEBUG PERMISSIONS - Block: {request.user.username} (level {requester_level}) -> {user.username} (level {target_level})")
+        
+        # Allow superusers to do anything
+        if request.user.is_superuser:
+            pass  # Superuser can block anyone
+        # Modified check: staff can block regular users, only higher level can block other staff
+        elif user.user_type == 'staff' and target_level >= requester_level:
             return Response(
-                {'detail': 'You do not have permission to block this user.'},
+                {'detail': 'You do not have permission to block this staff user.'},
                 status=status.HTTP_403_FORBIDDEN
             )
             
@@ -109,11 +123,20 @@ class UsersViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.Gener
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
     def unblock(self, request, pk=None):
         user = self.get_object()
+        requesting_user = request.user
         
-        # Check that unblocker has higher permission level than user being unblocked
-        if hasattr(user, 'staff_permission_level') and user.staff_permission_level >= request.user.staff_permission_level:
+        # Debug permission levels
+        requester_level = getattr(request.user, 'staff_permission_level', 0)
+        target_level = getattr(user, 'staff_permission_level', 0)
+        print(f"DEBUG PERMISSIONS - Unblock: {request.user.username} (level {requester_level}) -> {user.username} (level {target_level})")
+        
+        # Allow superusers to do anything
+        if request.user.is_superuser:
+            pass  # Superuser can unblock anyone
+        # Modified check: staff can unblock regular users, only higher level can unblock other staff
+        elif user.user_type == 'staff' and target_level >= requester_level:
             return Response(
-                {'detail': 'You do not have permission to unblock this user.'},
+                {'detail': 'You do not have permission to unblock this staff user.'},
                 status=status.HTTP_403_FORBIDDEN
             )
             
@@ -127,6 +150,7 @@ class UsersViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.Gener
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
     def set_user_type(self, request, pk=None):
         user = self.get_object()
+        requesting_user = request.user
         new_type = request.data.get('user_type')
         new_role = request.data.get('staff_role')
         
@@ -134,14 +158,25 @@ class UsersViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.Gener
         if new_type not in ['client', 'coach', 'staff']:
             return Response({'detail': 'Invalid user_type.'}, status=status.HTTP_400_BAD_REQUEST)
             
-        # Prevent changing superuser type
-        if user.is_superuser:
-            return Response({'detail': 'Cannot change superuser type.'}, status=status.HTTP_400_BAD_REQUEST)
+        # Allow superusers and admin-level staff to change other superusers' types
+        if user.is_superuser and not (requesting_user.is_superuser or 
+                                     (hasattr(requesting_user, 'staff_role') and 
+                                      requesting_user.staff_role == 'admin')):
+            return Response({'detail': 'Cannot change superuser type. Only admins can modify superuser accounts.'}, 
+                          status=status.HTTP_400_BAD_REQUEST)
         
-        # Check that modifier has higher permission level than user being modified
-        if hasattr(user, 'staff_permission_level') and user.staff_permission_level >= request.user.staff_permission_level:
+        # Debug permission levels
+        requester_level = getattr(request.user, 'staff_permission_level', 0)
+        target_level = getattr(user, 'staff_permission_level', 0)
+        print(f"DEBUG PERMISSIONS - Type change: {request.user.username} (level {requester_level}) -> {user.username} (level {target_level})")
+        
+        # Allow superusers to do anything
+        if request.user.is_superuser:
+            pass  # Superuser can change user type of anyone
+        # Modified check: staff can change regular users, only higher level can change other staff
+        elif user.user_type == 'staff' and target_level >= requester_level:
             return Response(
-                {'detail': 'You do not have permission to modify this user.'},
+                {'detail': 'You do not have permission to modify this staff user.'},
                 status=status.HTTP_403_FORBIDDEN
             )
             

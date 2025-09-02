@@ -221,9 +221,35 @@ class APIBase {
             
             // Handle other error responses
             if (!response.ok) {
-                const errorText = await response.text();
+                const contentType = (response.headers && response.headers.get) ? (response.headers.get('content-type') || '') : '';
+                const raw = await response.text();
+                let errorJSON = null;
+                let message = '';
+
+                const trimmed = (raw || '').trim();
+                if (contentType.includes('application/json') || trimmed.startsWith('{') || trimmed.startsWith('[')) {
+                    try { errorJSON = JSON.parse(trimmed); } catch (e) { /* ignore parse failure */ }
+                }
+
+                if (errorJSON) {
+                    if (typeof errorJSON === 'string') {
+                        message = errorJSON;
+                    } else if (errorJSON.detail) {
+                        message = String(errorJSON.detail);
+                    } else if (errorJSON.error) {
+                        message = String(errorJSON.error);
+                    } else if (errorJSON.message) {
+                        message = String(errorJSON.message);
+                    } else if (Array.isArray(errorJSON)) {
+                        message = errorJSON.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(', ');
+                    } else {
+                        try { message = JSON.stringify(errorJSON); } catch (e) { message = ''; }
+                    }
+                }
+
+                const errorText = message || raw || `HTTP ${response.status}`;
                 console.error('API Error:', errorText);
-                return { success: false, error: errorText };
+                return { success: false, status: response.status, error: errorText, errorJSON };
             }
             
             // Parse JSON response safely (support 204/empty)

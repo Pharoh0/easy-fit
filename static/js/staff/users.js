@@ -324,21 +324,57 @@ document.addEventListener('DOMContentLoaded', function() {
             if (reason === null) return; // User cancelled
             
             // Then confirm block action
+            // Escape reason to avoid XSS when rendering HTML
+            const safeReason = String(reason).replace(/[&<>"]/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
             const confirmed = await window.utils.confirm({
                 title: 'Confirm Block User',
-                message: `Are you sure you want to block this user? They will no longer be able to login.<br><br><strong>Reason:</strong> ${reason}`,
+                message: `Are you sure you want to block this user? They will no longer be able to login.<br><br><strong>Reason:</strong> ${safeReason}`,
                 confirmText: 'Block User',
-                variant: 'danger'
+                variant: 'danger',
+                allowHTML: true
             });
             
             if (confirmed) {
                 try {
-                    await StaffAPI.users.block(userId, reason);
-                    window.utils.showToast('User has been blocked successfully', 'success');
-                    usersTable.ajax.reload(null, false);
+                    const response = await StaffAPI.users.block(userId, reason);
+                    if (response.success) {
+                        window.utils.showToast('User has been blocked successfully', 'success');
+                        usersTable.ajax.reload(null, false);
+                    } else {
+                        // Prefer structured APIBase error fields
+                        let errorMsg = 'Unknown error';
+                        if (response.errorJSON) {
+                            const ej = response.errorJSON;
+                            if (typeof ej === 'string') {
+                                errorMsg = ej;
+                            } else if (ej.detail) {
+                                errorMsg = String(ej.detail);
+                            } else if (ej.error) {
+                                errorMsg = String(ej.error);
+                            } else if (ej.message) {
+                                errorMsg = String(ej.message);
+                            } else if (Array.isArray(ej)) {
+                                errorMsg = ej.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(', ');
+                            } else {
+                                try { errorMsg = JSON.stringify(ej); } catch (_) {}
+                            }
+                        } else if (typeof response.error === 'string') {
+                            errorMsg = response.error;
+                        }
+
+                        const lower = (errorMsg || '').toLowerCase();
+                        if (lower.includes('superuser')) {
+                            window.utils.showToast('Cannot block a superuser account', 'warning');
+                        } else if (response.status === 403 || lower.includes('permission')) {
+                            window.utils.showToast('You do not have permission to perform this action', 'warning');
+                        } else {
+                            window.utils.showToast(`Failed to block user: ${errorMsg}`, 'danger');
+                        }
+                        console.error('Error blocking user:', { status: response.status, error: response.error, errorJSON: response.errorJSON });
+                    }
                 } catch (error) {
                     console.error('Error blocking user:', error);
-                    window.utils.showToast('Failed to block user', 'danger');
+                    window.utils.showToast('Failed to block user: Network or server error', 'danger');
                 }
             }
         });
@@ -382,12 +418,45 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             if (newUserType !== null && newUserType !== currentType) {
                 try {
-                    await StaffAPI.users.setUserType(userId, newUserType);
-                    window.utils.showToast(`User type has been changed to ${newUserType}`, 'success');
-                    usersTable.ajax.reload(null, false);
+                    const response = await StaffAPI.users.setUserType(userId, newUserType);
+                    if (response.success) {
+                        window.utils.showToast(`User type has been changed to ${newUserType}`, 'success');
+                        usersTable.ajax.reload(null, false);
+                    } else {
+                        // Prefer structured APIBase error fields
+                        let errorMsg = 'Unknown error';
+                        if (response.errorJSON) {
+                            const ej = response.errorJSON;
+                            if (typeof ej === 'string') {
+                                errorMsg = ej;
+                            } else if (ej.detail) {
+                                errorMsg = String(ej.detail);
+                            } else if (ej.error) {
+                                errorMsg = String(ej.error);
+                            } else if (ej.message) {
+                                errorMsg = String(ej.message);
+                            } else if (Array.isArray(ej)) {
+                                errorMsg = ej.map(x => typeof x === 'string' ? x : JSON.stringify(x)).join(', ');
+                            } else {
+                                try { errorMsg = JSON.stringify(ej); } catch (_) {}
+                            }
+                        } else if (typeof response.error === 'string') {
+                            errorMsg = response.error;
+                        }
+
+                        const lower = (errorMsg || '').toLowerCase();
+                        if (lower.includes('superuser')) {
+                            window.utils.showToast('Cannot change type of a superuser account', 'warning');
+                        } else if (response.status === 403 || lower.includes('permission')) {
+                            window.utils.showToast('You do not have permission to change this user type', 'warning');
+                        } else {
+                            window.utils.showToast(`Failed to change user type: ${errorMsg}`, 'danger');
+                        }
+                        console.error('Error changing user type:', { status: response.status, error: response.error, errorJSON: response.errorJSON });
+                    }
                 } catch (error) {
                     console.error('Error changing user type:', error);
-                    window.utils.showToast('Failed to change user type', 'danger');
+                    window.utils.showToast('Failed to change user type: Network or server error', 'danger');
                 }
             }
         });
