@@ -6,13 +6,13 @@
 const CoachPlanAPI = (() => {
     // API endpoints
     const API_ENDPOINTS = {
-        productPlans: '/api/v1/product-plans/',
-        planItems: '/api/v1/plan-items/',
-        planTemplates: '/api/v1/plan-templates/',
-        workoutTemplates: '/api/v1/workout-templates/',
-        exerciseTemplates: '/api/v1/exercise-templates/',
-        mealTemplates: '/api/v1/meal-templates/',
-        planCustomization: '/api/v1/coach-plan-customization/',
+        productPlans: '/plan-management/api/v1/product-plans/',
+        planItems: '/plan-management/api/v1/plan-items/',
+        planTemplates: '/plan-management/api/v1/plan-templates/',
+        workoutTemplates: '/plan-management/api/v1/workout-templates/',
+        exerciseTemplates: '/plan-management/api/v1/exercise-templates/',
+        mealTemplates: '/plan-management/api/v1/meal-templates/',
+        planCustomization: '/plan-management/api/v1/coach-plan-customization/',
     };
     
     // Get authentication headers
@@ -226,7 +226,65 @@ const CoachPlanAPI = (() => {
     const planTemplates = createTemplateAPI(API_ENDPOINTS.planTemplates);
     const workoutTemplates = createTemplateAPI(API_ENDPOINTS.workoutTemplates);
     const exerciseTemplates = createTemplateAPI(API_ENDPOINTS.exerciseTemplates);
-    const mealTemplates = createTemplateAPI(API_ENDPOINTS.mealTemplates);
+    
+    // Meal templates API with special handling for multipart/form-data
+    const mealTemplates = {
+        ...createTemplateAPI(API_ENDPOINTS.mealTemplates),
+        
+        // Override create method to support FormData
+        create(templateData, isMultipart = false) {
+            if (!isMultipart) {
+                // Use standard JSON request
+                return APIBase.request(API_ENDPOINTS.mealTemplates, {
+                    method: 'POST',
+                    body: JSON.stringify(templateData)
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to create meal template');
+                });
+            } else {
+                // Use multipart/form-data request (no Content-Type header)
+                return APIBase.request(API_ENDPOINTS.mealTemplates, {
+                    method: 'POST',
+                    body: templateData,
+                    headers: {
+                        // Let browser set correct Content-Type with boundary
+                        'Content-Type': null
+                    }
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to create meal template');
+                });
+            }
+        },
+        
+        // Override update method to support FormData
+        update(templateId, templateData, isMultipart = false) {
+            if (!isMultipart) {
+                // Use standard JSON request
+                return APIBase.request(`${API_ENDPOINTS.mealTemplates}${templateId}/`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(templateData)
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to update meal template');
+                });
+            } else {
+                // Use multipart/form-data request (no Content-Type header)
+                return APIBase.request(`${API_ENDPOINTS.mealTemplates}${templateId}/`, {
+                    method: 'PATCH',
+                    body: templateData,
+                    headers: {
+                        // Let browser set correct Content-Type with boundary
+                        'Content-Type': null
+                    }
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to update meal template');
+                });
+            }
+        }
+    };
     
     // Plan Customization API
     const planCustomization = {
@@ -291,6 +349,56 @@ const CoachPlanAPI = (() => {
         };
     }
     
+    // Coach profile cache
+    let currentCoachProfile = null;
+
+    /**
+     * Get the current coach profile ID
+     * @returns {Promise<number>} Coach profile ID
+     */
+    async function getCurrentCoachProfile() {
+        // Return from cache if available
+        if (currentCoachProfile !== null) {
+            return currentCoachProfile;
+        }
+
+        try {
+            // Try to get profile from plan templates
+            const templates = await planTemplates.getAll({limit: 1});
+            if (templates && templates.results && templates.results.length > 0) {
+                currentCoachProfile = templates.results[0].coach;
+                return currentCoachProfile;
+            }
+
+            // If no templates, try workout templates
+            const workoutTpls = await workoutTemplates.getAll({limit: 1});
+            if (workoutTpls && workoutTpls.results && workoutTpls.results.length > 0) {
+                currentCoachProfile = workoutTpls.results[0].template.coach;
+                return currentCoachProfile;
+            }
+
+            // If no workout templates, try meal templates
+            const mealTpls = await mealTemplates.getAll({limit: 1});
+            if (mealTpls && mealTpls.results && mealTpls.results.length > 0) {
+                currentCoachProfile = mealTpls.results[0].template.coach;
+                return currentCoachProfile;
+            }
+
+            // If all else fails, try product plans
+            const plans = await productPlans.getAll({limit: 1});
+            if (plans && plans.results && plans.results.length > 0) {
+                currentCoachProfile = plans.results[0].coach;
+                return currentCoachProfile;
+            }
+
+            console.error('Could not determine coach profile ID');
+            return null;
+        } catch (error) {
+            console.error('Error getting coach profile ID:', error);
+            return null;
+        }
+    }
+
     // Public API
     return {
         productPlans,
@@ -301,7 +409,8 @@ const CoachPlanAPI = (() => {
         mealTemplates,
         planCustomization,
         uploadFile,
-        handleApiError
+        handleApiError,
+        getCurrentCoachProfile
     };
 })();
 

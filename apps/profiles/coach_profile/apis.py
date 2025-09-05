@@ -2,12 +2,14 @@ from rest_framework import viewsets
 from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
 from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
 from .serializers import CoachProfileSerializer, AvailabilitySerializer, CertificationSerializer, ClientPictureSerializer, CoachPictureSerializer
 from cities_light.models import Country, Region, City
 from .serializers import CountrySerializer, RegionSerializer, CitySerializer
 from django_filters import rest_framework as filters
 from apps.search.apis.filters import CoachProfileFilter
+from django.shortcuts import get_object_or_404
 
 
 class CoachProfileViewSet(viewsets.ModelViewSet):
@@ -24,6 +26,16 @@ class CoachProfileViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         serializer.save(user=self.request.user)
+    
+    @action(detail=False, methods=['get'], url_path='me')
+    def me(self, request):
+        """Retrieve the current authenticated coach's profile"""
+        try:
+            coach_profile = CoachProfile.objects.get(user=request.user)
+            serializer = self.get_serializer(coach_profile)
+            return Response(serializer.data)
+        except CoachProfile.DoesNotExist:
+            return Response({"detail": "Coach profile not found"}, status=404)
         
 
 class AvailabilityViewSet(viewsets.ModelViewSet):

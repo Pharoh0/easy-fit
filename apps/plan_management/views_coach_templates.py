@@ -1,4 +1,4 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
 from django.http import JsonResponse, HttpResponseForbidden
@@ -614,6 +614,56 @@ def coach_plan_customization_view(request):
     return render(request, 'plan_management/coach_plan_customization.html', {
         'page_title': 'Plan Customization'
     })
+
+
+@login_required
+def coach_workout_templates_view(request):
+    """
+    Dedicated workout template management view for coaches
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return render(request, 'errors/403.html', {
+            'error_message': 'Access denied. Coach profile required.'
+        })
+    
+    context = {
+        'coach_profile': coach_profile,
+        'page_title': 'Workout Templates',
+        'breadcrumbs': [
+            {'name': 'Dashboard', 'url': '/coach/dashboard/'},
+            {'name': 'Plan Management', 'url': '/plan-management/'},
+            {'name': 'Workout Templates', 'url': None}
+        ]
+    }
+    
+    return render(request, 'plan_management/coach_workout_templates.html', context)
+
+
+@login_required
+def coach_meal_templates_view(request):
+    """
+    Dedicated meal template management view for coaches
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return render(request, 'errors/403.html', {
+            'error_message': 'Access denied. Coach profile required.'
+        })
+    
+    context = {
+        'coach_profile': coach_profile,
+        'page_title': 'Meal Templates',
+        'breadcrumbs': [
+            {'name': 'Dashboard', 'url': '/coach/dashboard/'},
+            {'name': 'Plan Management', 'url': '/plan-management/'},
+            {'name': 'Meal Templates', 'url': None}
+        ]
+    }
+    
+    return render(request, 'plan_management/coach_meal_templates.html', context)
 
 
 @login_required

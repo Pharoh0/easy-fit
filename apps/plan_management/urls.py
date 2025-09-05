@@ -84,6 +84,10 @@ urlpatterns = [
     path('coach/plan-customization/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization'),
     path('coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),
     
+    # Template management views
+    path('coach/workout-templates/', views_coach_templates.coach_workout_templates_view, name='coach_workout_templates'),
+    path('coach/meal-templates/', views_coach_templates.coach_meal_templates_view, name='coach_meal_templates'),
+    
     # Client plan management views
     path('client/browse-plans/', views_client_templates.client_plan_browser_view, name='client_plan_browser'),
     path('client/dashboard/', views_client_templates.client_dashboard_view, name='client_dashboard'),

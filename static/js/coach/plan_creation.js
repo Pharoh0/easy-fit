@@ -151,18 +151,27 @@ function loadTemplates() {
     Promise.all([
         CoachPlanAPI.workoutTemplates.getAll().then(data => {
             workoutTemplates = data;
-            renderTemplateItems('workout', data);
+            // Store in session storage for plan creation workflow
+            sessionStorage.setItem('workoutTemplates', JSON.stringify(data));
+            // Update UI to reflect available templates
+            updateWorkoutTemplatesUI(data);
         }),
         CoachPlanAPI.mealTemplates.getAll().then(data => {
             mealTemplates = data;
-            renderTemplateItems('meal', data);
+            // Store in session storage for plan creation workflow
+            sessionStorage.setItem('mealTemplates', JSON.stringify(data));
+            // Update UI to reflect available templates
+            updateMealTemplatesUI(data);
         }),
         CoachPlanAPI.planTemplates.getAll().then(data => {
             planTemplates = data;
-            renderTemplateItems('plan', data);
+            // Only store in session storage, no UI rendering needed
+            sessionStorage.setItem('planTemplates', JSON.stringify(data));
         }),
         CoachPlanAPI.exerciseTemplates.getAll().then(data => {
             exerciseTemplates = data;
+            // Only store in session storage, no UI rendering needed
+            sessionStorage.setItem('exerciseTemplates', JSON.stringify(data));
         })
     ]).catch(error => {
         console.error('Error loading templates:', error);
@@ -170,328 +179,326 @@ function loadTemplates() {
     });
 }
 
-function renderTemplateItems(type, templates) {
-    let containerId;
-    let icon;
+/**
+ * Update the workout templates UI to show existing templates instead of embedded template creation
+ * @param {Array} templates - The workout templates to display
+ */
+function updateWorkoutTemplatesUI(templates) {
+    const container = document.getElementById('workoutTemplates');
+    if (!container) return;
     
-    switch (type) {
-        case 'workout':
-            containerId = 'workoutTemplates';
-            icon = 'bi-lightning-charge';
-            break;
-        case 'meal':
-            containerId = 'mealTemplates';
-            icon = 'bi-egg-fried';
-            break;
-        case 'plan':
-            containerId = 'planTemplates';
-            icon = 'bi-journal-check';
-            break;
-        default:
-            return;
+    const templatesContainer = container.querySelector('.template-items') || container;
+    
+    // Clear existing content
+    templatesContainer.innerHTML = '';
+    
+    // Handle paginated responses from API
+    if (templates && templates.results) {
+        templates = templates.results;
     }
     
-    const container = document.getElementById(containerId);
-    const itemsContainer = container.querySelector('.template-items');
-    
-    if (templates.length === 0) {
-        itemsContainer.innerHTML = `<div class="text-center text-muted py-3">No ${type} templates found.</div>`;
+    // Check if templates is an array and has elements
+    if (!Array.isArray(templates)) {
+        templatesContainer.innerHTML = `<div class="text-center text-muted py-3">Error loading workout templates. Please refresh and try again.</div>`;
         return;
     }
     
-    itemsContainer.innerHTML = '';
+    if (templates.length === 0) {
+        templatesContainer.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <p>No workout templates found.</p>
+                <a href="/plan-management/coach/workout-templates/" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i>Create Workout Templates
+                </a>
+            </div>
+        `;
+        return;
+    }
     
+    // Add template selection UI
     templates.forEach(template => {
         const templateItem = document.createElement('div');
-        templateItem.className = 'template-item template-draggable';
+        templateItem.className = 'template-item template-selectable';
         templateItem.dataset.templateId = template.id;
-        templateItem.dataset.templateType = type;
+        templateItem.dataset.templateType = 'workout';
+        
+        // Count blocks and exercises
+        let blockCount = 0;
+        let exerciseCount = 0;
+        
+        if (template.structure && template.structure.blocks) {
+            blockCount = template.structure.blocks.length;
+            template.structure.blocks.forEach(block => {
+                if (block.exercises) {
+                    exerciseCount += block.exercises.length;
+                }
+            });
+        }
+        
         templateItem.innerHTML = `
-            <h6><i class="bi ${icon} me-2"></i>${template.name}</h6>
-            <p class="small text-muted mb-0">${template.description ? template.description.substring(0, 50) + '...' : 'No description'}</p>
+            <h6><i class="bi bi-lightning-charge me-2"></i>${template.name}</h6>
+            <p class="small text-muted mb-1">${template.description ? template.description.substring(0, 50) + (template.description.length > 50 ? '...' : '') : 'No description'}</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="difficulty-stars small">
+                    ${renderDifficultyStars(template.difficulty || 3)}
+                </div>
+                <div class="small text-muted">
+                    ${blockCount} blocks, ${exerciseCount} exercises
+                </div>
+            </div>
         `;
         
+        // Add click event to select/deselect template
         templateItem.addEventListener('click', () => {
-            showTemplatePreview(type, template);
+            templateItem.classList.toggle('selected');
+            updateSelectedWorkoutTemplatesCount();
         });
         
-        itemsContainer.appendChild(templateItem);
+        templatesContainer.appendChild(templateItem);
     });
     
-    // Add "Create New" button
-    const createNewBtn = document.createElement('div');
-    createNewBtn.className = 'template-item create-new';
-    createNewBtn.innerHTML = `
-        <h6 class="text-primary"><i class="bi bi-plus-circle me-2"></i>Create New Template</h6>
-        <p class="small text-muted mb-0">Create a custom ${type} template</p>
+    // Add link to template management page
+    const manageTemplatesLink = document.createElement('div');
+    manageTemplatesLink.className = 'template-item create-new';
+    manageTemplatesLink.innerHTML = `
+        <h6 class="text-primary"><i class="bi bi-gear-fill me-2"></i>Manage Workout Templates</h6>
+        <p class="small text-muted mb-0">Create, edit, and delete workout templates</p>
     `;
     
-    createNewBtn.addEventListener('click', () => {
-        showTemplateForm(type);
+    manageTemplatesLink.addEventListener('click', () => {
+        window.location.href = '/plan-management/coach/workout-templates/';
     });
     
-    itemsContainer.appendChild(createNewBtn);
+    templatesContainer.appendChild(manageTemplatesLink);
 }
 
-function showTemplatePreview(type, template) {
-    // Implementation for showing template preview
-    console.log(`Showing preview for ${type} template:`, template);
-    // This would show a modal or side panel with template details and "Apply" button
+/**
+ * Update the meal templates UI to show existing templates instead of embedded template creation
+ * @param {Array} templates - The meal templates to display
+ */
+function updateMealTemplatesUI(templates) {
+    const container = document.getElementById('mealTemplates');
+    if (!container) return;
+    
+    const templatesContainer = container.querySelector('.template-items') || container;
+    
+    // Clear existing content
+    templatesContainer.innerHTML = '';
+    
+    // Handle paginated responses from API
+    if (templates && templates.results) {
+        templates = templates.results;
+    }
+    
+    // Check if templates is an array and has elements
+    if (!Array.isArray(templates)) {
+        templatesContainer.innerHTML = `<div class="text-center text-muted py-3">Error loading meal templates. Please refresh and try again.</div>`;
+        return;
+    }
+    
+    if (templates.length === 0) {
+        templatesContainer.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <p>No meal templates found.</p>
+                <a href="/plan-management/coach/meal-templates/" class="btn btn-primary btn-sm">
+                    <i class="bi bi-plus-circle me-1"></i>Create Meal Templates
+                </a>
+            </div>
+        `;
+        return;
+    }
+    
+    // Add template selection UI
+    templates.forEach(template => {
+        const templateItem = document.createElement('div');
+        templateItem.className = 'template-item template-selectable';
+        templateItem.dataset.templateId = template.id;
+        templateItem.dataset.templateType = 'meal';
+        
+        // Count ingredients if available
+        let ingredientCount = 0;
+        if (template.structure && template.structure.ingredients) {
+            ingredientCount = template.structure.ingredients.length;
+        }
+        
+        templateItem.innerHTML = `
+            <h6><i class="bi bi-egg-fried me-2"></i>${template.name}</h6>
+            <p class="small text-muted mb-1">${template.description ? template.description.substring(0, 50) + (template.description.length > 50 ? '...' : '') : 'No description'}</p>
+            <div class="d-flex justify-content-between align-items-center">
+                <div class="small text-muted">
+                    ${template.meal_type ? capitalizeFirst(template.meal_type.replace('_', ' ')) : 'General'}
+                </div>
+                <div class="small text-muted">
+                    ${ingredientCount} ingredients
+                </div>
+            </div>
+        `;
+        
+        // Add click event to select/deselect template
+        templateItem.addEventListener('click', () => {
+            templateItem.classList.toggle('selected');
+            updateSelectedMealTemplatesCount();
+        });
+        
+        templatesContainer.appendChild(templateItem);
+    });
+    
+    // Add link to template management page
+    const manageTemplatesLink = document.createElement('div');
+    manageTemplatesLink.className = 'template-item create-new';
+    manageTemplatesLink.innerHTML = `
+        <h6 class="text-primary"><i class="bi bi-gear-fill me-2"></i>Manage Meal Templates</h6>
+        <p class="small text-muted mb-0">Create, edit, and delete meal templates</p>
+    `;
+    
+    manageTemplatesLink.addEventListener('click', () => {
+        window.location.href = '/plan-management/coach/meal-templates/';
+    });
+    
+    templatesContainer.appendChild(manageTemplatesLink);
 }
 
-function showTemplateForm(type, templateData = null) {
-    const modalTitle = document.getElementById('templateModalLabel');
-    const modalBody = document.querySelector('#templateModal .modal-body');
-    const saveBtn = document.getElementById('saveTemplateBtn');
-    
-    modalTitle.textContent = templateData ? `Edit ${capitalizeFirst(type)} Template` : `Create New ${capitalizeFirst(type)} Template`;
-    
-    // Generate form based on template type
-    let formHtml = '';
+// Function removed - replaced by updateWorkoutTemplatesUI and updateMealTemplatesUI
+// Template rendering now uses a different approach with links to dedicated management pages
+
+// Function removed - template preview functionality now handled differently in the updated UI
+
+/**
+ * Redirect to the appropriate template management page
+ * @param {string} type - The type of template (workout, meal, plan)
+ */
+function navigateToTemplateManagement(type) {
+    let url = '/plan-management/coach/';
     
     switch (type) {
         case 'workout':
-            formHtml = generateWorkoutTemplateForm(templateData);
+            url += 'workout-templates/';
             break;
         case 'meal':
-            formHtml = generateMealTemplateForm(templateData);
-            break;
-        case 'plan':
-            formHtml = generatePlanTemplateForm(templateData);
+            url += 'meal-templates/';
             break;
         default:
-            formHtml = '<div class="alert alert-danger">Unknown template type</div>';
+            url += 'plan-management/';
     }
     
-    modalBody.innerHTML = formHtml;
+    // Save current plan state before navigating
+    savePlanStateToSession();
     
-    // Setup save button handler
-    saveBtn.onclick = () => {
-        const formData = collectTemplateFormData(type);
-        
-        let apiCall;
-        if (templateData) {
-            switch (type) {
-                case 'workout':
-                    apiCall = CoachPlanAPI.workoutTemplates.update(templateData.id, formData);
-                    break;
-                case 'meal':
-                    apiCall = CoachPlanAPI.mealTemplates.update(templateData.id, formData);
-                    break;
-                case 'plan':
-                    apiCall = CoachPlanAPI.planTemplates.update(templateData.id, formData);
-                    break;
-                default:
-                    showToast('error', 'Unknown template type');
-                    return;
-            }
-        } else {
-            switch (type) {
-                case 'workout':
-                    apiCall = CoachPlanAPI.workoutTemplates.create(formData);
-                    break;
-                case 'meal':
-                    apiCall = CoachPlanAPI.mealTemplates.create(formData);
-                    break;
-                case 'plan':
-                    apiCall = CoachPlanAPI.planTemplates.create(formData);
-                    break;
-                default:
-                    showToast('error', 'Unknown template type');
-                    return;
-            }
-        }
-        
-        apiCall.then(result => {
-            showToast('success', `${capitalizeFirst(type)} template ${templateData ? 'updated' : 'created'} successfully`);
-            loadTemplates(); // Reload templates
-            $('#templateModal').modal('hide');
-        }).catch(error => {
-            console.error(`Error ${templateData ? 'updating' : 'creating'} template:`, error);
-            showToast('error', `Failed to ${templateData ? 'update' : 'create'} ${type} template`);
-        });
+    // Navigate to template management page
+    window.location.href = url;
+}
+
+/**
+ * Save current plan state to session storage for returning after template management
+ */
+function savePlanStateToSession() {
+    // Save any unsaved form data or selection state
+    // Will be used when returning from template management page
+    const formData = {
+        name: document.getElementById('planName')?.value,
+        description: document.getElementById('planDescription')?.value,
+        plan_type: document.querySelector('input[name="planType"]:checked')?.value,
+        price: document.getElementById('planPrice')?.value,
+        duration: document.getElementById('planDuration')?.value,
+        workout_days_per_week: document.getElementById('workoutDaysPerWeek')?.value
     };
     
-    // Show the modal
-    const templateModal = new bootstrap.Modal(document.getElementById('templateModal'));
-    templateModal.show();
+    sessionStorage.setItem('planCreationFormData', JSON.stringify(formData));
+    
+    // Also save selected template IDs
+    const selectedWorkoutTemplates = [];
+    document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="workout"]').forEach(item => {
+        selectedWorkoutTemplates.push(item.dataset.templateId);
+    });
+    sessionStorage.setItem('selectedWorkoutTemplates', JSON.stringify(selectedWorkoutTemplates));
+    
+    const selectedMealTemplates = [];
+    document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="meal"]').forEach(item => {
+        selectedMealTemplates.push(item.dataset.templateId);
+    });
+    sessionStorage.setItem('selectedMealTemplates', JSON.stringify(selectedMealTemplates));
 }
 
-function generateWorkoutTemplateForm(template = null) {
-    return `
-        <form id="workoutTemplateForm">
-            <div class="row g-3">
-                <div class="col-12">
-                    <label for="templateName" class="form-label">Template Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="templateName" required value="${template?.name || ''}">
-                </div>
-                
-                <div class="col-12">
-                    <label for="templateDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="templateDescription" rows="2">${template?.description || ''}</textarea>
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="templateDifficulty" class="form-label">Difficulty Level</label>
-                    <select class="form-select" id="templateDifficulty">
-                        <option value="1" ${template?.difficulty === 1 ? 'selected' : ''}>Beginner (1)</option>
-                        <option value="2" ${template?.difficulty === 2 ? 'selected' : ''}>Easy (2)</option>
-                        <option value="3" ${!template || template?.difficulty === 3 ? 'selected' : ''}>Moderate (3)</option>
-                        <option value="4" ${template?.difficulty === 4 ? 'selected' : ''}>Challenging (4)</option>
-                        <option value="5" ${template?.difficulty === 5 ? 'selected' : ''}>Advanced (5)</option>
-                    </select>
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="templateCategory" class="form-label">Category</label>
-                    <input type="text" class="form-control" id="templateCategory" value="${template?.category || ''}">
-                </div>
-                
-                <div class="col-12">
-                    <h6 class="mt-3 mb-2">Exercise Blocks</h6>
-                    <div id="exerciseBlocksContainer">
-                        <!-- Exercise blocks will be added here -->
-                        ${template?.structure ? renderExerciseBlocksFromTemplate(template.structure) : ''}
-                    </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addExerciseBlockBtn">
-                        <i class="bi bi-plus-circle me-1"></i> Add Exercise Block
-                    </button>
-                </div>
-            </div>
-        </form>
-    `;
+/**
+ * Restore saved plan state from session storage when returning from template management
+ */
+function restorePlanStateFromSession() {
+    // Restore any saved form data
+    const formData = JSON.parse(sessionStorage.getItem('planCreationFormData') || '{}');
+    
+    if (formData.name) document.getElementById('planName').value = formData.name;
+    if (formData.description) document.getElementById('planDescription').value = formData.description;
+    if (formData.plan_type) {
+        const radioButton = document.querySelector(`input[name="planType"][value="${formData.plan_type}"]`);
+        if (radioButton) radioButton.checked = true;
+    }
+    if (formData.price) document.getElementById('planPrice').value = formData.price;
+    if (formData.duration) document.getElementById('planDuration').value = formData.duration;
+    if (formData.workout_days_per_week) document.getElementById('workoutDaysPerWeek').value = formData.workout_days_per_week;
+    
+    // Update calculated fields
+    updateWorkoutDaysCalculation();
 }
 
-function generateMealTemplateForm(template = null) {
-    return `
-        <form id="mealTemplateForm">
-            <div class="row g-3">
-                <div class="col-12">
-                    <label for="templateName" class="form-label">Template Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="templateName" required value="${template?.name || ''}">
-                </div>
-                
-                <div class="col-12">
-                    <label for="templateDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="templateDescription" rows="2">${template?.description || ''}</textarea>
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="templateCategory" class="form-label">Category</label>
-                    <input type="text" class="form-control" id="templateCategory" value="${template?.category || ''}">
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="mealType" class="form-label">Meal Type</label>
-                    <select class="form-select" id="mealType">
-                        <option value="breakfast" ${template?.meal_type === 'breakfast' ? 'selected' : ''}>Breakfast</option>
-                        <option value="lunch" ${template?.meal_type === 'lunch' ? 'selected' : ''}>Lunch</option>
-                        <option value="dinner" ${template?.meal_type === 'dinner' ? 'selected' : ''}>Dinner</option>
-                        <option value="snack" ${template?.meal_type === 'snack' ? 'selected' : ''}>Snack</option>
-                        <option value="pre_workout" ${template?.meal_type === 'pre_workout' ? 'selected' : ''}>Pre-Workout</option>
-                        <option value="post_workout" ${template?.meal_type === 'post_workout' ? 'selected' : ''}>Post-Workout</option>
-                    </select>
-                </div>
-                
-                <div class="col-12">
-                    <h6 class="mt-3 mb-2">Ingredients</h6>
-                    <div id="ingredientsContainer">
-                        <!-- Ingredients will be added here -->
-                        ${template?.structure ? renderIngredientsFromTemplate(template.structure) : ''}
-                    </div>
-                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="addIngredientBtn">
-                        <i class="bi bi-plus-circle me-1"></i> Add Ingredient
-                    </button>
-                </div>
-                
-                <div class="col-12">
-                    <h6 class="mt-3 mb-2">Nutritional Information</h6>
-                    <div class="row g-2">
-                        <div class="col-md-3">
-                            <label for="calories" class="form-label">Calories</label>
-                            <input type="number" class="form-control" id="calories" value="${template?.calories || ''}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="protein" class="form-label">Protein (g)</label>
-                            <input type="number" class="form-control" id="protein" value="${template?.protein || ''}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="carbs" class="form-label">Carbs (g)</label>
-                            <input type="number" class="form-control" id="carbs" value="${template?.carbs || ''}">
-                        </div>
-                        <div class="col-md-3">
-                            <label for="fat" class="form-label">Fat (g)</label>
-                            <input type="number" class="form-control" id="fat" value="${template?.fat || ''}">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </form>
-    `;
-}
+// Function removed - template creation now handled in dedicated template management pages
 
-function generatePlanTemplateForm(template = null) {
-    return `
-        <form id="planTemplateForm">
-            <div class="row g-3">
-                <div class="col-12">
-                    <label for="templateName" class="form-label">Template Name <span class="text-danger">*</span></label>
-                    <input type="text" class="form-control" id="templateName" required value="${template?.name || ''}">
-                </div>
-                
-                <div class="col-12">
-                    <label for="templateDescription" class="form-label">Description</label>
-                    <textarea class="form-control" id="templateDescription" rows="2">${template?.description || ''}</textarea>
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="templateType" class="form-label">Plan Type</label>
-                    <select class="form-select" id="templateType">
-                        <option value="workout" ${template?.plan_type === 'workout' ? 'selected' : ''}>Workout Only</option>
-                        <option value="diet" ${template?.plan_type === 'diet' ? 'selected' : ''}>Diet/Nutrition Only</option>
-                        <option value="combined" ${!template || template?.plan_type === 'combined' ? 'selected' : ''}>Combined (Workout & Diet)</option>
-                    </select>
-                </div>
-                
-                <div class="col-md-6">
-                    <label for="templateDifficulty" class="form-label">Difficulty Level</label>
-                    <select class="form-select" id="templateDifficulty">
-                        <option value="1" ${template?.difficulty === 1 ? 'selected' : ''}>Beginner (1)</option>
-                        <option value="2" ${template?.difficulty === 2 ? 'selected' : ''}>Easy (2)</option>
-                        <option value="3" ${!template || template?.difficulty === 3 ? 'selected' : ''}>Moderate (3)</option>
-                        <option value="4" ${template?.difficulty === 4 ? 'selected' : ''}>Challenging (4)</option>
-                        <option value="5" ${template?.difficulty === 5 ? 'selected' : ''}>Advanced (5)</option>
-                    </select>
-                </div>
-                
-                <div class="col-12">
-                    <h6 class="mt-3 mb-2">Plan Structure</h6>
-                    <p class="text-muted small">Define the week pattern for this plan template</p>
-                    
-                    <div class="alert alert-info">
-                        <i class="bi bi-info-circle-fill me-2"></i>
-                        You'll be able to assign specific workout and meal templates to each day after creating this template.
-                    </div>
-                </div>
-            </div>
-        </form>
-    `;
-}
+// Function removed - meal template creation now handled in dedicated template management pages
+
+// Function removed - plan template creation now handled in dedicated template management pages
 
 // Helper functions
 function capitalizeFirst(string) {
+    if (!string) return '';
     return string.charAt(0).toUpperCase() + string.slice(1);
 }
 
-function renderExerciseBlocksFromTemplate(structure) {
-    // Implementation for rendering exercise blocks from template structure
-    return '<div class="text-muted">Click "Add Exercise Block" to add exercises</div>';
+/**
+ * Update the count of selected workout templates in the UI
+ */
+function updateSelectedWorkoutTemplatesCount() {
+    const selectedCount = document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="workout"]').length;
+    const countDisplay = document.getElementById('selectedWorkoutTemplatesCount');
+    
+    if (countDisplay) {
+        countDisplay.textContent = selectedCount;
+        countDisplay.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+    }
+    
+    // Update the next button status
+    updateTemplatesNextButtonStatus();
 }
 
-function renderIngredientsFromTemplate(structure) {
-    // Implementation for rendering ingredients from template structure
-    return '<div class="text-muted">Click "Add Ingredient" to add meal ingredients</div>';
+/**
+ * Update the count of selected meal templates in the UI
+ */
+function updateSelectedMealTemplatesCount() {
+    const selectedCount = document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="meal"]').length;
+    const countDisplay = document.getElementById('selectedMealTemplatesCount');
+    
+    if (countDisplay) {
+        countDisplay.textContent = selectedCount;
+        countDisplay.style.display = selectedCount > 0 ? 'inline-block' : 'none';
+    }
+    
+    // Update the next button status
+    updateTemplatesNextButtonStatus();
 }
+
+/**
+ * Enable/disable the next button based on template selections
+ */
+function updateTemplatesNextButtonStatus() {
+    const workoutTemplatesSelected = document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="workout"]').length > 0;
+    const mealTemplatesSelected = document.querySelectorAll('.template-item.template-selectable.selected[data-template-type="meal"]').length > 0;
+    
+    const nextButton = document.querySelector('#templates-step .next-step-button');
+    
+    if (nextButton) {
+        nextButton.disabled = !(workoutTemplatesSelected && mealTemplatesSelected);
+    }
+}
+
+// Functions removed - rendering template components now handled in dedicated template management pages
 
 // Workout Templates Functions
 let currentWorkoutTemplate = null;
@@ -534,7 +541,29 @@ function loadWorkoutTemplates() {
 function renderWorkoutTemplatesTable(templates) {
     const tableBody = document.getElementById('workoutTemplatesTableBody');
     
-    if (!templates || templates.length === 0) {
+    // Handle paginated responses from API
+    if (templates && templates.results) {
+        console.log('Received paginated response for workout templates:', templates);
+        templates = templates.results;
+    }
+    
+    // Check if templates is a valid array
+    if (!Array.isArray(templates)) {
+        console.error('Workout templates is not an array:', templates);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <p class="text-muted mb-0">Error loading workout templates. Please refresh and try again.</p>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="loadWorkoutTemplates()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Try Again
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    if (templates.length === 0) {
         tableBody.innerHTML = `
             <tr>
                 <td colspan="6" class="text-center py-4">
@@ -897,470 +926,367 @@ function removeExercise(blockIndex, exerciseIndex) {
     });
 }
 
-function saveWorkoutTemplate() {
-    // Validate form
-    const name = document.getElementById('workoutTemplateName').value;
-    if (!name) {
-        showToast('error', 'Template name is required');
-        return;
-    }
+/**
+ * Gets or creates a plan template to use as a container for workout templates
+ * @param {string} templateName - Name for the template
+ * @returns {Promise<number>} - Promise that resolves with template ID
+ */
+function getOrCreatePlanTemplate(templateName = 'Default Plan Template') {
+    console.log('Getting or creating plan template for:', templateName);
     
-    // Check if exercises are added
-    let hasExercises = false;
-    for (const block of exerciseBlocks) {
-        if (block.exercises && block.exercises.length > 0) {
-            hasExercises = true;
-            break;
-        }
-    }
-    
-    if (!hasExercises) {
-        showToast('error', 'Add at least one exercise to the template');
-        return;
-    }
-    
-    // Collect form data
-    const templateData = {
-        name: name,
-        description: document.getElementById('workoutTemplateDescription').value,
-        category: document.getElementById('workoutTemplateCategory').value,
-        difficulty: parseInt(document.getElementById('workoutTemplateDifficulty').value),
-        duration_minutes: parseInt(document.getElementById('workoutTemplateDuration').value),
-        instructions: document.getElementById('workoutTemplateInstructions').value,
-        structure: {
-            blocks: exerciseBlocks
-        }
-    };
-    
-    // Get plan ID from session storage
-    const currentPlanId = sessionStorage.getItem('currentPlanId');
-    
-    // If we have a current plan, associate this template with it
-    if (currentPlanId) {
-        templateData.product_plan = currentPlanId;
-    }
-    
-    // Show loading state
-    const saveBtn = document.getElementById('saveWorkoutTemplateBtn');
-    const originalBtnText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-    saveBtn.disabled = true;
-    
-    // Save template
-    let apiCall;
-    if (currentWorkoutTemplateId) {
-        apiCall = CoachPlanAPI.workoutTemplates.update(currentWorkoutTemplateId, templateData);
-    } else {
-        apiCall = CoachPlanAPI.workoutTemplates.create(templateData);
-    }
-    
-    apiCall
-        .then(template => {
-            showToast('success', `Workout template ${currentWorkoutTemplateId ? 'updated' : 'created'} successfully`);
-            hideWorkoutTemplateEditor();
-            loadWorkoutTemplates(); // Refresh the templates list
-        })
-        .catch(error => {
-            console.error('Error saving workout template:', error);
-            showToast('error', `Failed to ${currentWorkoutTemplateId ? 'update' : 'create'} workout template`);
-        })
-        .finally(() => {
-            saveBtn.innerHTML = originalBtnText;
-            saveBtn.disabled = false;
-        });
-}
-
-function viewWorkoutTemplate(templateId) {
-    // Hide template list and editor
-    document.querySelector('.workout-templates-container').style.display = 'none';
-    document.getElementById('workoutTemplateEditor').style.display = 'none';
-    
-    // Get or create the preview container
-    let previewContainer = document.getElementById('workoutTemplatePreview');
-    if (!previewContainer) {
-        previewContainer = document.createElement('div');
-        previewContainer.id = 'workoutTemplatePreview';
-        previewContainer.className = 'template-preview';
-        document.getElementById('workout-template').querySelector('.card-body').appendChild(previewContainer);
-    }
-    previewContainer.style.display = 'block';
-    
-    // Show loading state
-    previewContainer.innerHTML = `
-        <div class="text-center py-3">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading template...</span>
-            </div>
-        </div>
-    `;
-    
-    // Fetch template details
-    CoachPlanAPI.workoutTemplates.getById(templateId)
-        .then(template => {
-            let exerciseBlocksHtml = '';
-            let totalExercises = 0;
-            
-            if (template.structure && template.structure.blocks && template.structure.blocks.length > 0) {
-                exerciseBlocksHtml = template.structure.blocks.map(block => {
-                    let exercisesHtml = '';
-                    
-                    if (block.exercises && block.exercises.length > 0) {
-                        totalExercises += block.exercises.length;
-                        exercisesHtml = block.exercises.map(exercise => `
-                            <tr>
-                                <td>${exercise.name}</td>
-                                <td>${exercise.sets || '-'}</td>
-                                <td>${exercise.reps || '-'}</td>
-                                <td>${exercise.rest_seconds ? exercise.rest_seconds + ' sec' : '-'}</td>
-                                <td>${exercise.notes || '-'}</td>
-                            </tr>
-                        `).join('');
-                    } else {
-                        exercisesHtml = `<tr><td colspan="5" class="text-center text-muted">No exercises in this block</td></tr>`;
-                    }
-                    
-                    return `
-                        <div class="card mb-3">
-                            <div class="card-header bg-light">
-                                <h6 class="mb-0">${block.name || 'Unnamed Block'}</h6>
-                                <small class="text-muted">${capitalizeFirst(block.type || 'standard')}</small>
-                            </div>
-                            <div class="card-body p-0">
-                                <table class="table table-sm mb-0">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Exercise</th>
-                                            <th>Sets</th>
-                                            <th>Reps</th>
-                                            <th>Rest</th>
-                                            <th>Notes</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${exercisesHtml}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-            } else {
-                exerciseBlocksHtml = `<div class="alert alert-info">No exercise blocks defined</div>`;
-            }
-            
-            previewContainer.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="section-title mb-0">Workout Template Preview</h5>
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="backToWorkoutListBtn">
-                            <i class="bi bi-arrow-left me-1"></i> Back to List
-                        </button>
-                        <button type="button" class="btn btn-sm btn-primary" id="editCurrentWorkoutTemplateBtn" data-id="${template.id}">
-                            <i class="bi bi-pencil me-1"></i> Edit
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5>${template.name}</h5>
-                        <p class="text-muted">${template.description || 'No description'}</p>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Category</small>
-                                <span>${template.category || '-'}</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Difficulty</small>
-                                <div class="difficulty-stars">
-                                    ${generateDifficultyStars(template.difficulty)}
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Duration</small>
-                                <span>${template.duration_minutes ? template.duration_minutes + ' minutes' : '-'}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Exercise Blocks</small>
-                                <span>${template.structure?.blocks?.length || 0}</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Total Exercises</small>
-                                <span>${totalExercises}</span>
-                            </div>
-                        </div>
-                        
-                        ${template.instructions ? `
-                            <div class="mb-3">
-                                <small class="text-muted d-block">Instructions</small>
-                                <p>${template.instructions}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
-                
-                <h6 class="mb-3">Exercise Blocks</h6>
-                <div class="exercise-blocks-preview">
-                    ${exerciseBlocksHtml}
-                </div>
-            `;
-            
-            // Add event listeners
-            document.getElementById('backToWorkoutListBtn').addEventListener('click', () => {
-                previewContainer.style.display = 'none';
-                document.querySelector('.workout-templates-container').style.display = 'block';
-            });
-            
-            document.getElementById('editCurrentWorkoutTemplateBtn').addEventListener('click', () => {
-                editWorkoutTemplate(template.id);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading workout template:', error);
-            previewContainer.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Failed to load template
-                </div>
-                <button type="button" class="btn btn-outline-secondary" id="backToWorkoutListBtn">
-                    <i class="bi bi-arrow-left me-1"></i> Back to List
-                </button>
-            `;
-            
-            document.getElementById('backToWorkoutListBtn').addEventListener('click', () => {
-                previewContainer.style.display = 'none';
-                document.querySelector('.workout-templates-container').style.display = 'block';
-            });
-        });
-}
-
-function editWorkoutTemplate(templateId) {
-    showWorkoutTemplateEditor(templateId);
-}
-
-function deleteWorkoutTemplate(templateId) {
-    if (confirm('Are you sure you want to delete this workout template?')) {
-        // Show loading state in the table row
-        const row = document.querySelector(`#workoutTemplatesTableBody .edit-template-btn[data-id="${templateId}"]`).closest('tr');
-        row.innerHTML = `
-            <td colspan="6" class="text-center">
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Deleting...</span>
-                </div>
-                <span class="ms-2">Deleting template...</span>
-            </td>
-        `;
+    return new Promise((resolve, reject) => {
+        // Track the overlay element for proper cleanup
+        let overlay = null;
         
-        // Delete the template
-        CoachPlanAPI.workoutTemplates.delete(templateId)
-            .then(() => {
-                showToast('success', 'Workout template deleted successfully');
-                loadWorkoutTemplates(); // Refresh the templates list
+        try {
+            // Show loading overlay
+            overlay = document.createElement('div');
+            overlay.className = 'position-fixed top-0 start-0 w-100 h-100 bg-dark bg-opacity-50 d-flex justify-content-center align-items-center';
+            overlay.style.zIndex = '1050';
+            overlay.innerHTML = `
+                <div class="spinner-border text-light" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        } catch (err) {
+            console.warn('Failed to create overlay, continuing without visual feedback:', err);
+            // Non-critical error, continue without overlay
+        }
+        
+        const removeOverlay = () => {
+            try {
+                if (overlay && document.body.contains(overlay)) {
+                    document.body.removeChild(overlay);
+                }
+            } catch (err) {
+                console.error('Error removing overlay:', err);
+                // Non-critical error, continue
+            }
+        };
+        
+        // First check if we have a default template for workouts
+        console.log('Checking for existing workout plan templates...');
+        CoachPlanAPI.planTemplates.getAll({template_type: 'workout'})
+            .then(templates => {
+                // Look for templates with template_type workout
+                const templateData = templates.results || templates;
+                console.log('Template data received:', templateData);
+                
+                if (templateData && templateData.length > 0) {
+                    // Use the first available template
+                    console.log('Found existing plan template:', templateData[0]);
+                    resolve(templateData[0].id);
+                    removeOverlay();
+                    return;
+                }
+                
+                // No template found, create one
+                console.log('No existing templates found, creating new plan template for workouts');
+                
+                // Get the coach profile ID using multiple fallback methods
+                getCoachProfileId()
+                    .then(coachId => {
+                        console.log('Retrieved coach ID:', coachId);
+                        if (!coachId) {
+                            throw new Error('Received empty coach ID');
+                        }
+                        
+                        const planTemplateData = {
+                            name: `Workout Templates Container - ${new Date().toLocaleDateString()}`,
+                            description: 'Auto-generated template container for workout templates',
+                            template_type: 'workout',
+                            is_public: false,
+                            coach: coachId // Include the coach ID
+                        };
+                        
+                        console.log('Creating plan template with data:', planTemplateData);
+                        return CoachPlanAPI.planTemplates.create(planTemplateData);
+                    })
+                    .then(newTemplate => {
+                        console.log('Created new plan template successfully:', newTemplate);
+                        if (!newTemplate || !newTemplate.id) {
+                            throw new Error('Created template has no ID');
+                        }
+                        resolve(newTemplate.id);
+                        removeOverlay();
+                    })
+                    .catch(error => {
+                        console.error('Error in template creation flow:', error);
+                        // If template creation failed, try to get templates one more time
+                        // and check if any were created in the meantime (concurrent creation)
+                        console.log('Retrying to find an existing template after creation failure');
+                        return CoachPlanAPI.planTemplates.getAll({template_type: 'workout'})
+                            .then(response => {
+                                const templates = response.results || response;
+                                if (templates && templates.length > 0) {
+                                    console.log('Found existing plan template after retry:', templates[0]);
+                                    resolve(templates[0].id);
+                                } else {
+                                    // No templates found even after retry
+                                    throw new Error('Failed to create plan template and no existing templates were found');
+                                }
+                            })
+                            .catch(retryError => {
+                                console.error('Final template retrieval error:', retryError);
+                                // This is the last attempt, reject with combined error info
+                                reject(new Error(`Template creation failed: ${error.message} | Retry failed: ${retryError.message}`));
+                            });
+                    })
+                    .finally(() => {
+                        removeOverlay();
+                    });
             })
             .catch(error => {
-                console.error('Error deleting workout template:', error);
-                showToast('error', 'Failed to delete workout template');
-                loadWorkoutTemplates(); // Refresh the templates list anyway
+                console.error('Error checking existing plan templates:', error);
+                reject(error);
+                removeOverlay();
             });
-    }
+    });
 }
 
-// Meal template event listeners will be added dynamically after templates are loaded
-// This ensures proper event binding to dynamically created elements
-
-function viewMealTemplate(templateId) {
-    // Hide template list and editor
-    document.querySelector('.meal-templates-container').style.display = 'none';
-    document.getElementById('mealTemplateEditor').style.display = 'none';
-    
-    const previewContainer = document.getElementById('mealTemplatePreview');
-    previewContainer.style.display = 'block';
-    
-    // Show loading state
-    previewContainer.innerHTML = `
-        <div class="text-center py-3">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Loading template...</span>
-            </div>
-        </div>
-    `;
-    
-    // Fetch template details
-    CoachPlanAPI.mealTemplates.getById(templateId)
-        .then(template => {
-            // Render template preview
-            let ingredientsHtml = '';
-            
-            if (template.structure && template.structure.ingredients && template.structure.ingredients.length > 0) {
-                ingredientsHtml = template.structure.ingredients.map(ingredient => `
-                    <tr>
-                        <td>${ingredient.name}</td>
-                        <td>${ingredient.amount} ${ingredient.unit}</td>
-                        <td>${ingredient.calories || '-'}</td>
-                        <td>${ingredient.protein || '-'}</td>
-                        <td>${ingredient.carbs || '-'}</td>
-                        <td>${ingredient.fat || '-'}</td>
-                    </tr>
-                `).join('');
-            } else {
-                ingredientsHtml = '<tr><td colspan="6" class="text-muted text-center">No ingredients defined</td></tr>';
+/**
+ * Helper function to get coach profile ID using multiple fallback methods
+ * @returns {Promise<string>} - Promise that resolves with coach ID
+ */
+function getCoachProfileId() {
+    return new Promise((resolveCoach, rejectCoach) => {
+        // Try to get coach ID from session storage first
+        let coachProfileId = sessionStorage.getItem('coachProfileId');
+        if (coachProfileId) {
+            console.log('Using coach profile ID from session storage:', coachProfileId);
+            return resolveCoach(coachProfileId);
+        }
+        
+        // Try to get from hidden input field (if available)
+        const hiddenCoachField = document.querySelector('input[name="coach_id"], input[name="coach_profile_id"], input[id="coach_id"], input[id="coach_profile_id"], [data-coach-id]');
+        if (hiddenCoachField) {
+            coachProfileId = hiddenCoachField.value || hiddenCoachField.getAttribute('data-coach-id');
+            if (coachProfileId) {
+                console.log('Using coach profile ID from hidden field:', coachProfileId);
+                sessionStorage.setItem('coachProfileId', coachProfileId);
+                return resolveCoach(coachProfileId);
             }
-            
-            // Calculate nutrition totals
-            let totalCalories = 0;
-            let totalProtein = 0;
-            let totalCarbs = 0;
-            let totalFat = 0;
-            
-            if (template.structure && template.structure.ingredients) {
-                template.structure.ingredients.forEach(ingredient => {
-                    totalCalories += Number(ingredient.calories) || 0;
-                    totalProtein += Number(ingredient.protein) || 0;
-                    totalCarbs += Number(ingredient.carbs) || 0;
-                    totalFat += Number(ingredient.fat) || 0;
+        }
+        
+        // Try to get from data attribute on body or other container
+        const bodyDataCoach = document.body.getAttribute('data-coach-id');
+        if (bodyDataCoach) {
+            console.log('Using coach profile ID from body attribute:', bodyDataCoach);
+            sessionStorage.setItem('coachProfileId', bodyDataCoach);
+            return resolveCoach(bodyDataCoach);
+        }
+        
+        // Try to get from global variable if available
+        if (window.COACH_PROFILE_ID) {
+            console.log('Using coach profile ID from global variable:', window.COACH_PROFILE_ID);
+            sessionStorage.setItem('coachProfileId', window.COACH_PROFILE_ID);
+            return resolveCoach(window.COACH_PROFILE_ID);
+        }
+        
+        // If none of the above worked, try extracting from URL or path if possible
+        const pathMatch = window.location.pathname.match(/\/coach-profile\/(\d+)/);
+        if (pathMatch && pathMatch[1]) {
+            console.log('Using coach profile ID from URL path:', pathMatch[1]);
+            sessionStorage.setItem('coachProfileId', pathMatch[1]);
+            return resolveCoach(pathMatch[1]);
+        }
+        
+        // Last resort - try to get profile directly from API
+        console.log('All quick methods failed, trying API call to get coach profile...');
+        // Try getting the me endpoint first - more reliable if available
+        APIBase.request('/profiles/api/v1/coach-profiles/me/', {
+            method: 'GET'
+        })
+            .then(response => {
+                console.log('Coach profile /me API response:', response);
+                if (response && response.success && response.data && response.data.id) {
+                    const coachId = response.data.id;
+                    console.log('Retrieved coach profile ID from /me endpoint:', coachId);
+                    sessionStorage.setItem('coachProfileId', coachId);
+                    return resolveCoach(coachId);
+                }
+                
+                // If /me endpoint doesn't work, try the list endpoint
+                return APIBase.request('/profiles/api/v1/coach-profiles/', {
+                    method: 'GET'
                 });
-            }
-            
-            previewContainer.innerHTML = `
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h5 class="section-title mb-0">Meal Template Preview</h5>
-                    <div>
-                        <button type="button" class="btn btn-sm btn-outline-secondary me-2" id="backToMealListBtn">
-                            <i class="bi bi-arrow-left me-1"></i> Back to List
-                        </button>
-                        <button type="button" class="btn btn-sm btn-primary" id="editMealTemplateBtn" data-id="${template.id}">
-                            <i class="bi bi-pencil me-1"></i> Edit
-                        </button>
-                    </div>
-                </div>
+            })
+            .then(response => {
+                // This might be from the list endpoint if /me failed
+                if (!response || !response.success) {
+                    throw new Error(response?.error || 'Failed to fetch coach profile');
+                }
                 
-                <div class="card mb-4">
-                    <div class="card-body">
-                        <h5>${template.name}</h5>
-                        <p class="text-muted">${template.description || 'No description'}</p>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Category</small>
-                                <span>${template.category || '-'}</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Meal Type</small>
-                                <span>${capitalizeFirst(template.meal_type) || '-'}</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Calories</small>
-                                <span>${template.calories || totalCalories || '-'}</span>
-                            </div>
-                        </div>
-                        
-                        <div class="row mb-3">
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Protein</small>
-                                <span>${template.protein || totalProtein || '-'}g</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Carbs</small>
-                                <span>${template.carbs || totalCarbs || '-'}g</span>
-                            </div>
-                            <div class="col-md-4">
-                                <small class="text-muted d-block">Fat</small>
-                                <span>${template.fat || totalFat || '-'}g</span>
-                            </div>
-                        </div>
-                        
-                        ${template.instructions ? `
-                            <div class="mb-3">
-                                <small class="text-muted d-block">Preparation Instructions</small>
-                                <p>${template.instructions}</p>
-                            </div>
-                        ` : ''}
-                    </div>
-                </div>
+                const data = response.data;
+                // Handle different possible response formats
+                let coachId = null;
                 
-                <h6 class="mb-3">Ingredients</h6>
-                <div class="table-responsive">
-                    <table class="table table-striped">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Amount</th>
-                                <th>Calories</th>
-                                <th>Protein (g)</th>
-                                <th>Carbs (g)</th>
-                                <th>Fat (g)</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${ingredientsHtml}
-                        </tbody>
-                    </table>
-                </div>
-            `;
-            
-            // Add event listeners
-            document.getElementById('backToMealListBtn').addEventListener('click', () => {
-                previewContainer.style.display = 'none';
-                document.querySelector('.meal-templates-container').style.display = 'block';
-            });
-            
-            document.getElementById('editMealTemplateBtn').addEventListener('click', () => {
-                editMealTemplate(template.id);
-            });
-        })
-        .catch(error => {
-            console.error('Error loading meal template:', error);
-            previewContainer.innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    Failed to load template
-                </div>
-                <button type="button" class="btn btn-outline-secondary" id="backToMealListBtn">
-                    <i class="bi bi-arrow-left me-1"></i> Back to List
-                </button>
-            `;
-            
-            document.getElementById('backToMealListBtn').addEventListener('click', () => {
-                previewContainer.style.display = 'none';
-                document.querySelector('.meal-templates-container').style.display = 'block';
-            });
-        });
-}
-
-function editMealTemplate(templateId) {
-    showMealTemplateEditor(templateId);
-}
-
-function deleteMealTemplate(templateId) {
-    if (confirm('Are you sure you want to delete this meal template?')) {
-        // Show loading state in the table row
-        const row = document.querySelector(`#mealTemplatesTableBody .edit-template-btn[data-id="${templateId}"]`).closest('tr');
-        row.innerHTML = `
-            <td colspan="6" class="text-center">
-                <div class="spinner-border spinner-border-sm text-primary" role="status">
-                    <span class="visually-hidden">Deleting...</span>
-                </div>
-                <span class="ms-2">Deleting template...</span>
-            </td>
-        `;
-        
-        // Delete the template
-        CoachPlanAPI.mealTemplates.delete(templateId)
-            .then(() => {
-                showToast('success', 'Meal template deleted successfully');
-                loadMealTemplates(); // Refresh the templates list
+                // If it's a list response (results array)
+                if (data && data.results && data.results.length > 0) {
+                    coachId = data.results[0].id;
+                }
+                // If it's a single object response
+                else if (data && data.id) {
+                    coachId = data.id;
+                }
+                // If the first item has the coach ID (no pagination)
+                else if (data && Array.isArray(data) && data.length > 0) {
+                    coachId = data[0].id;
+                }
+                
+                if (coachId) {
+                    console.log('Retrieved coach profile ID from list endpoint:', coachId);
+                    // Store for future use
+                    sessionStorage.setItem('coachProfileId', coachId);
+                    resolveCoach(coachId);
+                } else {
+                    throw new Error('Could not find coach profile ID in API response');
+                }
             })
             .catch(error => {
-                console.error('Error deleting meal template:', error);
-                showToast('error', 'Failed to delete meal template');
-                loadMealTemplates(); // Refresh the templates list anyway
+                console.error('Coach profile API error:', error);
+                rejectCoach(new Error('Could not retrieve coach profile ID. Please ensure you are logged in as a coach.'));
             });
+    });
+}
+
+// Add a hidden field with coach ID to the page if not already present
+function ensureCoachIdField() {
+    // Check if we already have the field
+    if (document.getElementById('hidden_coach_id')) {
+        return;
+    }
+    
+    // Create a hidden input with coach ID
+    const hiddenField = document.createElement('input');
+    hiddenField.type = 'hidden';
+    hiddenField.id = 'hidden_coach_id';
+    hiddenField.name = 'coach_id';
+    
+    // Try to get coach ID from URL or user info
+    try {
+        // First check if user info is available in the page
+        const userInfoScript = document.querySelector('script#user-info');
+        if (userInfoScript && userInfoScript.textContent) {
+            try {
+                const userData = JSON.parse(userInfoScript.textContent);
+                if (userData && userData.coach_id) {
+                    hiddenField.value = userData.coach_id;
+                    document.body.appendChild(hiddenField);
+                    console.log('Added coach ID from user info:', userData.coach_id);
+                    return;
+                }
+            } catch (parseErr) {
+                console.warn('Failed to parse user info JSON:', parseErr);
+                // Continue to next method
+            }
+        }
+        
+        // Try to get from data attribute on the logged in user element if exists
+        const userElement = document.querySelector('[data-user-type="coach"], .coach-profile, .coach-info');
+        if (userElement && userElement.getAttribute('data-coach-id')) {
+            hiddenField.value = userElement.getAttribute('data-coach-id');
+            document.body.appendChild(hiddenField);
+            console.log('Added coach ID from user element:', hiddenField.value);
+            return;
+        }
+
+        // Make a direct API call to get the coach profile using the newly added 'me' endpoint
+        APIBase.request('/profiles/api/v1/coach-profiles/me/', { method: 'GET' })
+            .then(response => {
+                if (response && response.success && response.data && response.data.id) {
+                    hiddenField.value = response.data.id;
+                    document.body.setAttribute('data-coach-id', response.data.id);
+                    document.body.appendChild(hiddenField);
+                    console.log('Added coach ID from API call:', response.data.id);
+                    return;
+                }
+                
+                // Fallback method - try to get from session storage
+                const storedCoachId = sessionStorage.getItem('coach_id');
+                if (storedCoachId) {
+                    hiddenField.value = storedCoachId;
+                    document.body.setAttribute('data-coach-id', storedCoachId);
+                    document.body.appendChild(hiddenField);
+                    console.log('Using coach ID from session storage:', storedCoachId);
+                    return;
+                }
+                
+                console.warn('Could not retrieve coach ID from API');
+            })
+            .catch(err => {
+                console.error('Error fetching coach profile:', err);
+                
+                // Fallback method - try to get from session storage
+                const storedCoachId = sessionStorage.getItem('coach_id');
+                if (storedCoachId) {
+                    hiddenField.value = storedCoachId;
+                    document.body.setAttribute('data-coach-id', storedCoachId);
+                    document.body.appendChild(hiddenField);
+                    console.log('Using coach ID from session storage after API error:', storedCoachId);
+                }
+            });
+    } catch (e) {
+        console.error('Error setting up coach ID field:', e);
+        console.error('Could not set up coach ID field. Please log in as a coach to continue.');
     }
 }
+
+// Call this function when the page loads
+document.addEventListener('DOMContentLoaded', ensureCoachIdField);
+// Also call it now in case the DOM is already loaded
+ensureCoachIdField();
+
+// Loading overlay utility functions
+function showLoadingOverlay(message = 'Loading...') {
+    // Remove any existing overlay first
+    hideLoadingOverlay();
+    
+    // Create overlay container
+    const overlay = document.createElement('div');
+    overlay.className = 'loading-overlay';
+    overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background-color:rgba(0,0,0,0.7); z-index:9999; display:flex; align-items:center; justify-content:center;';
+    
+    // Create loading spinner and message
+    const content = document.createElement('div');
+    content.className = 'loading-content';
+    content.style.cssText = 'background-color:white; padding:20px; border-radius:5px; text-align:center; box-shadow: 0 0 10px rgba(0,0,0,0.3);';
+    
+    // Add spinner
+    content.innerHTML = `
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+        <p class="mt-2">${message}</p>
+    `;
+    
+    // Append to DOM
+    overlay.appendChild(content);
+    document.body.appendChild(overlay);
+    
+    return overlay;
+}
+
+function hideLoadingOverlay() {
+    // Find and remove all loading overlays
+    const overlays = document.querySelectorAll('.loading-overlay');
+    overlays.forEach(overlay => {
+        if (overlay && document.body.contains(overlay)) {
+            document.body.removeChild(overlay);
+        }
+    });
+}
+
+// Workout template functions moved to workout_template_creation.js and workout_template_core.js
+
+// Removed - Workout template preview code moved to workout_template_creation.js
+
+// Removed - editWorkoutTemplate and deleteWorkoutTemplate functions moved to workout_template_creation.js
+
+// Meal and workout template functions have been moved to dedicated files:
+// - workout_template_core.js and workout_template_creation.js for workout templates
+// - meal_template_creation.js for meal templates
 
 /**
  * Generate star icons to visualize difficulty level
@@ -1517,6 +1443,18 @@ function renderSelectedTemplates(plan) {
     if (selectedWorkoutTemplateIds.length > 0) {
         CoachPlanAPI.workoutTemplates.getAll()
             .then(templates => {
+                // Handle paginated responses
+                if (templates && templates.results) {
+                    console.log('Received paginated response for workout templates preview:', templates);
+                    templates = templates.results;
+                }
+                
+                // Check if templates is an array
+                if (!Array.isArray(templates)) {
+                    console.error('Workout templates for preview is not an array:', templates);
+                    throw new Error('Invalid workout templates format');
+                }
+                
                 const selectedTemplates = templates.filter(t => selectedWorkoutTemplateIds.includes(t.id));
                 renderWorkoutTemplatesPreview(selectedTemplates);
             })
@@ -1548,6 +1486,18 @@ function renderSelectedTemplates(plan) {
     if (selectedMealTemplateIds.length > 0) {
         CoachPlanAPI.mealTemplates.getAll()
             .then(templates => {
+                // Handle paginated responses
+                if (templates && templates.results) {
+                    console.log('Received paginated response for meal templates preview:', templates);
+                    templates = templates.results;
+                }
+                
+                // Check if templates is an array
+                if (!Array.isArray(templates)) {
+                    console.error('Meal templates for preview is not an array:', templates);
+                    throw new Error('Invalid meal templates format');
+                }
+                
                 const selectedTemplates = templates.filter(t => selectedMealTemplateIds.includes(t.id));
                 renderMealTemplatesPreview(selectedTemplates);
             })
@@ -2242,6 +2192,8 @@ function updateStepStatus(stepId, status) {
  * Publish the plan by collecting all data and sending to backend
  */
 function publishPlan() {
+    console.log('publishPlan() called');
+    
     // Show loading overlay
     const overlay = document.createElement('div');
     overlay.className = 'position-fixed top-0 start-0 w-100 h-100 d-flex justify-content-center align-items-center';
@@ -2258,32 +2210,75 @@ function publishPlan() {
     `;
     document.body.appendChild(overlay);
     
-    // Collect form data
-    const planData = {
-        name: document.getElementById('planName').value,
-        description: document.getElementById('planDescription').value,
-        duration: parseInt(document.getElementById('planDuration').value),
-        price: parseFloat(document.getElementById('planPrice').value),
-        workout_days_per_week: parseInt(document.getElementById('workoutDaysPerWeek').value),
-        rest_days_per_week: parseInt(document.getElementById('restDaysPerWeek').value),
-        status: 'active',  // Set as active by default
-    };
-    
-    // Validate required fields
-    const requiredFields = ['name', 'duration', 'price', 'workout_days_per_week', 'rest_days_per_week'];
-    const missingFields = requiredFields.filter(field => !planData[field]);
-    
-    if (missingFields.length > 0) {
+    // Get plan ID
+    const planId = sessionStorage.getItem('currentPlanId');
+    if (!planId) {
         document.body.removeChild(overlay);
-        const fieldNames = missingFields.map(field => field.replace('_', ' ')).join(', ');
-        showToast('error', `Please fill in all required fields: ${fieldNames}`);
+        showToast('error', 'Cannot publish: No plan has been created yet');
         return;
     }
     
-    // Create plan
-    CoachPlanAPI.productPlans.create(planData)
+    // Get selected templates
+    const workoutTemplateIds = JSON.parse(sessionStorage.getItem('selectedWorkoutTemplates') || '[]');
+    const mealTemplateIds = JSON.parse(sessionStorage.getItem('selectedMealTemplates') || '[]');
+    
+    if (workoutTemplateIds.length === 0 || mealTemplateIds.length === 0) {
+        document.body.removeChild(overlay);
+        showToast('error', `Please select ${workoutTemplateIds.length === 0 ? 'workout' : 'meal'} templates before publishing`);
+        return;
+    }
+    
+    // Load existing plan data to merge with updates
+    CoachPlanAPI.productPlans.getById(planId)
+        .then(existingPlan => {
+            console.log('Existing plan data:', existingPlan);
+            
+            // Collect form data
+            const duration = parseInt(document.getElementById('planDuration').value);
+            const price = parseFloat(document.getElementById('planPrice').value);
+            const workoutDaysPerWeek = parseInt(document.getElementById('workoutDaysPerWeek')?.value || existingPlan.workout_days_per_week || 5);
+            const restDaysPerWeek = parseInt(document.getElementById('restDaysPerWeek')?.value || existingPlan.rest_days_per_week || 2);
+            
+            // Calculate dates and session metrics
+            const dates = calculatePlanDates(duration);
+            const sessionMetrics = calculateSessionMetrics(duration, workoutDaysPerWeek, price);
+            
+            const planData = {
+                id: planId,
+                name: document.getElementById('planName').value,
+                plan_type: document.getElementById('planType').value || existingPlan.plan_type,
+                description: document.getElementById('planDescription').value,
+                difficulty_level: getDifficultyLevelString(document.getElementById('difficultyLevel').value || existingPlan.difficulty_level),
+                duration: duration,
+                price: price,
+                max_clients: document.getElementById('maxClients').value || existingPlan.max_clients || null,
+                workout_days_per_week: workoutDaysPerWeek,
+                rest_days_per_week: restDaysPerWeek,
+                start_date: dates.start_date,
+                end_date: dates.end_date,
+                session_count: sessionMetrics.session_count,
+                price_per_session: sessionMetrics.price_per_session,
+                workout_templates: workoutTemplateIds,
+                meal_templates: mealTemplateIds,
+                is_published: true,
+                status: 'active'
+            };
+            
+            console.log('Publishing plan with data:', planData);
+            
+            // Update and publish the plan
+            return CoachPlanAPI.productPlans.update(planId, planData);
+        })
         .then(plan => {
-            showToast('success', 'Plan created successfully!');
+            console.log('Plan published successfully:', plan);
+            showToast('success', 'Plan published successfully!');
+            
+            // Clear session storage for plan creation data
+            sessionStorage.removeItem('currentPlanId');
+            sessionStorage.removeItem('planBasics');
+            sessionStorage.removeItem('selectedWorkoutTemplates');
+            sessionStorage.removeItem('selectedMealTemplates');
+            
             // Redirect to plans list after short delay
             setTimeout(() => {
                 window.location.href = '/coach/plans/';
@@ -2291,9 +2286,31 @@ function publishPlan() {
         })
         .catch(error => {
             console.error('Error publishing plan:', error);
-            showToast('error', 'Failed to publish plan. Please check the form and try again.');
+            
+            let errorMessage = 'Failed to publish plan.';
+            
+            // Try to extract detailed error message from API response
+            if (error && error.errorJSON) {
+                if (typeof error.errorJSON === 'object') {
+                    const fieldErrors = [];
+                    for (const [field, errors] of Object.entries(error.errorJSON)) {
+                        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        if (Array.isArray(errors)) {
+                            fieldErrors.push(`${fieldName}: ${errors.join(', ')}`);
+                        } else {
+                            fieldErrors.push(`${fieldName}: ${errors}`);
+                        }
+                    }
+                    if (fieldErrors.length > 0) {
+                        errorMessage += ` Please fix the following issues:\n${fieldErrors.join('\n')}`;
+                    }
+                }
+            }
+            
+            showToast('error', errorMessage);
             document.body.removeChild(overlay);
-        });
+        })
+
 }
 
 function deleteWorkoutTemplate(templateId) {
@@ -2369,7 +2386,28 @@ function renderMealTemplatesTable(templates) {
     // Hide loading indicator
     if (loadingIndicator) loadingIndicator.style.display = 'none';
     
-    if (!templates || templates.length === 0) {
+    // Handle paginated responses from API
+    if (templates && templates.results) {
+        console.log('Received paginated response for meal templates:', templates);
+        templates = templates.results;
+    }
+    
+    if (!Array.isArray(templates)) {
+        console.error('Meal templates is not an array:', templates);
+        tableBody.innerHTML = `
+            <tr>
+                <td colspan="6" class="text-center py-4">
+                    <p class="text-muted mb-0">Error loading meal templates. Please refresh and try again.</p>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="loadMealTemplates()">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Try Again
+                    </button>
+                </td>
+            </tr>
+        `;
+        return;
+    }
+    
+    if (templates.length === 0) {
         // Show empty state
         if (emptyState) emptyState.style.display = 'block';
         tableBody.innerHTML = '';
@@ -2400,7 +2438,7 @@ function renderMealTemplatesTable(templates) {
             <td>
                 <div class="d-flex align-items-center">
                     <div>
-                        <h6 class="mb-0">${template.name}</h6>
+                        <h6 class="mb-0">${template.meal_name || template.name || 'Unnamed Template'}</h6>
                         <small class="text-muted">${template.description ? template.description.substring(0, 50) + (template.description.length > 50 ? '...' : '') : 'No description'}</small>
                     </div>
                 </div>
@@ -2477,7 +2515,89 @@ function getSelectedMealTemplates() {
         selectedTemplates.push(checkbox.dataset.templateId);
     });
     
+    console.log('Selected meal templates:', selectedTemplates);
     return selectedTemplates;
+}
+
+/**
+ * Get all currently selected workout templates
+ * @returns {Array} Array of template IDs
+ */
+function getSelectedWorkoutTemplates() {
+    const selectedTemplates = [];
+    const checkboxes = document.querySelectorAll('#workoutTemplatesTableBody input[type="checkbox"]:checked');
+    
+    checkboxes.forEach(checkbox => {
+        selectedTemplates.push(checkbox.dataset.templateId);
+    });
+    
+    console.log('Selected workout templates:', selectedTemplates);
+    return selectedTemplates;
+}
+
+/**
+ * Save selected workout templates to session storage and update plan in backend
+ * @returns {Promise} Promise that resolves when templates are saved
+ */
+function saveWorkoutTemplateSelections() {
+    console.log('saveWorkoutTemplateSelections() called');
+    // Get current plan ID
+    const planId = sessionStorage.getItem('currentPlanId');
+    console.log('Current plan ID for workout template selection:', planId);
+    
+    if (!planId) {
+        const error = new Error('Please create a plan first');
+        showToast('error', error.message);
+        return Promise.reject(error);
+    }
+    
+    // Get selected template IDs
+    const selectedTemplateIds = getSelectedWorkoutTemplates();
+    
+    // If no templates selected, show error
+    if (selectedTemplateIds.length === 0) {
+        const error = new Error('Please select at least one workout template');
+        showToast('error', error.message);
+        return Promise.reject(error);
+    }
+    
+    // Save to session storage
+    sessionStorage.setItem('selectedWorkoutTemplates', JSON.stringify(selectedTemplateIds));
+    
+    // Show loading state on next button
+    const nextBtn = document.getElementById('nextToMealTemplates');
+    const originalBtnText = nextBtn.innerHTML;
+    nextBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    nextBtn.disabled = true;
+    
+    // Update plan with selected templates
+    console.log('Updating plan with workout templates:', selectedTemplateIds);
+    return CoachPlanAPI.productPlans.update(planId, {
+        workout_templates: selectedTemplateIds
+    })
+    .then(response => {
+        console.log('Plan updated with workout templates successfully:', response);
+        // Mark step as complete
+        updateStepStatus('workout-templates', 'complete');
+        
+        // Reset button state
+        nextBtn.innerHTML = originalBtnText;
+        nextBtn.disabled = false;
+        
+        return response;
+    })
+    .catch(error => {
+        console.error('Error saving workout templates:', error);
+        
+        // Reset button state
+        nextBtn.innerHTML = originalBtnText;
+        nextBtn.disabled = false;
+        
+        // Show error toast
+        showToast('error', 'Failed to save workout templates: ' + (error.message || 'Unknown error'));
+        
+        return Promise.reject(error);
+    });
 }
 
 /**
@@ -2485,10 +2605,14 @@ function getSelectedMealTemplates() {
  * @returns {Promise} Promise that resolves when templates are saved
  */
 function saveMealTemplateSelections() {
+    console.log('saveMealTemplateSelections() called');
     // Get current plan ID
-    const currentPlanId = sessionStorage.getItem('currentPlanId');
-    if (!currentPlanId) {
-        return Promise.reject(new Error('No current plan'));
+    const planId = sessionStorage.getItem('currentPlanId');
+    console.log('Retrieved plan ID from sessionStorage:', planId);
+    if (!planId) {
+        const error = new Error('Please create a plan first');
+        showToast('error', error.message);
+        return Promise.reject(error);
     }
     
     // Get selected template IDs
@@ -2510,12 +2634,19 @@ function saveMealTemplateSelections() {
     nextBtn.disabled = true;
     
     // Update plan with selected templates
-    return CoachPlanAPI.productPlans.update(currentPlanId, {
+    console.log('Updating plan with meal templates:', selectedTemplateIds);
+    return CoachPlanAPI.productPlans.update(planId, {
         meal_templates: selectedTemplateIds
     })
     .then(response => {
+        console.log('Plan updated with meal templates successfully:', response);
         // Mark step as complete
         updateStepStatus('meal-templates', 'complete');
+        
+        // Reset button state
+        nextBtn.innerHTML = originalBtnText;
+        nextBtn.disabled = false;
+        
         return response;
     })
     .catch(error => {
@@ -2622,7 +2753,7 @@ function showMealTemplateEditor(templateId = null) {
     document.getElementById('mealTemplateCarbs').value = '';
     document.getElementById('mealTemplateFat').value = '';
     document.getElementById('mealTemplateDescription').value = '';
-    document.getElementById('mealTemplatePreparation').value = '';
+    document.getElementById('mealTemplateInstructions').value = '';
     document.getElementById('ingredientsContainer').innerHTML = '';
     
     currentMealTemplateId = null;
@@ -2655,7 +2786,7 @@ function showMealTemplateEditor(templateId = null) {
                 document.getElementById('mealTemplateCarbs').value = template.carbs || '';
                 document.getElementById('mealTemplateFat').value = template.fat || '';
                 document.getElementById('mealTemplateDescription').value = template.description || '';
-                document.getElementById('mealTemplatePreparation').value = template.preparation || '';
+                document.getElementById('mealTemplateInstructions').value = template.instructions || '';
                 
                 // Load ingredients
                 document.getElementById('ingredientsContainer').innerHTML = '';
@@ -2815,7 +2946,7 @@ function saveMealTemplate() {
         protein: document.getElementById('mealTemplateProtein').value ? parseInt(document.getElementById('mealTemplateProtein').value) : null,
         carbs: document.getElementById('mealTemplateCarbs').value ? parseInt(document.getElementById('mealTemplateCarbs').value) : null,
         fat: document.getElementById('mealTemplateFat').value ? parseInt(document.getElementById('mealTemplateFat').value) : null,
-        preparation: document.getElementById('mealTemplatePreparation').value,
+        instructions: document.getElementById('mealTemplateInstructions').value,
         structure: {
             ingredients: ingredients
         }
@@ -2883,8 +3014,54 @@ function collectTemplateFormData(type) {
     return formData;
 }
 
+// Helper function to map numeric difficulty to string values
+function getDifficultyLevelString(difficultyValue) {
+    const difficultyMap = {
+        '1': 'beginner',
+        '2': 'intermediate',  // Note: 'Easy' maps to 'intermediate' level
+        '3': 'intermediate',  // 'Moderate' also maps to 'intermediate'
+        '4': 'advanced',      // 'Challenging' maps to 'advanced'
+        '5': 'expert'         // 'Advanced' maps to 'expert'
+    };
+    
+    return difficultyMap[difficultyValue] || 'intermediate';
+}
+
+// Get a valid renewal period value
+function getValidRenewalPeriod(renewalValue) {
+    // Valid choices are: 'monthly', 'quarterly', 'semi_annual', 'annual'
+    const validRenewalPeriods = ['monthly', 'quarterly', 'semi_annual', 'annual'];
+    return validRenewalPeriods.includes(renewalValue) ? renewalValue : 'monthly';
+}
+
+// Calculate start and end dates based on duration
+function calculatePlanDates(durationDays) {
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + durationDays);
+    
+    // Format dates as YYYY-MM-DD
+    return {
+        start_date: startDate.toISOString().split('T')[0],
+        end_date: endDate.toISOString().split('T')[0]
+    };
+}
+
+// Calculate session count and price per session
+function calculateSessionMetrics(durationDays, workoutDaysPerWeek, totalPrice) {
+    const weeks = durationDays / 7;
+    const sessionCount = Math.max(1, Math.round(weeks * workoutDaysPerWeek));
+    const pricePerSession = sessionCount > 0 ? totalPrice / sessionCount : totalPrice;
+    
+    return {
+        session_count: sessionCount,
+        price_per_session: pricePerSession.toFixed(2)
+    };
+}
+
 // Plan Creation Handling
 function savePlanBasics() {
+    console.log('savePlanBasics() called');
     // Show loading state on the next button
     const nextBtn = document.getElementById('nextToStructure');
     const originalBtnText = nextBtn.innerHTML;
@@ -2962,16 +3139,30 @@ function savePlanBasics() {
     }
     
     // Collect form data
+    const duration = parseInt(document.getElementById('planDuration').value);
+    const price = parseFloat(document.getElementById('planPrice').value);
+    const workoutDaysPerWeek = 5; // Default value, will be updated in plan structure step
+    
+    // Calculate dates, session count and price per session
+    const dates = calculatePlanDates(duration);
+    const sessionMetrics = calculateSessionMetrics(duration, workoutDaysPerWeek, price);
+    
     const planData = {
         name: document.getElementById('planName').value.trim(),
         plan_type: document.getElementById('planType').value,
-        difficulty: parseInt(document.getElementById('difficultyLevel').value),
-        duration_days: parseInt(document.getElementById('planDuration').value),
+        difficulty_level: getDifficultyLevelString(document.getElementById('difficultyLevel').value),
+        duration: duration,
         max_clients: document.getElementById('maxClients').value || null,
-        price: parseFloat(document.getElementById('planPrice').value),
-        renewal_period: document.getElementById('renewalPeriod').value,
+        price: price,
+        renewal_period: getValidRenewalPeriod(document.getElementById('renewalPeriod').value),
         description: document.getElementById('planDescription').value.trim(),
-        is_active: document.getElementById('isActive').checked
+        is_active: document.getElementById('isActive').checked,
+        workout_days_per_week: workoutDaysPerWeek,
+        // Add missing required fields
+        start_date: dates.start_date,
+        end_date: dates.end_date,
+        session_count: sessionMetrics.session_count,
+        price_per_session: sessionMetrics.price_per_session
     };
     
     // Store in session storage for persistence between page reloads
@@ -2987,7 +3178,10 @@ function savePlanBasics() {
     
     return apiCall
         .then(plan => {
+            // Set the current plan ID and store it in sessionStorage for persistence
             currentPlanId = plan.id;
+            sessionStorage.setItem('currentPlanId', plan.id);
+            console.log('Plan saved successfully. Plan ID:', plan.id);
             
             // Update step status icon to completed
             document.querySelector('#plan-basics-tab .step-status i').className = 'bi bi-check-circle-fill text-success';
@@ -2996,7 +3190,94 @@ function savePlanBasics() {
         })
         .catch(error => {
             console.error('Error saving plan basics:', error);
-            showToast('error', 'Failed to save plan basics. Please check your inputs and try again.');
+            
+            // Extract error message from API response if available
+            let errorMessage = 'Failed to save plan basics. Please check your inputs and try again.';
+            let validationErrors = [];
+            
+            try {
+                // Try to parse the error to handle different formats
+                if (error && error.errorJSON) {
+                    // Handle structured error responses
+                    if (error.errorJSON.type === 'validation_error' && Array.isArray(error.errorJSON.errors)) {
+                        // Process DRF validation error format
+                        error.errorJSON.errors.forEach(err => {
+                            if (err.attr && err.detail) {
+                                validationErrors.push(`${err.attr.replace(/_/g, ' ')}: ${err.detail}`);
+                                
+                                // Try to map field name to form field ID
+                                const fieldMappings = {
+                                    'price_per_session': 'planPrice',
+                                    'session_count': 'planDuration',
+                                    'start_date': null, // Calculated field, not directly in form
+                                    'end_date': null,   // Calculated field, not directly in form
+                                    'renewal_period': 'renewalPeriod'
+                                };
+                                
+                                const fieldId = fieldMappings[err.attr] || 
+                                               err.attr.replace(/_([a-z])/g, (_, g) => g.toUpperCase());
+                                
+                                const fieldElement = document.getElementById(fieldId);
+                                if (fieldElement) {
+                                    fieldElement.classList.add('is-invalid');
+                                    
+                                    let feedback = fieldElement.nextElementSibling;
+                                    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                                        feedback = document.createElement('div');
+                                        feedback.className = 'invalid-feedback';
+                                        fieldElement.parentNode.insertBefore(feedback, fieldElement.nextSibling);
+                                    }
+                                    feedback.textContent = err.detail;
+                                }
+                            }
+                        });
+                        
+                        if (validationErrors.length > 0) {
+                            errorMessage = `Please fix the following issues:\n${validationErrors.join('\n')}`;
+                        }
+                    } else if (typeof error.errorJSON === 'object') {
+                        // Handle standard Django REST Framework field-specific errors
+                        const fieldErrors = [];
+                        for (const [field, errors] of Object.entries(error.errorJSON)) {
+                            const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                            if (Array.isArray(errors)) {
+                                fieldErrors.push(`${fieldName}: ${errors.join(', ')}`);
+                            } else {
+                                fieldErrors.push(`${fieldName}: ${errors}`);
+                            }
+                            
+                            // Also mark field as invalid in the form
+                            const fieldElement = document.getElementById(field) || 
+                                               document.getElementById(field.replace(/_([a-z])/g, g => g[1].toUpperCase()));
+                            if (fieldElement) {
+                                fieldElement.classList.add('is-invalid');
+                                
+                                let feedback = fieldElement.nextElementSibling;
+                                if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                                    feedback = document.createElement('div');
+                                    feedback.className = 'invalid-feedback';
+                                    fieldElement.parentNode.insertBefore(feedback, fieldElement.nextSibling);
+                                }
+                                feedback.textContent = Array.isArray(errors) ? errors.join(', ') : errors;
+                            }
+                        }
+                        
+                        if (fieldErrors.length > 0) {
+                            errorMessage = `Please fix the following issues:\n${fieldErrors.join('\n')}`;
+                        }
+                    }
+                } else if (error.error) {
+                    errorMessage = error.error;
+                }
+            } catch (e) {
+                console.error('Error parsing error response:', e);
+            }
+
+            if (error && error.message) {
+                errorMessage = error.message;
+            }
+            
+            showToast('error', errorMessage);
             throw error;
         })
         .finally(() => {
@@ -3091,7 +3372,50 @@ function savePlanStructure() {
         })
         .catch(error => {
             console.error('Error saving plan structure:', error);
-            showToast('error', 'Failed to save plan structure. Please try again.');
+            
+            // Extract error message from API response if available
+            let errorMessage = 'Failed to save plan structure. Please try again.';
+            
+            if (error && error.errorJSON) {
+                // Handle structured error responses
+                if (typeof error.errorJSON === 'object') {
+                    // Django REST Framework often returns field-specific errors
+                    const fieldErrors = [];
+                    for (const [field, errors] of Object.entries(error.errorJSON)) {
+                        const fieldName = field.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                        if (Array.isArray(errors)) {
+                            fieldErrors.push(`${fieldName}: ${errors.join(', ')}`);
+                        } else {
+                            fieldErrors.push(`${fieldName}: ${errors}`);
+                        }
+                        
+                        // Also mark field as invalid in the form
+                        const fieldElement = document.getElementById(field) || 
+                                           document.getElementById(field.replace(/_([a-z])/g, g => g[1].toUpperCase()));
+                        if (fieldElement) {
+                            fieldElement.classList.add('is-invalid');
+                            
+                            let feedback = fieldElement.nextElementSibling;
+                            if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                                feedback = document.createElement('div');
+                                feedback.className = 'invalid-feedback';
+                                fieldElement.parentNode.insertBefore(feedback, fieldElement.nextSibling);
+                            }
+                            feedback.textContent = Array.isArray(errors) ? errors.join(', ') : errors;
+                        }
+                    }
+                    
+                    if (fieldErrors.length > 0) {
+                        errorMessage = `Please fix the following issues:\n${fieldErrors.join('\n')}`;
+                    }
+                } else if (error.error) {
+                    errorMessage = error.error;
+                }
+            } else if (error && error.message) {
+                errorMessage = error.message;
+            }
+            
+            showToast('error', errorMessage);
             throw error;
         })
         .finally(() => {
@@ -3100,13 +3424,166 @@ function savePlanStructure() {
         });
 }
 
-// Event Handlers
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize tooltips
+function saveWorkoutTemplate() {
+    console.log('saveWorkoutTemplate called');
+    
+    // Get form data
+    const form = document.getElementById('workoutTemplateForm');
+    
+    // Check form validity
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    
+    // Get template data
+    const templateData = {
+        name: document.getElementById('workoutTemplateName').value,
+        category: document.getElementById('workoutTemplateCategory').value,
+        difficulty: parseInt(document.getElementById('workoutTemplateDifficulty').value) || 3,
+        duration: parseInt(document.getElementById('workoutTemplateDuration').value) || 45,
+        description: document.getElementById('workoutTemplateDescription').value,
+        instructions: document.getElementById('workoutTemplateInstructions').value,
+        exercise_blocks: []
+    };
+    
+    // Get coach profile ID
+    const coachProfileId = getCoachProfileId();
+    if (!coachProfileId) {
+        showToast('error', 'Could not determine coach profile ID');
+        return;
+    }
+    templateData.coach_profile = coachProfileId;
+    
+    // Get template ID if editing
+    const templateId = document.getElementById('workoutTemplateId')?.value;
+    
+    // Get exercise blocks
+    const blockElements = document.querySelectorAll('.exercise-block');
+    blockElements.forEach((blockElem, blockIndex) => {
+        const blockNameInput = blockElem.querySelector('.block-name');
+        const blockInstructionsInput = blockElem.querySelector('.block-instructions');
+        
+        const block = {
+            name: blockNameInput?.value || `Block ${blockIndex + 1}`,
+            instructions: blockInstructionsInput?.value || '',
+            order: blockIndex,
+            exercises: []
+        };
+        
+        // Get exercises in this block
+        const exerciseElements = blockElem.querySelectorAll('.exercise-item');
+        exerciseElements.forEach((exerciseElem, exerciseIndex) => {
+            const exercise = {
+                name: exerciseElem.querySelector('.exercise-name')?.value || '',
+                muscle_group: exerciseElem.querySelector('.muscle-group')?.value || '',
+                sets: parseInt(exerciseElem.querySelector('.sets')?.value) || 1,
+                reps: exerciseElem.querySelector('.reps')?.value || '',
+                rest: parseInt(exerciseElem.querySelector('.rest')?.value) || 0,
+                instructions: exerciseElem.querySelector('.exercise-instructions')?.value || '',
+                order: exerciseIndex
+            };
+            
+            // Add exercise to block if it has a name
+            if (exercise.name.trim()) {
+                block.exercises.push(exercise);
+            }
+        });
+        
+        // Add block to template if it has a name and at least one exercise
+        if (block.name.trim() && block.exercises.length > 0) {
+            templateData.exercise_blocks.push(block);
+        }
+    });
+    
+    // Validate template data
+    if (!templateData.name.trim()) {
+        showToast('error', 'Template name is required');
+        return;
+    }
+    
+    if (templateData.exercise_blocks.length === 0) {
+        showToast('error', 'At least one exercise block with exercises is required');
+        return;
+    }
+    
+    // Show loading state
+    const saveBtn = document.getElementById('saveWorkoutTemplateBtn');
+    const originalBtnText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    saveBtn.disabled = true;
+    
+    // Save template
+    const apiMethod = templateId ? 
+        () => CoachPlanAPI.workoutTemplates.update(templateId, templateData) : 
+        () => CoachPlanAPI.workoutTemplates.create(templateData);
+    
+    apiMethod()
+        .then(response => {
+            console.log('Workout template saved:', response);
+            showToast('success', 'Workout template saved successfully');
+            
+            // Reset form
+            saveBtn.innerHTML = originalBtnText;
+            saveBtn.disabled = false;
+            
+            // Hide editor and show templates list
+            document.getElementById('workoutTemplateEditor').style.display = 'none';
+            document.querySelector('.workout-templates-container').style.display = 'block';
+            
+            // Reload templates
+            loadWorkoutTemplates();
+        })
+        .catch(error => {
+            console.error('Error saving workout template:', error);
+            showToast('error', `Failed to save workout template: ${error.message || 'Unknown error'}`);
+            
+            // Reset button
+            saveBtn.innerHTML = originalBtnText;
+            saveBtn.disabled = false;
+        });
+}
+
+/**
+ * Initialize Bootstrap tooltips on the page
+ */
+function initTooltips() {
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
     tooltipTriggerList.map(function (tooltipTriggerEl) {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
+}
+
+/**
+ * Initialize Bootstrap popovers on the page
+ */
+function initPopovers() {
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
+}
+
+// Event Handlers
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize popovers and tooltips
+    initTooltips();
+    initPopovers();
+    
+    // Attach event listener to Save Template button in modal
+    document.getElementById('saveTemplateBtn').addEventListener('click', function() {
+        const modalTitle = document.getElementById('templateModalLabel').textContent;
+        if (modalTitle.includes('Workout')) {
+            saveWorkoutTemplate();
+        } else if (modalTitle.includes('Meal')) {
+            saveMealTemplate();
+        }
+    });
+    
+    // Retrieve plan ID from sessionStorage if it exists
+    currentPlanId = sessionStorage.getItem('currentPlanId');
+    console.log('Initialized with plan ID from sessionStorage:', currentPlanId);
+    // Tooltips already initialized
     
     // Initial load of workout templates if on that tab
     if (document.getElementById('workout-template')) {
@@ -3117,12 +3594,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const nextToMealTemplatesBtn = document.getElementById('nextToMealTemplates');
     if (nextToMealTemplatesBtn) {
         nextToMealTemplatesBtn.addEventListener('click', function() {
+            console.log('Next to meal templates button clicked');
             saveWorkoutTemplateSelections()
                 .then(() => {
+                    console.log('Workout templates saved successfully, proceeding to meal templates tab');
                     showToast('success', 'Workout templates saved successfully');
                     document.getElementById('meal-template-tab').click();
                 })
                 .catch(error => {
+                    console.error('Failed to save workout templates:', error);
                     // Error already shown in saveWorkoutTemplateSelections
                 });
         });

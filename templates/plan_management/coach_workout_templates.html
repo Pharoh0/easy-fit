@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Workout Templates Management{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/coach/plan_management.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0">Workout Templates Management</h1>
+        <a href="{% url 'plan_management:coach_dashboard' %}" class="btn btn-outline-primary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Your Workout Templates</h5>
+                    <button class="btn btn-primary" id="createWorkoutTemplateBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Create New Template
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Workout Type</th>
+                                    <th>Duration</th>
+                                    <th>Intensity</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="workoutTemplatesTableBody">
+                                <!-- Templates will be loaded here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <div id="workoutTemplatesLoading" class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading workout templates...</p>
+                    </div>
+                    
+                    <div id="noWorkoutTemplates" style="display: none;" class="text-center py-4">
+                        <img src="{% static 'images/empty-state.svg' %}" alt="No templates" width="120" class="mb-3">
+                        <h6>No Workout Templates Yet</h6>
+                        <p class="text-muted mb-3">Create your first workout template to get started</p>
+                        <button class="btn btn-outline-primary" id="emptyStateCreateWorkoutTemplate">
+                            <i class="bi bi-plus-circle me-1"></i> Create Workout Template
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Quick Tips</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <h6><i class="bi bi-lightbulb text-warning me-2"></i> Creating Templates</h6>
+                        <p class="small text-muted">Create workout templates to save time when building client plans. Each template should include exercise blocks with specific exercises.</p>
+                    </div>
+                    <div class="mb-3">
+                        <h6><i class="bi bi-puzzle text-info me-2"></i> Template Usage</h6>
+                        <p class="small text-muted">Your workout templates will be available when creating plans or customizing daily workouts for clients.</p>
+                    </div>
+                    <div>
+                        <h6><i class="bi bi-stars text-success me-2"></i> Best Practices</h6>
+                        <p class="small text-muted">Include clear instructions, appropriate rest periods, and organize exercises logically within each workout template.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Workout Template Editor -->
+<div class="modal fade" id="workoutTemplateModal" tabindex="-1" aria-labelledby="workoutTemplateModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="workoutTemplateModalLabel">Create Workout Template</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="workoutTemplateForm">
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-6">
+                            <label for="workoutTemplateName" class="form-label">Template Name</label>
+                            <input type="text" class="form-control" id="workoutTemplateName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="workoutType" class="form-label">Workout Type</label>
+                            <select class="form-select" id="workoutType" required>
+                                <option value="" selected disabled>Select a workout type</option>
+                                <option value="strength_training">Strength Training</option>
+                                <option value="cardio">Cardiovascular</option>
+                                <option value="hiit">High-Intensity Interval Training</option>
+                                <option value="yoga">Yoga</option>
+                                <option value="pilates">Pilates</option>
+                                <option value="stretching">Stretching</option>
+                                <option value="sports">Sports Activity</option>
+                                <option value="mixed">Mixed Training</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="workoutDuration" class="form-label">Duration (minutes)</label>
+                            <input type="number" class="form-control" id="workoutDuration" min="5" step="5" value="45" required>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <label for="intensityLevel" class="form-label">Intensity Level</label>
+                            <select class="form-select" id="intensityLevel" required>
+                                <option value="" selected disabled>Select intensity level</option>
+                                <option value="low">Low Intensity</option>
+                                <option value="moderate">Moderate Intensity</option>
+                                <option value="high">High Intensity</option>
+                                <option value="very_high">Very High Intensity</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="workoutDescription" class="form-label">Description</label>
+                            <textarea class="form-control" id="workoutDescription" rows="2"></textarea>
+                        </div>
+                        
+                        <div class="col-12">
+                            <label for="workoutEquipment" class="form-label">Equipment Needed</label>
+                            <textarea class="form-control" id="workoutEquipment" rows="2" placeholder="List any equipment needed for this workout"></textarea>
+                        </div>
+                    </div>
+                    
+                    <h6 class="mb-3 mt-4">Exercise Blocks</h6>
+                    <div id="exerciseBlocksContainer">
+                        <!-- Exercise blocks will be added here -->
+                    </div>
+                    
+                    <button type="button" class="btn btn-outline-primary mt-3" id="addExerciseBlockBtn">
+                        <i class="bi bi-plus-circle me-1"></i> Add Exercise Block
+                    </button>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveWorkoutTemplateBtn">Save Template</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/auth/activity_tracker.js' %}"></script>
+<script src="{% static 'js/api/coach_plan_api.js' %}"></script>
+<script src="{% static 'js/coach/workout_template_management.js' %}"></script>
+{% endblock %}

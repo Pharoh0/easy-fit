@@ -145,7 +145,7 @@ class ExerciseTemplate(models.Model):
         ordering = ['order']
 
 class MealTemplate(models.Model):
-    """Meal template that can be applied to multiple days"""
+    """Meal template model for creating meal plans"""
     template = models.ForeignKey(PlanTemplate, on_delete=models.CASCADE, related_name='meal_templates')
     meal_name = models.CharField(max_length=255)
     meal_type = models.CharField(max_length=20, choices=[
@@ -156,17 +156,45 @@ class MealTemplate(models.Model):
         ('pre_workout', 'Pre-Workout'),
         ('post_workout', 'Post-Workout'),
     ])
+    # Added category field
+    category = models.CharField(max_length=100, blank=True, help_text="Category such as High Protein, Vegetarian, etc.")
     calories = models.PositiveIntegerField()
     protein_grams = models.DecimalField(max_digits=6, decimal_places=2)
     carbs_grams = models.DecimalField(max_digits=6, decimal_places=2)
     fats_grams = models.DecimalField(max_digits=6, decimal_places=2)
     preparation_time_minutes = models.PositiveIntegerField(default=15)
     cooking_time_minutes = models.PositiveIntegerField(default=0)
+    description = models.TextField(blank=True, help_text="Detailed description of the meal")
     recipe = models.TextField(blank=True)
+    # Keep for backwards compatibility but mark as deprecated
     meal_image = models.ImageField(upload_to='meal_templates/', null=True, blank=True)
+    meal_videos = models.ManyToManyField('MealTemplateVideo', blank=True)
+    meal_images = models.ManyToManyField('MealTemplateImage', blank=True)
     
     def __str__(self):
         return f"{self.meal_name} - {self.template.name}"
+
+class MealTemplateVideo(models.Model):
+    video = models.FileField(upload_to='meal_templates/videos/')
+
+class MealTemplateImage(models.Model):
+    image = models.ImageField(upload_to='meal_templates/images/')
+
+class MealTemplateIngredient(models.Model):
+    """Ingredients for meal templates"""
+    meal_template = models.ForeignKey(MealTemplate, on_delete=models.CASCADE, related_name='ingredients')
+    name = models.CharField(max_length=255)
+    quantity = models.DecimalField(max_digits=8, decimal_places=2)
+    unit = models.CharField(max_length=50)  # grams, cups, tablespoons, etc.
+    category = models.CharField(max_length=100, blank=True, help_text="Food category like Protein, Carbs, etc.")
+    notes = models.TextField(blank=True)
+    
+    def __str__(self):
+        return f"{self.quantity} {self.unit} {self.name}"
+    
+    class Meta:
+        ordering = ['id']
+
 
 class PlanItem(models.Model):
     """Individual items within a product plan"""

@@ -34,6 +34,29 @@ class APIBase {
         
         return null;
     }
+    
+    /**
+     * Clear all auth tokens from storage
+     * This prevents refresh loops and forces re-login
+     */
+    static clearAllTokens() {
+        // Clear localStorage tokens
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        localStorage.removeItem('jwt_token');
+        localStorage.removeItem('refresh');
+        
+        // Clear sessionStorage tokens
+        sessionStorage.removeItem('access_token');
+        sessionStorage.removeItem('refresh_token');
+        sessionStorage.removeItem('jwt_token');
+        sessionStorage.removeItem('refresh');
+        
+        // Try to clear cookies (this may not work due to HttpOnly settings)
+        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+        document.cookie = 'jwt_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    }
 
     /**
      * Get CSRF token from cookie
@@ -83,18 +106,38 @@ class APIBase {
      */
     static async refreshToken() {
         try {
+            // Get refresh token from all possible storage locations
+            const refreshToken = localStorage.getItem('refresh_token') || 
+                                sessionStorage.getItem('refresh_token') || 
+                                localStorage.getItem('refresh') ||
+                                sessionStorage.getItem('refresh');
+            
+            // If no refresh token is found, don't attempt refresh
+            if (!refreshToken) {
+                console.warn('No refresh token found, skipping refresh attempt');
+                return null;
+            }
+            
             const response = await fetch('/auth-users/api/v1/token/refresh/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    refresh: localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token')
+                    refresh: refreshToken
                 })
             });
 
             if (!response.ok) {
-                throw new Error('Token refresh failed');
+                const statusCode = response.status;
+                console.warn(`Token refresh failed with status ${statusCode}`);
+                
+                // If we get a 401 on refresh, token is invalid - clear tokens to prevent refresh loops
+                if (statusCode === 401) {
+                    this.clearAllTokens();
+                }
+                
+                throw new Error(`Token refresh failed with status ${statusCode}`);
             }
 
             const data = await response.json();
@@ -183,40 +226,64 @@ class APIBase {
             
             // Handle 401 Unauthorized (token expired or invalid)
             if (response.status === 401) {
-                // Try to refresh token if not already tried
-                if (!options._tokenRefreshed) {
+                // Only try token refresh if not already tried and we have a refresh token
+                const hasRefreshToken = localStorage.getItem('refresh_token') || sessionStorage.getItem('refresh_token');
+                
+                if (!options._tokenRefreshed && hasRefreshToken) {
+                    console.log('Attempting token refresh before request retry');
                     const newToken = await this.refreshToken();
                     if (newToken) {
+                        console.log('Token refreshed successfully, retrying request');
                         // Retry request with new token
                         return this.request(url, { 
                             ...options, 
                             _tokenRefreshed: true,
                             headers: { 
-                                ...options.headers,
+                                ...(options?.headers || {}),
                                 'Authorization': `Bearer ${newToken}`
                             }
                         });
                     }
                 }
                 
-                // If caller opts out of auto-redirect on 401, return gracefully
+                // If caller opts out of auto-redirect on 401, return gracefully with error object
                 if (options && options.noRedirectOn401) {
-                    return { success: false, status: 401, error: 'Authentication required' };
+                    return { 
+                        success: false, 
+                        status: 401, 
+                        error: 'Authentication required',
+                        message: 'Authentication required. Please log in again.'
+                    };
                 }
 
-                // Redirect to login if token refresh failed
-                try {
-                    const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
-                    const currentUrl = window.location.href;
-                    // Avoid redirect loop if already on login page
-                    if (window.location.pathname !== loginUrl) {
-                        window.location.href = `${loginUrl}?next=${encodeURIComponent(currentUrl)}`;
+                // Prevent infinite refresh/redirect loops by checking if we're actively using the site
+                const lastUserActivity = sessionStorage.getItem('last_user_activity');
+                const now = Date.now();
+                const inactiveThreshold = 10 * 60 * 1000; // 10 minutes
+                
+                // Only redirect if user was active in the last 10 minutes
+                if (!lastUserActivity || (now - parseInt(lastUserActivity)) < inactiveThreshold) {
+                    // Clear tokens before redirect to ensure clean login
+                    this.clearAllTokens();
+                    
+                    try {
+                        const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
+                        const currentUrl = window.location.href;
+                        // Avoid redirect loop if already on login page
+                        if (window.location.pathname !== loginUrl) {
+                            console.log('Redirecting to login due to authentication failure');
+                            window.location.href = `${loginUrl}?next=${encodeURIComponent(currentUrl)}`;
+                        }
+                    } catch (e) {
+                        console.error('Error during login redirect:', e);
+                        window.location.href = '/auth-users/login/';
                     }
-                } catch (e) {
-                    window.location.href = '/auth-users/login/';
+                } else {
+                    // Just return an error object without redirect for inactive users
+                    console.log('User inactive, not redirecting to login');
                 }
                 
-                return { success: false, error: 'Authentication failed' };
+                return { success: false, error: 'Authentication failed', status: 401 };
             }
             
             // Handle other error responses
