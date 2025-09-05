@@ -2,6 +2,11 @@ from rest_framework import serializers
 from .models import PlanTemplate, WorkoutTemplate, ExerciseTemplate, MealTemplate, MealTemplateIngredient, MealTemplateImage, MealTemplateVideo
 from apps.profiles.coach_profile.models import CoachProfile
 from apps.profiles.utils import get_avatar_url
+import logging
+import json
+
+# Configure logger for this module
+logger = logging.getLogger(__name__)
 
 class CoachProfileMinimalSerializer(serializers.ModelSerializer):
     """Minimal serializer for CoachProfile to avoid circular imports"""
@@ -102,7 +107,7 @@ class MealTemplateIngredientSerializer(serializers.ModelSerializer):
 
 class MealTemplateSerializer(serializers.ModelSerializer):
     """Serializer for Meal Templates"""
-    template_name = serializers.CharField(source='template.name', read_only=True)
+    template_name = serializers.SerializerMethodField()
     ingredients = MealTemplateIngredientSerializer(many=True, read_only=True)
     meal_images = MealTemplateImageSerializer(many=True, read_only=True)
     meal_videos = MealTemplateVideoSerializer(many=True, read_only=True)
@@ -117,13 +122,20 @@ class MealTemplateSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['id', 'template_name']
         
-    def to_internal_value(self, data):
-        """Custom method to handle multipart form data"""
-        # Import JSON for parsing
-        import json
-        import logging
-        logger = logging.getLogger(__name__)
+    def get_template_name(self, obj):
+        """Get the name of the parent template if it exists"""
+        if obj.template:
+            return obj.template.name
+        return None
         
+    def to_internal_value(self, data):
+        """Override to handle file objects properly and prevent pickling errors"""
+        # Create a clean copy of the data without file objects
+        cleaned_data = {}
+        for key, value in data.items():
+            # Skip file objects in the main serializer - they'll be handled separately
+            if key not in ['meal_image', 'meal_images', 'meal_videos']:
+                cleaned_data[key] = value
         # Log incoming data for debugging
         logger.info(f"Processing meal template data: {data}")
         
@@ -169,6 +181,18 @@ class MealTemplateSerializer(serializers.ModelSerializer):
         # Explicitly fetch and include ingredients to ensure they're always in the response
         ingredients = instance.ingredients.all()
         representation['ingredients'] = MealTemplateIngredientSerializer(ingredients, many=True).data
+        
+        # Set meal_image URL based on the first image if meal_image is null but we have meal_images
+        if representation['meal_image'] is None and instance.meal_images.exists():
+            first_image = instance.meal_images.first()
+            if first_image and first_image.image:
+                # Update the representation with the URL of the first image
+                request = self.context.get('request')
+                if request is not None:
+                    representation['meal_image'] = request.build_absolute_uri(first_image.image.url)
+                else:
+                    representation['meal_image'] = first_image.image.url
+                logger.info(f"Using first image as meal_image: {representation['meal_image']}")
         
         return representation
     

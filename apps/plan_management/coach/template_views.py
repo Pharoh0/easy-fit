@@ -52,10 +52,14 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     
     def create(self, request, *args, **kwargs):
-        """Override create method to handle ingredients data"""
+        """Override create method to handle ingredients and media files"""
         import logging
         import json
-        from .models import MealTemplate, MealTemplateIngredient
+        import traceback
+        import copy
+        from django.db import transaction
+        from .models import MealTemplate, MealTemplateIngredient, MealTemplateImage, MealTemplateVideo
+        from rest_framework.request import Request
         
         logger = logging.getLogger(__name__)
         logger.info(f"Request data: {request.data}")
@@ -74,38 +78,63 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                 elif isinstance(raw_ingredients, list):
                     ingredients_data = raw_ingredients
                     logger.info(f"Using ingredients list directly: {ingredients_data}")
-                    
-                # Create a mutable copy of request data if needed
-                if hasattr(request.data, 'copy'):
-                    mutable_data = request.data.copy()
-                    # Store processed ingredients data
-                    mutable_data['ingredients_data'] = ingredients_data
-                    request._full_data = mutable_data
             except Exception as e:
                 logger.error(f"Error processing ingredients: {e}")
         
-        # Use the default create method to create the meal template
-        response = super().create(request, *args, **kwargs)
+        # Create a safe version of request.data that doesn't contain file objects
+        # to prevent pickling errors when Django REST Framework tries to copy the request
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['meal_image', 'meal_images', 'meal_videos'] and not hasattr(value, 'read'):
+                safe_data[key] = value
         
-        # If successful, handle ingredients creation manually if needed
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default create method with our safe request
+        response = super().create(safe_request, *args, **kwargs)
+        
+        # If successful, handle ingredients and media creation
         if response.status_code in [200, 201]:
             meal_template_id = response.data.get('id')
-            if meal_template_id and ingredients_data and not response.data.get('ingredients'):
+            if not meal_template_id:
+                logger.error("No meal template ID found in response")
+                return response
+                
+            # Get the newly created meal template
+            try:
+                meal_template = MealTemplate.objects.get(id=meal_template_id)
+            except MealTemplate.DoesNotExist:
+                logger.error(f"Could not find meal template with ID {meal_template_id}")
+                return response
+            
+            # Process ingredients if needed
+            if ingredients_data and not response.data.get('ingredients'):
                 logger.info(f"Creating ingredients manually for meal template {meal_template_id}")
                 try:
-                    # Get the newly created meal template
-                    meal_template = MealTemplate.objects.get(id=meal_template_id)
-                    
                     # Create ingredients manually
                     created_ingredients = []
                     for ingredient_data in ingredients_data:
+                        if not ingredient_data:
+                            continue
+                            
+                        # Handle notes specifically to ensure they're saved
+                        notes = ''
+                        if 'notes' in ingredient_data:
+                            notes = ingredient_data['notes'] if ingredient_data['notes'] is not None else ''
+                        
                         ingredient = MealTemplateIngredient.objects.create(
                             meal_template=meal_template,
                             name=ingredient_data.get('name', 'Unnamed Ingredient'),
                             quantity=ingredient_data.get('quantity', 0),
                             unit=ingredient_data.get('unit', 'g'),
                             category=ingredient_data.get('category', ''),
-                            notes=ingredient_data.get('notes', '')
+                            notes=notes
                         )
                         created_ingredients.append({
                             'id': ingredient.id,
@@ -113,7 +142,7 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                             'quantity': str(ingredient.quantity),
                             'unit': ingredient.unit,
                             'category': ingredient.category,
-                            'notes': ingredient.notes
+                            'notes': ingredient.notes or ''
                         })
                     
                     # Update the response with the created ingredients
@@ -121,15 +150,67 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                     logger.info(f"Added {len(created_ingredients)} ingredients to response")
                 except Exception as e:
                     logger.error(f"Error creating ingredients manually: {e}")
+            
+            # Process meal images
+            if 'meal_images' in request.FILES:
+                try:
+                    images = request.FILES.getlist('meal_images')
+                    logger.info(f"Processing {len(images)} meal images")
+                    created_images = []
+                    
+                    for image in images:
+                        logger.info(f"Creating image with file: {image.name}")
+                        image_obj = MealTemplateImage.objects.create(image=image)
+                        meal_template.meal_images.add(image_obj)
+                        created_images.append({
+                            'id': image_obj.id,
+                            'image': image_obj.image.url if image_obj.image else None
+                        })
+                    
+                    response.data['meal_images'] = created_images
+                    logger.info(f"Added {len(created_images)} images to response")
+                    
+                    # Force save to ensure relationships are persisted
+                    meal_template.save()
+                except Exception as e:
+                    logger.error(f"Error processing meal images: {e}", exc_info=True)
+                    
+            # Process meal videos
+            if 'meal_videos' in request.FILES:
+                try:
+                    videos = request.FILES.getlist('meal_videos')
+                    logger.info(f"Processing {len(videos)} meal videos")
+                    created_videos = []
+                    
+                    for video in videos:
+                        logger.info(f"Creating video with file: {video.name}")
+                        video_obj = MealTemplateVideo.objects.create(video=video)
+                        meal_template.meal_videos.add(video_obj)
+                        created_videos.append({
+                            'id': video_obj.id,
+                            'video': video_obj.video.url if video_obj.video else None
+                        })
+                    
+                    response.data['meal_videos'] = created_videos
+                    logger.info(f"Added {len(created_videos)} videos to response")
+                    
+                    # Force save to ensure relationships are persisted
+                    meal_template.save()
+                except Exception as e:
+                    logger.error(f"Error processing meal videos: {e}", exc_info=True)
         
         logger.info(f"Final response data: {response.data}")
         return response
     
     def update(self, request, *args, **kwargs):
-        """Override update method to handle ingredients data"""
+        """Override update method to handle ingredients and media files"""
         import logging
         import json
-        from .models import MealTemplate, MealTemplateIngredient
+        import traceback
+        import copy
+        from django.db import transaction
+        from .models import MealTemplate, MealTemplateIngredient, MealTemplateImage, MealTemplateVideo
+        from rest_framework.request import Request
         
         logger = logging.getLogger(__name__)
         logger.info(f"Update request data: {request.data}")
@@ -148,13 +229,6 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                 elif isinstance(raw_ingredients, list):
                     ingredients_data = raw_ingredients
                     logger.info(f"Using ingredients list directly: {ingredients_data}")
-                    
-                # Create a mutable copy of request data if needed
-                if hasattr(request.data, 'copy'):
-                    mutable_data = request.data.copy()
-                    # Store processed ingredients data
-                    mutable_data['ingredients_data'] = ingredients_data
-                    request._full_data = mutable_data
             except Exception as e:
                 logger.error(f"Error processing ingredients: {e}")
         
@@ -162,31 +236,59 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
         instance = self.get_object()
         instance_id = instance.id
         
-        # Use the default update method
-        response = super().update(request, *args, **kwargs)
+        # Create a safe version of request.data that doesn't contain file objects
+        # to prevent pickling errors when Django REST Framework tries to copy the request
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['meal_image', 'meal_images', 'meal_videos'] and not hasattr(value, 'read'):
+                safe_data[key] = value
         
-        # If successful and ingredients were provided, handle them manually if needed
-        if response.status_code == 200 and ingredients_data:
-            if not response.data.get('ingredients'):
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default update method with our safe request
+        response = super().update(safe_request, *args, **kwargs)
+        
+        # If successful, handle ingredients and media files
+        if response.status_code == 200:
+            # Get the updated meal template
+            try:
+                meal_template = MealTemplate.objects.get(id=instance_id)
+            except MealTemplate.DoesNotExist:
+                logger.error(f"Could not find meal template with ID {instance_id}")
+                return response
+            
+            # Process ingredients if provided
+            if ingredients_data:
                 logger.info(f"Updating ingredients manually for meal template {instance_id}")
                 try:
                     # Delete existing ingredients
                     MealTemplateIngredient.objects.filter(meal_template_id=instance_id).delete()
                     logger.info(f"Deleted existing ingredients for meal template {instance_id}")
                     
-                    # Get the updated meal template
-                    meal_template = MealTemplate.objects.get(id=instance_id)
-                    
                     # Create ingredients manually
                     created_ingredients = []
                     for ingredient_data in ingredients_data:
+                        if not ingredient_data:
+                            continue
+                            
+                        # Handle notes specifically to ensure they're saved
+                        notes = ''
+                        if 'notes' in ingredient_data:
+                            notes = ingredient_data['notes'] if ingredient_data['notes'] is not None else ''
+                        
                         ingredient = MealTemplateIngredient.objects.create(
                             meal_template=meal_template,
                             name=ingredient_data.get('name', 'Unnamed Ingredient'),
                             quantity=ingredient_data.get('quantity', 0),
                             unit=ingredient_data.get('unit', 'g'),
                             category=ingredient_data.get('category', ''),
-                            notes=ingredient_data.get('notes', '')
+                            notes=notes
                         )
                         created_ingredients.append({
                             'id': ingredient.id,
@@ -194,7 +296,7 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                             'quantity': str(ingredient.quantity),
                             'unit': ingredient.unit,
                             'category': ingredient.category,
-                            'notes': ingredient.notes
+                            'notes': ingredient.notes or ''
                         })
                     
                     # Update the response with the created ingredients
@@ -202,6 +304,97 @@ class MealTemplateViewSet(viewsets.ModelViewSet):
                     logger.info(f"Added {len(created_ingredients)} ingredients to response")
                 except Exception as e:
                     logger.error(f"Error updating ingredients manually: {e}")
+            
+            # Process new meal images if provided
+            if 'meal_images' in request.FILES:
+                try:
+                    images = request.FILES.getlist('meal_images')
+                    logger.info(f"Processing {len(images)} new meal images")
+                    created_images = []
+                    
+                    for image in images:
+                        image_obj = MealTemplateImage.objects.create(image=image)
+                        meal_template.meal_images.add(image_obj)
+                        created_images.append({
+                            'id': image_obj.id,
+                            'image': image_obj.image.url if image_obj.image else None
+                        })
+                    
+                    # Get existing images and combine with new ones
+                    existing_images = [{
+                        'id': img.id,
+                        'image': img.image.url if img.image else None
+                    } for img in meal_template.meal_images.all()]
+                    
+                    response.data['meal_images'] = existing_images
+                    logger.info(f"Added {len(created_images)} images to response")
+                except Exception as e:
+                    logger.error(f"Error processing meal images: {e}")
+                    
+            # Process new meal videos if provided
+            if 'meal_videos' in request.FILES:
+                try:
+                    videos = request.FILES.getlist('meal_videos')
+                    logger.info(f"Processing {len(videos)} new meal videos")
+                    created_videos = []
+                    
+                    for video in videos:
+                        video_obj = MealTemplateVideo.objects.create(video=video)
+                        meal_template.meal_videos.add(video_obj)
+                        created_videos.append({
+                            'id': video_obj.id,
+                            'video': video_obj.video.url if video_obj.video else None
+                        })
+                    
+                    # Get existing videos and combine with new ones
+                    existing_videos = [{
+                        'id': vid.id,
+                        'video': vid.video.url if vid.video else None
+                    } for vid in meal_template.meal_videos.all()]
+                    
+                    response.data['meal_videos'] = existing_videos
+                    logger.info(f"Added {len(created_videos)} videos to response")
+                except Exception as e:
+                    logger.error(f"Error processing meal videos: {e}")
+                    
+            # Handle media removal requests
+            if 'remove_images' in request.data:
+                try:
+                    # Handle both MultiValueDict and regular dict
+                    if hasattr(request.data, 'getlist'):
+                        image_ids = request.data.getlist('remove_images')
+                    elif isinstance(request.data['remove_images'], str):
+                        # Parse JSON string
+                        image_ids = json.loads(request.data['remove_images'])
+                    else:
+                        # If it's already a list or other type
+                        image_ids = request.data['remove_images']
+                    
+                    if image_ids:
+                        logger.info(f"Removing images with IDs: {image_ids}")
+                        for image_id in image_ids:
+                            meal_template.meal_images.remove(image_id)
+                except Exception as e:
+                    logger.error(f"Error removing images: {e}")
+                    
+            if 'remove_videos' in request.data:
+                try:
+                    # Handle both MultiValueDict and regular dict
+                    if hasattr(request.data, 'getlist'):
+                        video_ids = request.data.getlist('remove_videos')
+                    elif isinstance(request.data['remove_videos'], str):
+                        # Parse JSON string
+                        video_ids = json.loads(request.data['remove_videos'])
+                    else:
+                        # If it's already a list or other type
+                        video_ids = request.data['remove_videos']
+                    
+                    if video_ids:
+                        logger.info(f"Removing videos with IDs: {video_ids}")
+                        for video_id in video_ids:
+                            meal_template.meal_videos.remove(video_id)
+                except Exception as e:
+                    logger.error(f"Error removing videos: {e}")
         
         logger.info(f"Final update response data: {response.data}")
         return response

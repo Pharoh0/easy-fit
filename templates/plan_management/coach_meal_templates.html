@@ -88,8 +88,11 @@
 
 <!-- Meal Template Editor -->
 <div class="modal fade" id="mealTemplateModal" tabindex="-1" aria-labelledby="mealTemplateModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
+            <!-- Toast container for in-modal notifications -->
+            <div id="modalToastContainer" class="toast-container position-absolute top-0 start-50 translate-middle-x" style="z-index: 1100; width: 80%;"></div>
+            
             <div class="modal-header">
                 <h5 class="modal-title" id="mealTemplateModalLabel">Create Meal Template</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -115,15 +118,25 @@
                         </div>
                         
                         <div class="col-md-12">
-                            <label for="mealTemplateImage" class="form-label">Meal Image</label>
-                            <div class="d-flex align-items-center">
-                                <div id="mealTemplateImagePreview" class="me-3" style="display:none">
-                                    <img src="" alt="Meal image preview" class="img-thumbnail" style="max-height: 100px;">
-                                </div>
-                                <div class="flex-grow-1">
-                                    <input type="file" class="form-control" id="mealTemplateImage" accept="image/*">
-                                    <div class="form-text">Optional. Upload an image of the prepared meal.</div>
-                                </div>
+                            <div class="mb-3">
+                                <label for="mealImageInput" class="form-label">Main Meal Image</label>
+                                <input type="file" class="form-control" id="mealImageInput" accept="image/*">
+                                <div id="mealImagePreview" class="mt-2"></div>
+                                <div class="form-text">Optional. Upload a main image of the prepared meal.</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mealMultipleImagesInput" class="form-label">Additional Images</label>
+                                <input type="file" class="form-control" id="mealMultipleImagesInput" accept="image/*" multiple>
+                                <div class="form-text">Optional. Upload additional images of the prepared meal.</div>
+                                <div id="mealMultipleImagesPreview" class="mt-2 row g-2"></div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mealVideosInput" class="form-label">Videos</label>
+                                <input type="file" class="form-control" id="mealVideosInput" accept="video/*" multiple>
+                                <div class="form-text">Optional. Upload videos demonstrating the preparation process.</div>
+                                <div id="mealVideosPreview" class="mt-2 row g-2"></div>
                             </div>
                         </div>
                         
@@ -193,5 +206,6 @@
 {% block extra_js %}
 <script src="{% static 'js/auth/activity_tracker.js' %}"></script>
 <script src="{% static 'js/api/coach_plan_api.js' %}"></script>
+<script src="{% static 'js/coach/file_upload_handlers.js' %}"></script>
 <script src="{% static 'js/coach/meal_template_management.js' %}"></script>
 {% endblock %}

@@ -45,6 +45,9 @@ document.addEventListener('DOMContentLoaded', function() {
     initTooltips();
     initPopovers();
     
+    // Initialize file upload handlers
+    initFileUploadHandlers();
+    
     // Load meal templates
     loadMealTemplates();
     
@@ -68,12 +71,6 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Save template button
     document.getElementById('saveMealTemplateBtn').addEventListener('click', saveMealTemplate);
-    
-    // Image upload preview handler
-    const imageInput = document.getElementById('mealTemplateImage');
-    if (imageInput) {
-        imageInput.addEventListener('change', handleImagePreview);
-    }
 });
 
 /**
@@ -198,18 +195,34 @@ function formatMealType(type) {
 }
 
 /**
+ * Initialize the meal template form
+ */
+function initMealTemplateForm() {
+    // Reset form fields
+    document.getElementById('mealTemplateForm').reset();
+    
+    // Reset current template ID
+    currentMealTemplateId = null;
+    currentTemplateId = null;
+    
+    // Clear ingredients
+    document.getElementById('ingredientsContainer').innerHTML = '';
+    ingredients = [];
+    ingredientCounter = 0;
+    
+    // Initialize file upload handlers (resets all media arrays and previews)
+    initFileUploadHandlers();
+    
+    // Add an empty ingredient
+    addIngredient();
+}
+
+/**
  * Show the meal template editor modal
  * @param {number} templateId - Optional template ID to edit
  */
 function showMealTemplateEditor(templateId = null) {
-    // Reset form
-    document.getElementById('mealTemplateForm').reset();
-    document.getElementById('ingredientsContainer').innerHTML = '';
-    
-    // Reset global variables
-    currentMealTemplateId = null;
-    ingredients = [];
-    ingredientCounter = 0;
+    initMealTemplateForm();
     
     const modalTitle = document.getElementById('mealTemplateModalLabel');
     
@@ -286,17 +299,8 @@ function showMealTemplateEditor(templateId = null) {
                     currentTemplateId = template.template;
                 }
                 
-                // Handle meal image display if exists
-                const imagePreviewContainer = document.getElementById('mealTemplateImagePreview');
-                const imagePreview = imagePreviewContainer.querySelector('img');
-                
-                if (template.meal_image) {
-                    imagePreview.src = template.meal_image;
-                    imagePreviewContainer.style.display = 'block';
-                } else {
-                    imagePreview.src = '';
-                    imagePreviewContainer.style.display = 'none';
-                }
+                // Display existing media (main image, additional images, and videos)
+                displayExistingMedia(template);
                 
                 // Clear existing ingredients first
                 document.getElementById('ingredientsContainer').innerHTML = '';
@@ -490,7 +494,21 @@ function saveMealTemplate() {
     const carbs = document.getElementById('mealTemplateCarbs').value;
     const fats = document.getElementById('mealTemplateFat').value;
     const instructions = document.getElementById('mealTemplateInstructions').value.trim();
-    const imageFile = document.getElementById('mealTemplateImage').files[0];
+    // Use the correct IDs for image/media input elements
+    const imageInput = document.getElementById('mealImageInput');
+    const newImageFile = imageInput && imageInput.files ? imageInput.files[0] : null;
+    
+    // Get references to multiple images and videos inputs
+    const multipleImagesInput = document.getElementById('mealMultipleImagesInput');
+    const videosInput = document.getElementById('mealVideosInput');
+    
+    // Log current state of media files for debugging
+    console.log('Current state before save:', {
+        newImageFile,
+        imageFile: window.imageFile,
+        imageFiles: window.imageFiles,
+        videoFiles: window.videoFiles,
+    });
 
     // Required fields validation
     const requiredFields = [
@@ -564,11 +582,7 @@ function saveMealTemplate() {
                 quantity: amount, // Backend uses quantity instead of amount
                 unit: unit,
                 category: category, // Used for frontend organization
-                substitution_options: notes, // Map notes to substitution_options
-                brand_preference: '', // Default values for required fields
-                calories_contribution: 0,
-                protein_contribution: 0,
-                is_optional: false,
+                notes: notes, // Store notes directly, not as substitution_options
                 order: ingredientsList.length + 1
             });
         }
@@ -606,10 +620,13 @@ function saveMealTemplate() {
     formData.append('cooking_time_minutes', parseInt(cookTimeMinutes) || 0);
     formData.append('recipe', instructions || ''); // Backend uses recipe instead of instructions
     
-    // Add image file if selected
-    if (imageFile) {
-        formData.append('meal_image', imageFile);
-    }
+    // Use the helper function to add all media files to the form data
+    addMediaToFormData(formData);
+    
+    // Log form data before submission
+    console.log('FormData prepared for submission');
+    console.log('Current meal template ID:', currentMealTemplateId);
+    console.log('Current template ID:', currentTemplateId);
     
     // Add ingredients data as separate field in JSON format
     // The backend serializer will parse this and create ingredient objects
@@ -719,35 +736,63 @@ function saveMealTemplate() {
 
 /**
  * Show a toast notification
- * @param {string} type - The type of toast (success, error, warning, info)
- * @param {string} message - The message to display
+ * @param {string} type - Type of toast (success, error, warning, info)
+ * @param {string} message - Message to display
  */
 function showToast(type, message) {
-    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center border-0 ${type === 'error' ? 'bg-danger' : 'bg-success'} text-white`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
+    // Check if we're in a modal context
+    const modalIsOpen = document.getElementById('mealTemplateModal') && 
+                       document.getElementById('mealTemplateModal').classList.contains('show');
     
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                <i class="bi ${type === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2"></i>
-                ${message}
+    // Use the modal toast container if the modal is open, otherwise use the page container
+    const containerId = modalIsOpen ? 'modalToastContainer' : 'toastContainer';
+    const toastContainer = document.getElementById(containerId) || document.createElement('div');
+    
+    // Create a page-level toast container if it doesn't exist and we're not in a modal
+    if (!document.getElementById(containerId) && !modalIsOpen) {
+        toastContainer.id = containerId;
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1050';
+        document.body.appendChild(toastContainer);
+    }
+    
+    const toastId = `toast-${Date.now()}`;
+    const bgClass = type === 'success' ? 'bg-success' :
+                  type === 'error' ? 'bg-danger' :
+                  type === 'warning' ? 'bg-warning' :
+                  'bg-info';
+                  
+    const icon = type === 'success' ? 'check-circle-fill' :
+                type === 'error' ? 'x-circle-fill' :
+                type === 'warning' ? 'exclamation-triangle-fill' :
+                'info-circle-fill';
+    
+    const toastHTML = `
+        <div id="${toastId}" class="toast align-items-center ${bgClass} text-white" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">
+                    <i class="bi bi-${icon} me-2"></i>
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
         </div>
     `;
     
-    toastContainer.appendChild(toast);
-    const bsToast = new bootstrap.Toast(toast);
-    bsToast.show();
+    toastContainer.insertAdjacentHTML('beforeend', toastHTML);
     
-    // Remove toast after it's hidden
-    toast.addEventListener('hidden.bs.toast', () => {
-        toast.remove();
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl, { delay: 5000 });
+    toast.show();
+    
+    // Remove the toast from the DOM after it's hidden
+    toastEl.addEventListener('hidden.bs.toast', function () {
+        toastEl.remove();
     });
+    
+    // Log message to console for debugging
+    const logPrefix = modalIsOpen ? '[MODAL]' : '[PAGE]';
+    console.log(`${logPrefix} ${type.toUpperCase()} TOAST: ${message}`);
 }
 
 /**
