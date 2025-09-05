@@ -224,7 +224,66 @@ const CoachPlanAPI = (() => {
     
     // Create API for each template type
     const planTemplates = createTemplateAPI(API_ENDPOINTS.planTemplates);
-    const workoutTemplates = createTemplateAPI(API_ENDPOINTS.workoutTemplates);
+    
+    // Workout templates API with special handling for multipart/form-data
+    const workoutTemplates = {
+        ...createTemplateAPI(API_ENDPOINTS.workoutTemplates),
+        
+        // Override create method to support FormData
+        create(templateData, isMultipart = false) {
+            if (!isMultipart) {
+                // Use standard JSON request
+                return APIBase.request(API_ENDPOINTS.workoutTemplates, {
+                    method: 'POST',
+                    body: JSON.stringify(templateData)
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to create workout template');
+                });
+            } else {
+                // Use multipart/form-data request (no Content-Type header)
+                return APIBase.request(API_ENDPOINTS.workoutTemplates, {
+                    method: 'POST',
+                    body: templateData,
+                    headers: {
+                        // Let browser set correct Content-Type with boundary
+                        'Content-Type': null
+                    }
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to create workout template');
+                });
+            }
+        },
+        
+        // Override update method to support FormData
+        update(templateId, templateData, isMultipart = false) {
+            if (!isMultipart) {
+                // Use standard JSON request
+                return APIBase.request(`${API_ENDPOINTS.workoutTemplates}${templateId}/`, {
+                    method: 'PATCH',
+                    body: JSON.stringify(templateData)
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to update workout template');
+                });
+            } else {
+                // Use multipart/form-data request (no Content-Type header)
+                return APIBase.request(`${API_ENDPOINTS.workoutTemplates}${templateId}/`, {
+                    method: 'PATCH',
+                    body: templateData,
+                    headers: {
+                        // Let browser set correct Content-Type with boundary
+                        'Content-Type': null
+                    }
+                }).then(res => {
+                    if (res && res.success) return res.data;
+                    throw new Error((res && res.error) || 'Failed to update workout template');
+                });
+            }
+        }
+    };
+    
     const exerciseTemplates = createTemplateAPI(API_ENDPOINTS.exerciseTemplates);
     
     // Meal templates API with special handling for multipart/form-data

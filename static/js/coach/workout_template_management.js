@@ -332,7 +332,7 @@ function showWorkoutTemplateEditor(templateId = null) {
 /**
  * Save the workout template
  */
-function saveWorkoutTemplate() {
+async function saveWorkoutTemplate() {
     // Get all form values
     const name = document.getElementById('workoutTemplateName').value.trim();
     const workoutType = document.getElementById('workoutType').value;
@@ -374,9 +374,12 @@ function saveWorkoutTemplate() {
     // Collect exercise blocks data
     const blocks = [];
     const blockElements = document.querySelectorAll('.exercise-block');
-    let saveBtn = document.querySelector('#saveWorkoutTemplateBtn') || document.querySelector('button[type="submit"]');
+    
+    // Get save button reference
+    const saveBtn = document.querySelector('#saveWorkoutTemplateBtn') || document.querySelector('button[type="submit"]');
     const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Save';
     
+    // Show loading state
     if (saveBtn) {
         saveBtn.disabled = true;
         saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...';
@@ -390,14 +393,21 @@ function saveWorkoutTemplate() {
         const blockName = blockNameField ? blockNameField.value.trim() : `Block ${blockIndex + 1}`;
         const blockType = blockTypeField ? blockTypeField.value : 'circuit';
         
+        // Create block object
+        const blockData = {
+            id: blockId,
+            name: blockName,
+            type: blockType,
+            exercises: []
+        };
+        
         // Add exercises to the collection with validation
-        const exercises = [];
         const exerciseElements = blockElement.querySelectorAll('.exercise-item');
         let exerciseError = false;
         
         exerciseElements.forEach((exerciseElement, exerciseIndex) => {
             if (exerciseElement) {
-                const exerciseId = exerciseElement.id;
+                const exerciseId = exerciseElement.dataset.exerciseId || exerciseElement.id;
                 const nameField = exerciseElement.querySelector('[data-field="exercise-name"]');
                 const exerciseName = nameField ? nameField.value.trim() : '';
                 
@@ -458,11 +468,12 @@ function saveWorkoutTemplate() {
                     exerciseObj.demonstration_video = videoFile.files[0];
                     console.log(`Added video file for exercise ${exerciseName}:`, videoFile.files[0].name);
                 }
-                
-                exercises.push(exerciseObj);
+
+                // Add exercise to the block's exercises array
+                blockData.exercises.push(exerciseObj);
             }
         });
-        
+
         // Return early if exercise validation failed
         if (exerciseError) {
             showToast('error', 'All exercise names must be filled');
@@ -470,17 +481,18 @@ function saveWorkoutTemplate() {
             saveBtn.disabled = false;
             return;
         }
-        
-        if (exercises.length > 0) {
-            blocks.push({
-                id: blockId,
-                name: blockName || `Block ${blockIndex + 1}`,
-                type: blockType,
-                exercises: exercises
-            });
+
+        if (blockData.exercises.length === 0) {
+            showToast('error', `Block ${blockIndex + 1} has no exercises. Please add at least one exercise.`);
+            saveBtn.innerHTML = originalBtnText;
+            saveBtn.disabled = false;
+            return;
         }
+
+        // Add this block to the blocks array
+        blocks.push(blockData);
     });
-    
+
     if (blocks.length === 0) {
         showToast('error', 'At least one exercise block with exercises is required');
         return;
@@ -489,16 +501,28 @@ function saveWorkoutTemplate() {
     // Prepare FormData to handle file uploads
     const formData = new FormData();
     
-    // Add basic template info
-    formData.append('name', name);
-    formData.append('workout_type', workoutType);
+    // Add basic template info - make sure strings aren't empty
+    formData.append('name', name || 'Workout Template');
+    formData.append('workout_type', workoutType || 'strength_training');
     formData.append('duration_minutes', parseInt(duration) || 30);
-    formData.append('intensity_level', intensityLevel);
+    formData.append('intensity_level', intensityLevel || 'moderate');
     formData.append('instructions', instructions);
     formData.append('equipment_needed', equipment);
     
     // Add blocks data as JSON
     formData.append('blocks_data', JSON.stringify(blocks));
+    
+    // Debug log all form data entries
+    console.log('FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+            console.log(`${key}: File - ${value.name} (${value.type})`);
+        } else if (value instanceof Blob) {
+            console.log(`${key}: Blob - ${value.size} bytes`);
+        } else {
+            console.log(`${key}: ${value}`);
+        }
+    }
     
     // Add main workout image if selected
     if (mainImageInput && mainImageInput.files && mainImageInput.files[0]) {
@@ -534,135 +558,144 @@ function saveWorkoutTemplate() {
         formData.append('remove_videos', removeVideosInput.value);
     }
     
-    // Determine if this is create or update
-    const saveOperation = async () => {
-        try {
-            let workoutTemplate;
-            
-            if (currentWorkoutTemplateId) {
-                // Update existing template
-                console.log('Updating workout template with ID:', currentWorkoutTemplateId);
-                workoutTemplate = await CoachPlanAPI.workoutTemplates.update(currentWorkoutTemplateId, formData, true);
-            } else {
-                // Create new template workflow
-                console.log('Creating new workout template');
-                // Get coach profile ID first
-                const coachProfile = await CoachPlanAPI.getCurrentCoachProfile();
-                
-                if (!coachProfile) {
-                    throw new Error('Could not determine coach profile ID');
-                }
-                
-                // Create plan template
-                const planTemplateData = {
-                    name: name,
-                    description: instructions || '',
-                    template_type: 'workout',
-                    coach: coachProfile.id,
-                    is_public: false
-                };
-                
-                const planTemplate = await CoachPlanAPI.planTemplates.create(planTemplateData);
-                formData.append('template', planTemplate.id);
-                
-                // Create workout template
-                workoutTemplate = await CoachPlanAPI.workoutTemplates.create(formData, true);
-            }
-            
-            const workoutTemplateId = workoutTemplate.id;
-            console.log('Workout template saved:', workoutTemplate);
-            
-            // Now process exercises block by block
-            const exercisePromises = [];
-            
-            for (const block of blocks) {
-                // Process exercises in this block
-                for (const exercise of block.exercises) {
-                    // Create a FormData object for each exercise to handle file uploads
-                    const exerciseFormData = new FormData();
-                    
-                    // Set basic exercise data
-                    exerciseFormData.append('workout_template', workoutTemplateId);
-                    exerciseFormData.append('exercise_name', exercise.exercise_name);
-                    exerciseFormData.append('exercise_category', exercise.exercise_category);
-                    exerciseFormData.append('sets', exercise.sets);
-                    exerciseFormData.append('reps', exercise.reps);
-                    exerciseFormData.append('rest_seconds', exercise.rest_seconds);
-                    exerciseFormData.append('instructions', exercise.instructions);
-                    exerciseFormData.append('order', exercise.order);
-                    exerciseFormData.append('block_id', exercise.block_id);
-                    exerciseFormData.append('block_type', exercise.block_type);
-                    
-                    // Handle demonstration image file
-                    if (exercise.demonstration_image) {
-                        exerciseFormData.append('demonstration_image', exercise.demonstration_image);
-                        console.log(`Adding image file for exercise ${exercise.exercise_name}`);
-                    } else if (exercise.existing_image_url) {
-                        // Keep existing image URL
-                        exerciseFormData.append('existing_image_url', exercise.existing_image_url);
-                    }
-                    
-                    // Handle demonstration video file
-                    if (exercise.demonstration_video) {
-                        exerciseFormData.append('demonstration_video', exercise.demonstration_video);
-                        console.log(`Adding video file for exercise ${exercise.exercise_name}`);
-                    } else if (exercise.existing_video_url) {
-                        // Keep existing video URL
-                        exerciseFormData.append('existing_video_url', exercise.existing_video_url);
-                    }
-                    
-                    // Handle exercise creation/update
-                    if (exercise.id && !isNaN(exercise.id)) {
-                        // Update existing exercise
-                        exercisePromises.push(
-                            CoachPlanAPI.exerciseTemplates.update(exercise.id, exerciseFormData, true)
-                        );
-                    } else {
-                        // Create new exercise
-                        exercisePromises.push(
-                            CoachPlanAPI.exerciseTemplates.create(exerciseFormData, true)
-                        );
-                    }
-                }
-            }
-            
-            // Wait for all exercise operations to complete
-            await Promise.all(exercisePromises);
-            
-            return workoutTemplate;
-        } catch (error) {
-            console.error('Error in save operation:', error);
-            throw error;
-        }
-    };
+    // Use the save button reference we already have above
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+    saveBtn.disabled = true;
     
-    saveOperation().then(workoutTemplate => {
-        showToast('success', 'Workout template saved successfully');
-        
-        // Hide modal and reload templates
-        const modalElement = document.getElementById('workoutTemplateModal');
-        if (modalElement) {
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) modalInstance.hide();
+    try {
+        // Create or update the workout template
+        if (currentWorkoutTemplateId) {
+            // Update existing template
+            console.log('Updating workout template with ID:', currentWorkoutTemplateId);
+            
+            // Ensure we have the plan template ID for update
+            const workoutTemplate = await CoachPlanAPI.workoutTemplates.getById(currentWorkoutTemplateId);
+            
+            if (workoutTemplate && workoutTemplate.template) {
+                formData.append('template', workoutTemplate.template);
+            }
+            
+            // Call update API with multipart form data
+            const response = await CoachPlanAPI.workoutTemplates.update(currentWorkoutTemplateId, formData, true);
+            console.log('Workout template updated:', response);
+            
+            showToast('success', 'Workout template updated successfully');
+            
+            // Hide modal and reload templates
+            const modalElement = document.getElementById('workoutTemplateModal');
+            if (modalElement) {
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) modalInstance.hide();
+            }
+            
+            // Reload template list
+            loadWorkoutTemplates();
+        } else {
+            // Create new template workflow
+            console.log('Creating new workout template');
+            
+            // Get coach profile ID first
+            const coachId = await CoachPlanAPI.getCurrentCoachProfile();
+            
+            if (!coachId) {
+                throw new Error('Could not determine coach profile ID');
+            }
+            
+            console.log('Got coach profile ID:', coachId);
+            
+            // Create plan template
+            const planTemplateData = {
+                name: name || 'Workout Template',
+                description: instructions || '',
+                template_type: 'workout',
+                coach: coachId,
+                is_public: false
+            };
+            
+            console.log('Creating plan template with data:', planTemplateData);
+            const planTemplate = await CoachPlanAPI.planTemplates.create(planTemplateData);
+            console.log('Plan template created:', planTemplate);
+            
+            // Add template ID to form data
+            formData.append('template', planTemplate.id);
+            
+            // Log form data after adding template
+            console.log('FormData with template ID:');
+            for (let [key, value] of formData.entries()) {
+                if (value instanceof File) {
+                    console.log(`${key}: File - ${value.name} (${value.type})`);
+                } else if (value instanceof Blob) {
+                    console.log(`${key}: Blob - ${value.size} bytes`);
+                } else {
+                    console.log(`${key}: ${value}`);
+                }
+            }
+            
+            // Create workout template
+            console.log('Creating workout template with FormData...');
+            const workoutTemplate = await CoachPlanAPI.workoutTemplates.create(formData, true);
+            console.log('Workout template created:', workoutTemplate);
+            
+            showToast('success', 'Workout template created successfully');
+            
+            // Hide modal and reload templates
+            const modalElement = document.getElementById('workoutTemplateModal');
+            if (modalElement) {
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) modalInstance.hide();
+            }
+            
+            // Reload template list
+            loadWorkoutTemplates();
         }
-        
-        // Reload template list
-        loadWorkoutTemplates();
-        
+    } catch (error) {
+        handleSaveError(error, saveBtn, originalBtnText);
+        return;
+    } finally {
         // Reset button state
         if (saveBtn) {
             saveBtn.innerHTML = originalBtnText;
             saveBtn.disabled = false;
         }
-    }).catch(error => {
-        console.error('Error saving workout template:', error);
-        const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
-        showToast('error', `Failed to save template: ${errorMessage}`);
-        
-        // Reset button
+    }
+}
+
+/**
+ * Handle errors in the save operation
+ * @param {Error} error - The error object
+ * @param {HTMLElement} saveBtn - The save button element
+ * @param {string} originalBtnText - The original button text
+ */
+function handleSaveError(error, saveBtn, originalBtnText) {
+    console.error('Error saving workout template:', error);
+    
+    // Extract error details for better error messages
+    let errorMessage = 'Unknown error';
+    
+    if (error.errorJSON) {
+        // Handle structured error response
+        if (error.errorJSON.errors && Array.isArray(error.errorJSON.errors)) {
+            // Format validation errors
+            errorMessage = error.errorJSON.errors.map(err => 
+                `${err.attr || ''}: ${err.detail || 'Error'}`
+            ).join('\n');
+        } else if (error.errorJSON.detail) {
+            errorMessage = error.errorJSON.detail;
+        }
+    } else if (error.error) {
+        errorMessage = error.error;
+    } else if (error.message) {
+        errorMessage = error.message;
+    }
+    
+    // Show toast with detailed error
+    showToast('error', `Failed to save template: ${errorMessage}`);
+    
+    // Reset button without closing modal
+    if (saveBtn) {
         saveBtn.innerHTML = originalBtnText;
         saveBtn.disabled = false;
-    });
+    }
 }
 
 /**
@@ -703,9 +736,48 @@ function createTemplateWorkflow(formData, isMultipart = false) {
  * @param {string} message - The message to display
  */
 function showToast(type, message) {
-    const toastContainer = document.getElementById('toastContainer') || createToastContainer();
+    // Check if we're in a modal context
+    const modalIsOpen = document.getElementById('workoutTemplateModal') && 
+                       document.getElementById('workoutTemplateModal').classList.contains('show');
+    
+    // Use the modal toast container if the modal is open, otherwise use the page container
+    const containerId = modalIsOpen ? 'modalToastContainer' : 'toastContainer';
+    let toastContainer = document.getElementById(containerId);
+    
+    if (!toastContainer) {
+        // Create toast container if it doesn't exist
+        toastContainer = document.createElement('div');
+        toastContainer.id = containerId;
+        toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+        toastContainer.style.zIndex = '1080'; // Higher than modal backdrop
+        
+        // If we're in a modal, append to the modal-content to ensure it's above the modal
+        if (modalIsOpen) {
+            const modalContent = document.querySelector('#workoutTemplateModal .modal-content');
+            if (modalContent) {
+                modalContent.appendChild(toastContainer);
+            } else {
+                document.body.appendChild(toastContainer);
+            }
+        } else {
+            document.body.appendChild(toastContainer);
+        }
+    }
+    
+    const toastId = `toast-${Date.now()}`;
+    const bgClass = type === 'success' ? 'bg-success' :
+                  type === 'error' ? 'bg-danger' :
+                  type === 'warning' ? 'bg-warning' :
+                  'bg-info';
+                  
+    const icon = type === 'success' ? 'check-circle-fill' :
+                type === 'error' ? 'x-circle-fill' :
+                type === 'warning' ? 'exclamation-triangle-fill' :
+                'info-circle-fill';
+    
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center border-0 ${type === 'error' ? 'bg-danger' : 'bg-success'} text-white`;
+    toast.id = toastId;
+    toast.className = `toast align-items-center ${bgClass} text-white`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
@@ -713,7 +785,7 @@ function showToast(type, message) {
     toast.innerHTML = `
         <div class="d-flex">
             <div class="toast-body">
-                <i class="bi ${type === 'error' ? 'bi-exclamation-triangle-fill' : 'bi-check-circle-fill'} me-2"></i>
+                <i class="bi bi-${icon} me-2"></i>
                 ${message}
             </div>
             <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
@@ -721,7 +793,10 @@ function showToast(type, message) {
     `;
     
     toastContainer.appendChild(toast);
-    const bsToast = new bootstrap.Toast(toast);
+    const bsToast = new bootstrap.Toast(toast, {
+        autohide: true,
+        delay: 5000
+    });
     bsToast.show();
     
     // Remove toast after it's hidden
