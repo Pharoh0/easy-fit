@@ -65,32 +65,8 @@
                                     </button>
                                 </li>
                                 <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="workout-template-tab" data-bs-toggle="pill" data-bs-target="#workout-template" type="button" role="tab" aria-controls="workout-template" aria-selected="false">
-                                        <div class="step-number">3</div>
-                                        <div class="step-content">
-                                            <span class="step-title">Workout Templates</span>
-                                            <span class="step-desc">Exercise templates & blocks</span>
-                                        </div>
-                                        <div class="step-status">
-                                            <i class="bi bi-circle text-secondary"></i>
-                                        </div>
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
-                                    <button class="nav-link" id="meal-template-tab" data-bs-toggle="pill" data-bs-target="#meal-template" type="button" role="tab" aria-controls="meal-template" aria-selected="false">
-                                        <div class="step-number">4</div>
-                                        <div class="step-content">
-                                            <span class="step-title">Meal Templates</span>
-                                            <span class="step-desc">Nutrition templates & recipes</span>
-                                        </div>
-                                        <div class="step-status">
-                                            <i class="bi bi-circle text-secondary"></i>
-                                        </div>
-                                    </button>
-                                </li>
-                                <li class="nav-item" role="presentation">
                                     <button class="nav-link" id="plan-review-tab" data-bs-toggle="pill" data-bs-target="#plan-review" type="button" role="tab" aria-controls="plan-review" aria-selected="false">
-                                        <div class="step-number">5</div>
+                                        <div class="step-number">3</div>
                                         <div class="step-content">
                                             <span class="step-title">Review & Publish</span>
                                             <span class="step-desc">Finalize plan details</span>
@@ -309,8 +285,8 @@
                             <button type="button" class="btn btn-outline-secondary" id="backToBasics">
                                 <i class="bi bi-chevron-left me-1"></i> Back
                             </button>
-                            <button type="button" class="btn btn-primary" id="nextToWorkoutTemplate">
-                                Next: Workout Templates <i class="bi bi-chevron-right ms-1"></i>
+                            <button type="button" class="btn btn-primary" id="nextToReview">
+                                Next: Review & Publish <i class="bi bi-chevron-right ms-1"></i>
                             </button>
                         </div>
                     </div>
@@ -730,7 +706,5 @@
 
 {% block extra_js %}
 <script src="{% static 'js/api/coach_plan_api.js' %}"></script>
-<script src="{% static 'js/coach/plan_creation.js' %}"></script>
-<script src="{% static 'js/coach/meal_template_creation.js' %}"></script>
-<script src="{% static 'js/coach/workout_template_creation.js' %}"></script>
+<script src="{% static 'js/coach/plan_creation_simplified.js' %}"></script>
 {% endblock %}

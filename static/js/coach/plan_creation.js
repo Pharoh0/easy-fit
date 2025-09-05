@@ -3566,52 +3566,40 @@ function initPopovers() {
 
 // Event Handlers
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize popovers and tooltips
-    initTooltips();
-    initPopovers();
+    // Initialize event listeners
+    initializePlanCreationListeners();
     
-    // Attach event listener to Save Template button in modal
-    document.getElementById('saveTemplateBtn').addEventListener('click', function() {
-        const modalTitle = document.getElementById('templateModalLabel').textContent;
-        if (modalTitle.includes('Workout')) {
-            saveWorkoutTemplate();
-        } else if (modalTitle.includes('Meal')) {
-            saveMealTemplate();
-        }
-    });
+    // Try to restore any saved state (if returning from previous page)
+    restorePlanStateFromSession();
     
     // Retrieve plan ID from sessionStorage if it exists
     currentPlanId = sessionStorage.getItem('currentPlanId');
     console.log('Initialized with plan ID from sessionStorage:', currentPlanId);
-    // Tooltips already initialized
     
-    // Initial load of workout templates if on that tab
-    if (document.getElementById('workout-template')) {
-        loadWorkoutTemplates();
-    }
-    
-    // Setup workout templates navigation buttons
-    const nextToMealTemplatesBtn = document.getElementById('nextToMealTemplates');
-    if (nextToMealTemplatesBtn) {
-        nextToMealTemplatesBtn.addEventListener('click', function() {
-            console.log('Next to meal templates button clicked');
-            saveWorkoutTemplateSelections()
-                .then(() => {
-                    console.log('Workout templates saved successfully, proceeding to meal templates tab');
-                    showToast('success', 'Workout templates saved successfully');
-                    document.getElementById('meal-template-tab').click();
-                })
-                .catch(error => {
-                    console.error('Failed to save workout templates:', error);
-                    // Error already shown in saveWorkoutTemplateSelections
-                });
+    // Initialize tooltips
+    initTooltips();
+});
+
+/**
+ * Update plan structure navigation
+ */
+function updatePlanStructureNavigation() {
+    // Update next button to go to Review tab
+    const nextToReviewBtn = document.getElementById('nextToReview');
+    if (nextToReviewBtn) {
+        nextToReviewBtn.addEventListener('click', function() {
+            // Show review tab
+            document.getElementById('plan-review-tab').click();
         });
     }
     
-    const backToStructureBtn = document.getElementById('backToStructure');
-    if (backToStructureBtn) {
-        backToStructureBtn.addEventListener('click', function() {
-            document.getElementById('plan-structure-tab').click();
+    // Setup back button to plan basics
+    const backToBasicsBtn = document.getElementById('backToBasics');
+    if (backToBasicsBtn) {
+        backToBasicsBtn.addEventListener('click', function() {
+            document.getElementById('plan-basics-tab').click();
+        });
+    }
         });
     }
     
