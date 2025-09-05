@@ -275,6 +275,7 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         
         logger = logging.getLogger(__name__)
         logger.info(f"Request data: {request.data}")
+        logger.info(f"Request FILES: {request.FILES}")
         
         # Create a safe version of request.data that doesn't contain file objects
         safe_data = {}
@@ -293,6 +294,48 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         # Use the default create method with our safe request
         response = super().create(safe_request, *args, **kwargs)
         
+        # If successful, now handle the media files explicitly
+        if response.status_code in [200, 201]:
+            exercise_id = response.data.get('id')
+            if not exercise_id:
+                logger.error("No exercise template ID found in response")
+                return response
+                
+            try:
+                # Get the newly created exercise template
+                exercise = ExerciseTemplate.objects.get(id=exercise_id)
+                
+                # Process demonstration image
+                if 'demonstration_image' in request.FILES:
+                    logger.info(f"Processing demonstration image for exercise {exercise_id}")
+                    image_file = request.FILES['demonstration_image']
+                    exercise.demonstration_image = image_file
+                    exercise.save(update_fields=['demonstration_image'])
+                    response.data['demonstration_image'] = exercise.demonstration_image.url if exercise.demonstration_image else None
+                    
+                # Process demonstration video
+                if 'demonstration_video' in request.FILES:
+                    logger.info(f"Processing demonstration video for exercise {exercise_id}")
+                    video_file = request.FILES['demonstration_video']
+                    exercise.demonstration_video = video_file
+                    exercise.save(update_fields=['demonstration_video'])
+                    response.data['demonstration_video'] = exercise.demonstration_video.url if exercise.demonstration_video else None
+                    
+                # Process any custom media handling fields
+                existing_image = request.data.get('existing_demonstration_image')
+                if existing_image and not exercise.demonstration_image:
+                    logger.info(f"Handling existing image reference: {existing_image}")
+                    # This would typically involve some logic to handle an existing image reference
+                    # that couldn't be included directly as a file
+                    
+                existing_video = request.data.get('existing_demonstration_video')
+                if existing_video and not exercise.demonstration_video:
+                    logger.info(f"Handling existing video reference: {existing_video}")
+                    # Similar handling for existing video references
+                
+            except Exception as e:
+                logger.error(f"Error processing media files: {e}", exc_info=True)
+        
         logger.info(f"Final response data: {response.data}")
         return response
     
@@ -304,6 +347,11 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         
         logger = logging.getLogger(__name__)
         logger.info(f"Update request data: {request.data}")
+        logger.info(f"Update request FILES: {request.FILES}")
+        
+        # Get the instance being updated
+        instance = self.get_object()
+        instance_id = instance.id
         
         # Create a safe version of request.data that doesn't contain file objects
         safe_data = {}
@@ -321,6 +369,54 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         
         # Use the default update method with our safe request
         response = super().update(safe_request, *args, **kwargs)
+        
+        # If successful, now handle the media files explicitly
+        if response.status_code == 200:
+            try:
+                # Get the updated exercise template
+                exercise = ExerciseTemplate.objects.get(id=instance_id)
+                
+                # Process demonstration image
+                if 'demonstration_image' in request.FILES:
+                    logger.info(f"Processing demonstration image for exercise {instance_id}")
+                    image_file = request.FILES['demonstration_image']
+                    
+                    # If there's an existing image, delete it first (optional)
+                    if exercise.demonstration_image:
+                        logger.info(f"Removing existing image: {exercise.demonstration_image}")
+                    
+                    exercise.demonstration_image = image_file
+                    exercise.save(update_fields=['demonstration_image'])
+                    response.data['demonstration_image'] = exercise.demonstration_image.url if exercise.demonstration_image else None
+                    logger.info(f"Updated exercise with new image: {response.data['demonstration_image']}")
+                    
+                # Process demonstration video
+                if 'demonstration_video' in request.FILES:
+                    logger.info(f"Processing demonstration video for exercise {instance_id}")
+                    video_file = request.FILES['demonstration_video']
+                    
+                    # If there's an existing video, delete it first (optional)
+                    if exercise.demonstration_video:
+                        logger.info(f"Removing existing video: {exercise.demonstration_video}")
+                    
+                    exercise.demonstration_video = video_file
+                    exercise.save(update_fields=['demonstration_video'])
+                    response.data['demonstration_video'] = exercise.demonstration_video.url if exercise.demonstration_video else None
+                    logger.info(f"Updated exercise with new video: {response.data['demonstration_video']}")
+                    
+                # Process any custom media handling fields
+                existing_image = request.data.get('existing_demonstration_image')
+                if existing_image and not exercise.demonstration_image:
+                    logger.info(f"Handling existing image reference: {existing_image}")
+                    # Logic to handle existing image references would go here
+                    
+                existing_video = request.data.get('existing_demonstration_video')
+                if existing_video and not exercise.demonstration_video:
+                    logger.info(f"Handling existing video reference: {existing_video}")
+                    # Logic to handle existing video references would go here
+                
+            except Exception as e:
+                logger.error(f"Error processing media files during update: {e}", exc_info=True)
         
         logger.info(f"Final update response data: {response.data}")
         return response

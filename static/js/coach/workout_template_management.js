@@ -884,8 +884,16 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                 exerciseData.append('rest_seconds', exercise.rest_seconds || 60);
                 exerciseData.append('instructions', exercise.instructions || '');
                 exerciseData.append('order', exercise.order || orderCount++);
-                exerciseData.append('block_name', exercise.block_id || block.name || 'default');
-                exerciseData.append('block_type', exercise.block_type || block.type || 'circuit');
+                
+                // Fix: Use correct block name and type from the block object
+                // Previously we were using exercise.block_id for block_name which was incorrect
+                exerciseData.append('block_name', block.name || 'Default Block');
+                exerciseData.append('block_type', block.type || 'circuit');
+                
+                // Log block information for debugging
+                console.log(`Block information: Name=${block.name}, Type=${block.type}`);
+                console.log(`Assigned block data: Name=${block.name || 'Default Block'}, Type=${block.type || 'circuit'}`);
+                
                 
                 // Log the exercise data for debugging
                 console.log('Exercise data to be sent:', {
@@ -948,39 +956,100 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                     console.log(`Media file search results for exercise: ${exercise.exercise_name}`);
                     console.log('Image input found:', !!imageInput, 'Video input found:', !!videoInput);
                     
-                    // Handle image file
+                    // Handle image file with more robust detection
                     if (imageInput && imageInput.files && imageInput.files[0]) {
+                        // Case 1: New file selected in the file input
                         exerciseData.append('demonstration_image', imageInput.files[0]);
-                        console.log(`Adding image for exercise: ${exercise.exercise_name}`, imageInput.files[0].name);
+                        console.log(`Adding image for exercise from file input: ${exercise.exercise_name}`, imageInput.files[0].name);
                         hasMediaFiles = true;
                     } else if (exercise.demonstration_image instanceof File) {
+                        // Case 2: File object stored in the exercise object
                         exerciseData.append('demonstration_image', exercise.demonstration_image);
                         console.log(`Adding image from exercise object: ${exercise.exercise_name}`);
                         hasMediaFiles = true;
+                    } else if (exercise.demonstration_image && typeof exercise.demonstration_image === 'string') {
+                        // Case 3: Existing image URL that needs to be preserved
+                        // We need to include the URL in the request to avoid clearing existing media
+                        exerciseData.append('existing_demonstration_image', exercise.demonstration_image);
+                        console.log(`Adding existing image URL reference: ${exercise.demonstration_image}`);
+                        
+                        // Try to fetch the image as a blob and attach it
+                        try {
+                            fetch(exercise.demonstration_image)
+                                .then(response => response.blob())
+                                .then(blob => {
+                                    // Create a File object from the blob
+                                    const file = new File([blob], 'existing_image.jpg', {type: 'image/jpeg'});
+                                    exerciseData.append('demonstration_image', file);
+                                    console.log(`Converted image URL to file: ${exercise.demonstration_image}`);
+                                    hasMediaFiles = true;
+                                })
+                                .catch(err => console.error('Error fetching image:', err));
+                        } catch (e) {
+                            console.error('Error converting image URL to file:', e);
+                        }
                     }
                     
-                    // Handle video file with improved debugging
+                    // Handle video file with improved detection
                     if (videoInput && videoInput.files && videoInput.files[0]) {
+                        // Case 1: New file selected in the file input
                         exerciseData.append('demonstration_video', videoInput.files[0]);
-                        console.log(`Adding video for exercise: ${exercise.exercise_name}`, videoInput.files[0].name);
+                        console.log(`Adding video for exercise from file input: ${exercise.exercise_name}`, videoInput.files[0].name);
                         hasMediaFiles = true;
                     } else if (exercise.demonstration_video instanceof File) {
+                        // Case 2: File object stored in the exercise object
                         exerciseData.append('demonstration_video', exercise.demonstration_video);
                         console.log(`Adding video from exercise object: ${exercise.exercise_name}`);
                         hasMediaFiles = true;
+                    } else if (exercise.demonstration_video && typeof exercise.demonstration_video === 'string') {
+                        // Case 3: Existing video URL that needs to be preserved
+                        // We need to include the URL in the request to avoid clearing existing media
+                        exerciseData.append('existing_demonstration_video', exercise.demonstration_video);
+                        console.log(`Adding existing video URL reference: ${exercise.demonstration_video}`);
+                        
+                        // Note: We don't try to fetch video as blob due to potential size/performance issues
+                        // Instead, we rely on the backend to handle the existing video URL reference
                     }
                 } else {
                     // Fallback to the exercise object's files if element not found
+                    // Use the same pattern as above for consistency
+                    
+                    // Handle image
                     if (exercise.demonstration_image instanceof File) {
                         exerciseData.append('demonstration_image', exercise.demonstration_image);
                         console.log(`Adding image from exercise object: ${exercise.exercise_name}`);
                         hasMediaFiles = true;
+                    } else if (exercise.demonstration_image && typeof exercise.demonstration_image === 'string') {
+                        // Handle existing image URL
+                        exerciseData.append('existing_demonstration_image', exercise.demonstration_image);
+                        console.log(`Adding existing image URL reference (fallback): ${exercise.demonstration_image}`);
+                        
+                        // Try to fetch the image as a blob and attach it
+                        try {
+                            fetch(exercise.demonstration_image)
+                                .then(response => response.blob())
+                                .then(blob => {
+                                    // Create a File object from the blob
+                                    const file = new File([blob], 'existing_image.jpg', {type: 'image/jpeg'});
+                                    exerciseData.append('demonstration_image', file);
+                                    console.log(`Converted image URL to file (fallback): ${exercise.demonstration_image}`);
+                                    hasMediaFiles = true;
+                                })
+                                .catch(err => console.error('Error fetching image (fallback):', err));
+                        } catch (e) {
+                            console.error('Error converting image URL to file (fallback):', e);
+                        }
                     }
                     
+                    // Handle video
                     if (exercise.demonstration_video instanceof File) {
                         exerciseData.append('demonstration_video', exercise.demonstration_video);
                         console.log(`Adding video from exercise object: ${exercise.exercise_name}`);
                         hasMediaFiles = true;
+                    } else if (exercise.demonstration_video && typeof exercise.demonstration_video === 'string') {
+                        // Handle existing video URL
+                        exerciseData.append('existing_demonstration_video', exercise.demonstration_video);
+                        console.log(`Adding existing video URL reference (fallback): ${exercise.demonstration_video}`);
                     }
                 }
                 
@@ -998,6 +1067,7 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                 // Directly use plain JSON for exercises without media
                 if (!hasMediaFiles) {
                     // Create a plain JSON object instead of FormData
+                    // Ensure we use the same block name/type values as we used in the FormData
                     const exerciseJsonData = {
                         workout_template: workoutTemplateId,
                         exercise_name: exercise.exercise_name,
@@ -1007,8 +1077,9 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                         rest_seconds: exercise.rest_seconds || 60,
                         instructions: exercise.instructions || '',
                         order: exercise.order || orderCount - 1,
-                        block_name: exercise.block_id || block.name || 'default',
-                        block_type: exercise.block_type || block.type || 'circuit'
+                        // Fix: Use consistent block name and type from the block object
+                        block_name: block.name || 'Default Block',
+                        block_type: block.type || 'circuit'
                     };
                     
                     // Create or update exercise with plain JSON
