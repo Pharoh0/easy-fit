@@ -910,14 +910,42 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                 const exerciseElement = document.getElementById(exercise.element_id || '');
                 
                 if (exerciseElement) {
-                    const imageInputId = `exercise-image-${exercise.element_id}`;
-                    const videoInputId = `exercise-video-${exercise.element_id}`;
+                    // Generate consistent element IDs with appropriate prefixes and suffixes
+                    // First try with the more specific format that includes block ID 
+                    let imageInputOptions = [
+                        `exercise-image-${exercise.element_id}`,
+                        `exercise-image-exercise-${exercise.element_id.replace('exercise-', '')}`
+                    ];
                     
-                    const imageInput = document.getElementById(imageInputId);
-                    const videoInput = document.getElementById(videoInputId);
+                    let videoInputOptions = [
+                        `exercise-video-${exercise.element_id}`,
+                        `exercise-video-exercise-${exercise.element_id.replace('exercise-', '')}`
+                    ];
                     
-                    // Log what we found for debugging
-                    console.log(`Looking for exercise inputs: ${imageInputId}, ${videoInputId}`);
+                    // Try to find the image input using various patterns
+                    let imageInput = null;
+                    for (const inputId of imageInputOptions) {
+                        const input = document.getElementById(inputId);
+                        if (input) {
+                            imageInput = input;
+                            console.log(`Found image input using ID: ${inputId}`);
+                            break;
+                        }
+                    }
+                    
+                    // Try to find the video input using various patterns
+                    let videoInput = null;
+                    for (const inputId of videoInputOptions) {
+                        const input = document.getElementById(inputId);
+                        if (input) {
+                            videoInput = input;
+                            console.log(`Found video input using ID: ${inputId}`);
+                            break;
+                        }
+                    }
+                    
+                    // Log the results of our search
+                    console.log(`Media file search results for exercise: ${exercise.exercise_name}`);
                     console.log('Image input found:', !!imageInput, 'Video input found:', !!videoInput);
                     
                     // Handle image file
@@ -931,7 +959,7 @@ async function saveExerciseMedia(blocks, workoutTemplateId) {
                         hasMediaFiles = true;
                     }
                     
-                    // Handle video file
+                    // Handle video file with improved debugging
                     if (videoInput && videoInput.files && videoInput.files[0]) {
                         exerciseData.append('demonstration_video', videoInput.files[0]);
                         console.log(`Adding video for exercise: ${exercise.exercise_name}`, videoInput.files[0].name);
@@ -1359,26 +1387,52 @@ function removeExerciseBlock(blockId) {
 /**
  * Add an exercise to a specific block
  * @param {number} blockId - The block ID to add the exercise to
- * @param {object} exerciseData - Optional existing exercise data
- * @returns {string} The created exercise ID
+ * @param {Object} existingExercise - Optional existing exercise data
+ * @returns {string} The new exercise ID
  */
-function addExerciseToBlock(blockId, exerciseData = null) {
-    // Generate a unique exercise ID that includes any existing exercise ID for reference
-    const exerciseId = exerciseData && exerciseData.id ? 
-        `exercise-${exerciseData.id}` : 
-        `exercise-${blockId}-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-    
+function addExerciseToBlock(blockId, existingExercise = null) {
     const exercisesContainer = document.getElementById(`exercises-${blockId}`);
+    if (!exercisesContainer) return;
+    
+    // Hide the empty message if it exists
     const emptyMessage = document.getElementById(`empty-exercises-${blockId}`);
+    if (emptyMessage) emptyMessage.style.display = 'none';
     
-    if (!exercisesContainer) {
-        console.error(`Exercises container for block ${blockId} not found`);
-        return;
-    }
+    // Generate a unique exercise ID
+    // Make sure to only use numbers in the random part to avoid issues with element selection
+    const timestamp = Date.now();
+    const randomPart = Math.floor(Math.random() * 1000);
+    const exerciseId = `exercise-${blockId}-${timestamp}-${randomPart}`;
     
-    // Hide empty message
-    if (emptyMessage) {
-        emptyMessage.style.display = 'none';
+    // Extract data from existing exercise if provided
+    // Using 'let' instead of 'const' since we need to use these variables throughout the function
+    let name = '';
+    let category = 'chest';
+    let sets = 3;
+    let reps = '8-12';
+    let rest = 60;
+    let instructions = '';
+    let imageUrl = '';
+    let videoUrl = '';
+    
+    // Set values from existingExercise if provided
+    if (existingExercise) {
+        // Store the element_id in the exercise object for later retrieval
+        existingExercise.element_id = exerciseId;
+        
+        // Extract data from existing exercise
+        name = existingExercise.exercise_name || '';
+        category = existingExercise.exercise_category || 'chest';
+        sets = existingExercise.sets || 3;
+        reps = existingExercise.reps || '8-12';
+        rest = existingExercise.rest_seconds || 60;
+        instructions = existingExercise.instructions || '';
+        imageUrl = existingExercise.demonstration_image || '';
+        videoUrl = existingExercise.demonstration_video || '';
+        
+        console.log('Adding exercise with data: ', existingExercise);
+        console.log('Exercise media: Image URL:', imageUrl, 'Video URL:', videoUrl);
+        console.log('Exercise element ID:', exerciseId);
     }
     
     const exerciseElement = document.createElement('div');
@@ -1386,34 +1440,9 @@ function addExerciseToBlock(blockId, exerciseData = null) {
     exerciseElement.id = exerciseId;
     
     // Store original exercise ID if it exists
-    if (exerciseData && exerciseData.id) {
-        exerciseElement.dataset.originalId = exerciseData.id;
+    if (existingExercise && existingExercise.id) {
+        exerciseElement.dataset.originalId = existingExercise.id;
     }
-    
-    console.log('Adding exercise with data:', exerciseData);
-    
-    // Get values from exercise data if provided
-    const name = exerciseData ? exerciseData.exercise_name || '' : '';
-    const category = exerciseData ? exerciseData.exercise_category || 'chest' : 'chest';
-    const sets = exerciseData ? exerciseData.sets || 3 : 3;
-    const reps = exerciseData ? exerciseData.reps || '8-12' : '8-12';
-    const rest = exerciseData ? exerciseData.rest_seconds || 60 : 60;
-    const instructions = exerciseData ? exerciseData.instructions || '' : '';
-    
-    // Check for demonstration media - try all possible property names
-    const imageUrl = exerciseData ? (
-        exerciseData.demonstration_image || 
-        exerciseData.image || 
-        exerciseData.image_url ||
-        (exerciseData.image_preview ? exerciseData.image_preview : '')
-    ) : '';
-    
-    const videoUrl = exerciseData ? (
-        exerciseData.demonstration_video || 
-        exerciseData.video || 
-        exerciseData.video_url ||
-        (exerciseData.video_preview ? exerciseData.video_preview : '')
-    ) : '';
     
     console.log(`Exercise media: Image URL: ${imageUrl}, Video URL: ${videoUrl}`);
     
