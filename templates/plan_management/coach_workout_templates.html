@@ -132,6 +132,30 @@
                             </select>
                         </div>
                         
+                        <!-- Main Workout Image -->
+                        <div class="col-md-6">
+                            <label class="form-label">Main Workout Image</label>
+                            <input type="file" class="form-control" id="workoutImage" name="workout_image" accept="image/*">
+                            <div class="form-text">Optional: Upload a main image representing this workout.</div>
+                            <div id="workoutImagePreview" class="mt-2"></div>
+                        </div>
+                        
+                        <!-- Additional Images -->
+                        <div class="col-md-6">
+                            <label class="form-label">Additional Images</label>
+                            <input type="file" class="form-control" id="additionalImages" name="workout_images" accept="image/*" multiple>
+                            <div class="form-text">Optional: Upload additional images for this workout.</div>
+                            <div id="additionalImagesPreview" class="mt-2"></div>
+                        </div>
+                        
+                        <!-- Videos -->
+                        <div class="col-12">
+                            <label class="form-label">Videos</label>
+                            <input type="file" class="form-control" id="workoutVideos" name="workout_videos" accept="video/*" multiple>
+                            <div class="form-text">Optional: Upload videos demonstrating the workout.</div>
+                            <div id="videosPreview" class="mt-2"></div>
+                        </div>
+                        
                         <div class="col-12">
                             <label for="workoutDescription" class="form-label">Description</label>
                             <textarea class="form-control" id="workoutDescription" rows="2"></textarea>

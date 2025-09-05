@@ -82,6 +82,20 @@ class PlanTemplate(models.Model):
     def __str__(self):
         return f"{self.name} ({self.get_template_type_display()})"
 
+class WorkoutTemplateImage(models.Model):
+    """Images for workout templates"""
+    image = models.ImageField(upload_to='workout_templates/images/')
+    
+    def __str__(self):
+        return f"Workout Image {self.id}"
+
+class WorkoutTemplateVideo(models.Model):
+    """Videos for workout templates"""
+    video = models.FileField(upload_to='workout_templates/videos/')
+    
+    def __str__(self):
+        return f"Workout Video {self.id}"
+
 class WorkoutTemplate(models.Model):
     """Workout template that can be applied to multiple days"""
     template = models.ForeignKey(PlanTemplate, on_delete=models.CASCADE, related_name='workout_templates')
@@ -105,6 +119,13 @@ class WorkoutTemplate(models.Model):
     ])
     instructions = models.TextField(blank=True)
     equipment_needed = models.TextField(blank=True)
+    
+    # Main image for the workout - backward compatibility
+    workout_image = models.ImageField(upload_to='workout_templates/', null=True, blank=True)
+    
+    # Multiple images and videos
+    workout_images = models.ManyToManyField('WorkoutTemplateImage', blank=True)
+    workout_videos = models.ManyToManyField('WorkoutTemplateVideo', blank=True)
     
     def __str__(self):
         return f"{self.name} - {self.template.name}"

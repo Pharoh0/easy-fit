@@ -47,33 +47,25 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load workout templates
     loadWorkoutTemplates();
     
-    // Event listeners for create buttons
+    // Setup event listeners
     document.getElementById('createWorkoutTemplateBtn').addEventListener('click', function() {
         showWorkoutTemplateEditor();
     });
     
-    document.getElementById('workoutTemplateForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        saveWorkoutTemplate();
+    document.getElementById('emptyStateCreateWorkoutTemplate').addEventListener('click', function() {
+        showWorkoutTemplateEditor();
     });
     
-    // Empty state create button
-    const emptyStateBtn = document.getElementById('emptyStateCreateWorkoutTemplate');
-    if (emptyStateBtn) {
-        emptyStateBtn.addEventListener('click', function() {
-            showWorkoutTemplateEditor();
-        });
-    }
-    
-    // Add exercise block button
     document.getElementById('addExerciseBlockBtn').addEventListener('click', function() {
         addExerciseBlock();
     });
     
-    // Save workout template button
     document.getElementById('saveWorkoutTemplateBtn').addEventListener('click', function() {
         saveWorkoutTemplate();
     });
+    
+    // Initialize file preview functionality
+    initializeFileInputPreviews();
 });
 
 /**
@@ -226,371 +218,115 @@ function showWorkoutTemplateEditor(templateId = null) {
     document.getElementById('workoutTemplateForm').reset();
     document.getElementById('exerciseBlocksContainer').innerHTML = '';
     
-    // Reset global variables
-    currentWorkoutTemplateId = null;
-    exerciseBlocks = [];
-    exerciseBlockCounter = 0;
+    // Reset image and video previews
+    const mainImagePreview = document.getElementById('workoutImagePreview');
+    const additionalImagesPreview = document.getElementById('additionalImagesPreview');
+    const videosPreview = document.getElementById('videosPreview');
     
-    const modalTitle = document.getElementById('workoutTemplateModalLabel');
+    if (mainImagePreview) mainImagePreview.innerHTML = '';
+    if (additionalImagesPreview) additionalImagesPreview.innerHTML = '';
+    if (videosPreview) videosPreview.innerHTML = '';
+    
+    // Reset global variables
+    currentWorkoutTemplateId = templateId;
+    exerciseBlocks = [];
+    
+    // Remove any existing hidden inputs for media removal
+    const existingRemoveImagesInput = document.getElementById('remove_images');
+    const existingRemoveVideosInput = document.getElementById('remove_videos');
+    if (existingRemoveImagesInput) existingRemoveImagesInput.remove();
+    if (existingRemoveVideosInput) existingRemoveVideosInput.remove();
+    
+    // Set modal title based on edit/create mode
+    const modalTitle = document.getElementById('workoutTemplateModalTitle');
+    if (modalTitle) {
+        modalTitle.textContent = templateId ? 'Edit Workout Template' : 'Create Workout Template';
+    }
     
     if (templateId) {
-        // Edit existing template
-        modalTitle.textContent = 'Edit Workout Template';
-        currentWorkoutTemplateId = templateId;
+        // Show loading indicator
+        const loadingElement = document.createElement('div');
+        loadingElement.id = 'templateLoadingIndicator';
+        loadingElement.className = 'text-center my-4';
+        loadingElement.innerHTML = `
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading template data...</p>
+        `;
         
-        // Load template data
+        document.getElementById('exerciseBlocksContainer').appendChild(loadingElement);
+        
+        // Fetch template data from API
         CoachPlanAPI.workoutTemplates.getById(templateId)
             .then(template => {
-                if (!template) {
-                    showToast('error', 'Template not found');
-                    return;
+                console.log('Loaded template:', template);
+                
+                // Fill form with template data
+                document.getElementById('workoutTemplateName').value = template.name || '';
+                document.getElementById('workoutType').value = template.workout_type || 'strength_training';
+                document.getElementById('workoutDuration').value = template.duration_minutes || 30;
+                document.getElementById('intensityLevel').value = template.intensity_level || 'moderate';
+                document.getElementById('workoutDescription').value = template.instructions || '';
+                document.getElementById('workoutEquipment').value = template.equipment_needed || '';
+                
+                // Display existing main image if any
+                if (template.workout_image) {
+                    displayImagePreview('workoutImagePreview', template.workout_image);
                 }
                 
-                // Debug: Log the template data structure
-                console.log('Workout template data received:', template);
-                
-                // Helper function to safely set form values
-                const setFormValue = (elementId, value, defaultValue = '') => {
-                    const element = document.getElementById(elementId);
-                    if (element) {
-                        element.value = (value !== undefined && value !== null) ? value : defaultValue;
-                    }
-                };
-                
-                // Helper function to safely set select element values
-                const setSelectValue = (elementId, value, defaultValue = '') => {
-                    const selectElement = document.getElementById(elementId);
-                    if (!selectElement) return;
-                    
-                    const valueToSet = (value !== undefined && value !== null) ? value : defaultValue;
-                    
-                    // Check if option exists
-                    const optionExists = Array.from(selectElement.options).some(option => option.value === valueToSet);
-                    if (optionExists) {
-                        selectElement.value = valueToSet;
-                    } else if (valueToSet && selectElement.options.length > 0) {
-                        // Set to first non-disabled option if value doesn't match any option
-                        for (let i = 0; i < selectElement.options.length; i++) {
-                            if (!selectElement.options[i].disabled) {
-                                selectElement.selectedIndex = i;
-                                break;
-                            }
-                        }
-                    }
-                };
-                
-                // Robust helper function to get a property value with multiple possible names
-                const getPropertyValue = (obj, possibleNames, defaultValue = '') => {
-                    if (!obj) return defaultValue;
-                    
-                    for (const name of possibleNames) {
-                        if (obj[name] !== undefined && obj[name] !== null) {
-                            return obj[name];
-                        }
-                    }
-                    return defaultValue;
-                };
-                
-                // Populate form fields with robust property getters to handle API variations
-                setFormValue('workoutTemplateName', getPropertyValue(template, ['name', 'workout_name', 'title']));
-                setSelectValue('workoutType', getPropertyValue(template, ['workout_type', 'type', 'exercise_type']));
-                setFormValue('workoutDuration', getPropertyValue(template, ['duration_minutes', 'duration', 'length_minutes'], 0));
-                setSelectValue('intensityLevel', getPropertyValue(template, ['intensity_level', 'intensity', 'difficulty']));
-                setFormValue('workoutDescription', getPropertyValue(template, ['instructions', 'description', 'notes', 'summary']));
-                setFormValue('workoutEquipment', getPropertyValue(template, ['equipment_needed', 'equipment', 'required_equipment']));
-                
-                // Clear existing exercise blocks first
-                document.getElementById('exerciseBlocksContainer').innerHTML = '';
-                exerciseBlocks = [];
-                exerciseBlockCounter = 0;
-                
-                // Load exercise blocks if available
-                if (template.exercise_templates && template.exercise_templates.length > 0) {
-                    console.log('Loading exercise templates:', template.exercise_templates);
-                    
-                    // Group exercises by order or block_id to reconstruct blocks
-                    const exercisesByBlock = {};
-                    
-                    template.exercise_templates.forEach(exercise => {
-                        // Look for block_id in multiple possible locations
-                        const blockId = getPropertyValue(exercise, ['block_id', 'block', 'exercise_block_id', 'group_id']) || 1;
-                        
-                        if (!exercisesByBlock[blockId]) {
-                            exercisesByBlock[blockId] = [];
-                        }
-                        exercisesByBlock[blockId].push(exercise);
+                // Display existing additional images if any
+                if (template.workout_images && template.workout_images.length > 0) {
+                    template.workout_images.forEach(img => {
+                        displayImagePreview('additionalImagesPreview', img.image, img.id);
                     });
-                    
-                    console.log('Grouped exercises by block:', exercisesByBlock);
-                    
-                    // Create exercise blocks
-                    Object.keys(exercisesByBlock).forEach(blockId => {
-                        const blockExercises = exercisesByBlock[blockId];
-                        
-                        // Get block name and type using the helper function to handle multiple possible field names
-                        const blockName = getPropertyValue(blockExercises[0], ['block_name', 'name', 'group_name']) || `Block ${blockId}`;
-                        const blockType = getPropertyValue(blockExercises[0], ['block_type', 'type', 'group_type']) || 'standard';
-                        
-                        addExerciseBlock(blockName, blockType, blockExercises);
+                }
+                
+                // Display existing videos if any
+                if (template.workout_videos && template.workout_videos.length > 0) {
+                    template.workout_videos.forEach(vid => {
+                        displayVideoPreview('videosPreview', vid.video, vid.id);
                     });
-                } else {
-                    // Add an empty exercise block
+                }
+                
+                // Create blocks and add exercises
+                Object.keys(exercisesByBlock).forEach((blockId, index) => {
+                    const blockExercises = exercisesByBlock[blockId];
+                    const blockName = blockId === 'default' ? `Block ${index + 1}` : blockId;
+                    const blockType = 'circuit'; // Default type, adjust as needed
+                    
+                    // Create exercise block
+                    const newBlockId = addExerciseBlock(blockName, blockType);
+                    
+                    // Add exercises to this block
+                    blockExercises.forEach(exercise => {
+                        addExerciseToBlock(newBlockId, exercise);
+                    });
+                });
+                
+                // If no blocks were created (no exercises), add an empty one
+                if (Object.keys(exercisesByBlock).length === 0) {
                     addExerciseBlock();
                 }
             })
             .catch(error => {
-                console.error('Error loading template:', error);
-                const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
-                showToast('error', `Failed to load template: ${errorMessage}`);
+                console.error('Error loading template for edit:', error);
+                showToast('error', 'Failed to load template data');
+                
+                // Remove loading indicator and add empty block
+                const loadingIndicator = document.getElementById('templateLoadingIndicator');
+                if (loadingIndicator) loadingIndicator.remove();
+                
+                addExerciseBlock();
             });
     } else {
-        // Create new template
-        modalTitle.textContent = 'Create Workout Template';
-        
-        // Add an empty exercise block
+        // Adding new template, create an empty exercise block
         addExerciseBlock();
     }
     
-    // Show modal
+    // Show the modal
     const modal = new bootstrap.Modal(document.getElementById('workoutTemplateModal'));
     modal.show();
-}
-
-/**
- * Add an exercise block to the form
- * @param {string} blockName - Optional block name
- * @param {string} blockType - Optional block type
- * @param {Array} exercises - Optional array of exercises for the block
- */
-function addExerciseBlock(blockName = '', blockType = 'standard', exercises = []) {
-    exerciseBlockCounter++;
-    const blockId = exerciseBlockCounter;
-    
-    const block = document.createElement('div');
-    block.className = 'exercise-block mb-4 p-3 border rounded';
-    block.dataset.blockId = blockId;
-    
-    block.innerHTML = `
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <div class="d-flex align-items-center">
-                <h6 class="mb-0">Exercise Block</h6>
-                <input type="text" class="form-control form-control-sm ms-2" placeholder="Block Name" 
-                       value="${blockName}" style="width: 200px;" data-field="block-name">
-            </div>
-            <div>
-                <select class="form-select form-select-sm" style="width: 150px;" data-field="block-type">
-                    <option value="standard" ${blockType === 'standard' ? 'selected' : ''}>Standard</option>
-                    <option value="superset" ${blockType === 'superset' ? 'selected' : ''}>Superset</option>
-                    <option value="circuit" ${blockType === 'circuit' ? 'selected' : ''}>Circuit</option>
-                    <option value="pyramid" ${blockType === 'pyramid' ? 'selected' : ''}>Pyramid</option>
-                </select>
-                <button type="button" class="btn btn-sm btn-outline-danger ms-2" onclick="removeExerciseBlock(${blockId})">
-                    <i class="bi bi-trash"></i>
-                </button>
-            </div>
-        </div>
-        
-        <div class="exercises-container" data-block-id="${blockId}">
-            <!-- Exercises will be added here -->
-        </div>
-        
-        <button type="button" class="btn btn-sm btn-outline-secondary mt-2" onclick="addExercise(${blockId})">
-            <i class="bi bi-plus-circle me-1"></i> Add Exercise
-        </button>
-    `;
-    
-    document.getElementById('exerciseBlocksContainer').appendChild(block);
-    
-    // Add exercises if provided
-    if (exercises && exercises.length > 0) {
-        exercises.forEach(exercise => {
-            addExercise(blockId, exercise);
-        });
-    } else {
-        // Add an empty exercise
-        addExercise(blockId);
-    }
-    
-    // Add block to tracking array
-    exerciseBlocks.push({
-        id: blockId,
-        name: blockName,
-        type: blockType,
-        exercises: exercises.length > 0 ? exercises : []
-    });
-}
-
-/**
- * Remove an exercise block from the form
- * @param {number} blockId - ID of the block to remove
- */
-function removeExerciseBlock(blockId) {
-    const blockElement = document.querySelector(`.exercise-block[data-block-id="${blockId}"]`);
-    if (blockElement) {
-        blockElement.remove();
-        
-        // Remove from tracking array
-        exerciseBlocks = exerciseBlocks.filter(block => block.id !== blockId);
-    }
-}
-
-/**
- * Add an exercise to a block
- * @param {number} blockId - ID of the block to add exercise to
- * @param {object} exerciseData - Optional exercise data for editing
- */
-function addExercise(blockId, exerciseData = null) {
-    const container = document.querySelector(`.exercises-container[data-block-id="${blockId}"]`);
-    if (!container) return;
-    
-    // Generate a unique ID for new exercises or use existing ID
-    const exerciseId = getPropertyValue(exerciseData, ['id', 'exercise_id']) || Date.now(); 
-    
-    console.log('Adding exercise with data:', exerciseData);
-    
-    // Use the global helper function for property retrieval
-    // Handle different API response formats for exercises with comprehensive property name options
-    const exerciseName = getPropertyValue(exerciseData, [
-        'exercise_name', 'name', 'exercise', 'title', 'movement_name'
-    ], '');
-    
-    const exerciseCategory = getPropertyValue(exerciseData, [
-        'exercise_category', 'category', 'muscle_group', 'target_muscle', 'body_part', 'type'
-    ], 'chest');
-    
-    const sets = getPropertyValue(exerciseData, ['sets', 'set_count', 'num_sets'], 3);
-    const reps = getPropertyValue(exerciseData, ['reps', 'repetitions', 'rep_range', 'rep_count'], '8-12');
-    const restSeconds = getPropertyValue(exerciseData, ['rest_seconds', 'rest', 'rest_time', 'recovery_seconds'], 60);
-    const instructions = getPropertyValue(exerciseData, ['instructions', 'notes', 'description', 'technique', 'form_notes'], '');
-    
-    const exercise = document.createElement('div');
-    exercise.className = 'exercise-item p-2 border rounded mb-2';
-    exercise.dataset.exerciseId = exerciseId;
-    
-    exercise.innerHTML = `
-        <div class="row g-2">
-            <div class="col-md-3">
-                <label class="form-label form-label-sm">Exercise Name</label>
-                <input type="text" class="form-control form-control-sm" placeholder="e.g. Bench Press" 
-                       value="${exerciseName}" data-field="exercise-name" required>
-            </div>
-            <div class="col-md-3">
-                <label class="form-label form-label-sm">Category</label>
-                <select class="form-select form-select-sm" data-field="exercise-category">
-                    <option value="chest" ${exerciseCategory === 'chest' ? 'selected' : ''}>Chest</option>
-                    <option value="back" ${exerciseCategory === 'back' ? 'selected' : ''}>Back</option>
-                    <option value="shoulders" ${exerciseCategory === 'shoulders' ? 'selected' : ''}>Shoulders</option>
-                    <option value="arms" ${exerciseCategory === 'arms' ? 'selected' : ''}>Arms</option>
-                    <option value="legs" ${exerciseCategory === 'legs' ? 'selected' : ''}>Legs</option>
-                    <option value="core" ${exerciseCategory === 'core' ? 'selected' : ''}>Core</option>
-                    <option value="cardio" ${exerciseCategory === 'cardio' ? 'selected' : ''}>Cardio</option>
-                    <option value="full_body" ${exerciseCategory === 'full_body' ? 'selected' : ''}>Full Body</option>
-                    <option value="flexibility" ${exerciseCategory === 'flexibility' ? 'selected' : ''}>Flexibility</option>
-                </select>
-            </div>
-            <div class="col-md-2">
-                <label class="form-label form-label-sm">Sets</label>
-                <input type="number" class="form-control form-control-sm" min="1" value="${sets}" data-field="sets">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label form-label-sm">Reps</label>
-                <input type="text" class="form-control form-control-sm" placeholder="e.g. 8-12" 
-                       value="${reps}" data-field="reps">
-            </div>
-            <div class="col-md-2">
-                <label class="form-label form-label-sm">Rest (sec)</label>
-                <input type="number" class="form-control form-control-sm" min="0" value="${restSeconds}" data-field="rest">
-            </div>
-            <div class="col-12">
-                <label class="form-label form-label-sm">Instructions</label>
-                <textarea class="form-control form-control-sm" rows="2" data-field="instructions">${instructions}</textarea>
-            </div>
-        </div>
-        <div class="d-flex justify-content-end mt-2">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeExercise(${blockId}, ${exerciseId})">
-                <i class="bi bi-trash"></i> Remove
-            </button>
-        </div>
-    `;
-    
-    container.appendChild(exercise);
-    
-    // Update block in tracking array
-    const blockIndex = exerciseBlocks.findIndex(block => block.id === blockId);
-    if (blockIndex !== -1) {
-        if (!exerciseData) {
-            exerciseBlocks[blockIndex].exercises.push({
-                id: exerciseId,
-                exercise_name: '',
-                exercise_category: 'chest',
-                sets: 3,
-                reps: '8-12',
-                rest_seconds: 60,
-                instructions: '',
-                order: exerciseBlocks[blockIndex].exercises.length + 1
-            });
-        } else {
-            // Store consistent property names in tracking array
-            exerciseBlocks[blockIndex].exercises.push({
-                id: exerciseId,
-                exercise_name: exerciseName,
-                exercise_category: exerciseCategory,
-                sets: sets,
-                reps: reps,
-                rest_seconds: restSeconds,
-                instructions: instructions,
-                order: exerciseBlocks[blockIndex].exercises.length + 1
-            });
-        }
-    }
-}
-
-/**
- * Remove an exercise from a block
- * @param {number} blockId - ID of the block containing the exercise
- * @param {number} exerciseId - ID of the exercise to remove
- */
-function removeExercise(blockId, exerciseId) {
-    const exerciseElement = document.querySelector(`.exercise-item[data-exercise-id="${exerciseId}"]`);
-    if (exerciseElement) {
-        exerciseElement.remove();
-        
-        // Update block in tracking array
-        const blockIndex = exerciseBlocks.findIndex(block => block.id === blockId);
-        if (blockIndex !== -1) {
-            exerciseBlocks[blockIndex].exercises = exerciseBlocks[blockIndex].exercises.filter(
-                exercise => exercise.id !== exerciseId
-            );
-        }
-    }
-}
-
-/**
- * Edit a workout template
- * @param {number} templateId - ID of the template to edit
- */
-function editWorkoutTemplate(templateId) {
-    showWorkoutTemplateEditor(templateId);
-}
-
-/**
- * Delete a workout template
- * @param {number} templateId - ID of the template to delete
- */
-function deleteWorkoutTemplate(templateId) {
-    if (!confirm('Are you sure you want to delete this workout template? This action cannot be undone.')) {
-        return;
-    }
-    
-    CoachPlanAPI.workoutTemplates.delete(templateId)
-        .then(() => {
-            showToast('success', 'Workout template deleted successfully');
-            loadWorkoutTemplates();
-        })
-        .catch(error => {
-            console.error('Error deleting template:', error);
-            showToast('error', `Failed to delete template: ${error.message || 'Unknown error'}`);
-        });
 }
 
 /**
@@ -604,6 +340,11 @@ function saveWorkoutTemplate() {
     const intensityLevel = document.getElementById('intensityLevel').value;
     const instructions = document.getElementById('workoutDescription').value.trim();
     const equipment = document.getElementById('workoutEquipment').value.trim();
+    
+    // Get file inputs
+    const mainImageInput = document.getElementById('workoutImage');
+    const additionalImagesInput = document.getElementById('additionalImages');
+    const videosInput = document.getElementById('workoutVideos');
     
     console.log('Saving workout template with values:', { 
         name, workoutType, duration, intensityLevel, instructions, equipment 
@@ -633,11 +374,21 @@ function saveWorkoutTemplate() {
     // Collect exercise blocks data
     const blocks = [];
     const blockElements = document.querySelectorAll('.exercise-block');
+    let saveBtn = document.querySelector('#saveWorkoutTemplateBtn') || document.querySelector('button[type="submit"]');
+    const originalBtnText = saveBtn ? saveBtn.innerHTML : 'Save';
+    
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span> Saving...';
+    }
     
     blockElements.forEach((blockElement, blockIndex) => {
         const blockId = parseInt(blockElement.dataset.blockId);
-        const blockName = blockElement.querySelector('[data-field="block-name"]').value.trim();
-        const blockType = blockElement.querySelector('[data-field="block-type"]').value;
+        const blockNameField = blockElement.querySelector('[data-field="block-name"]');
+        const blockTypeField = blockElement.querySelector('[data-field="block-type"]');
+        
+        const blockName = blockNameField ? blockNameField.value.trim() : `Block ${blockIndex + 1}`;
+        const blockType = blockTypeField ? blockTypeField.value : 'circuit';
         
         // Add exercises to the collection with validation
         const exercises = [];
@@ -646,31 +397,69 @@ function saveWorkoutTemplate() {
         
         exerciseElements.forEach((exerciseElement, exerciseIndex) => {
             if (exerciseElement) {
+                const exerciseId = exerciseElement.id;
                 const nameField = exerciseElement.querySelector('[data-field="exercise-name"]');
-                const name = nameField.value.trim();
+                const exerciseName = nameField ? nameField.value.trim() : '';
                 
-                // Validate exercise name
-                if (!name) {
-                    nameField.classList.add('is-invalid');
+                if (!exerciseName) {
                     exerciseError = true;
-                } else {
-                    nameField.classList.remove('is-invalid');
-                    
-                    // Only add valid exercises
-                    exercises.push({
-                        id: parseInt(exerciseElement.dataset.exerciseId) || undefined,
-                        exercise_name: name,
-                        exercise_category: exerciseElement.querySelector('[data-field="exercise-category"]').value,
-                        sets: parseInt(exerciseElement.querySelector('[data-field="sets"]').value) || 1,
-                        reps: exerciseElement.querySelector('[data-field="reps"]').value,
-                        rest_seconds: parseInt(exerciseElement.querySelector('[data-field="rest"]').value) || 60,
-                        instructions: exerciseElement.querySelector('[data-field="instructions"]').value,
-                        order: exerciseIndex + 1,
-                        block_id: blockId,
-                        block_name: blockName || `Block ${blockIndex + 1}`,
-                        block_type: blockType
-                    });
+                    showToast('error', `Exercise name is required in block ${blockIndex + 1}, exercise ${exerciseIndex + 1}`);
+                    return;
                 }
+                
+                // Get fields
+                const categoryField = exerciseElement.querySelector('[data-field="exercise-category"]');
+                const setsField = exerciseElement.querySelector('[data-field="sets"]');
+                const repsField = exerciseElement.querySelector('[data-field="reps"]');
+                const restField = exerciseElement.querySelector('[data-field="rest"]');
+                const instructionsField = exerciseElement.querySelector('[data-field="instructions"]');
+                
+                // Build exercise object
+                const exerciseObj = {
+                    exercise_name: exerciseName,
+                    exercise_category: categoryField ? categoryField.value : 'chest',
+                    sets: setsField ? parseInt(setsField.value) || 3 : 3,
+                    reps: repsField ? repsField.value.trim() || '8-12' : '8-12',
+                    rest_seconds: restField ? parseInt(restField.value) || 60 : 60,
+                    instructions: instructionsField ? instructionsField.value.trim() : '',
+                    block_id: blockName, // Store block name as identifier
+                    block_type: blockType,
+                    order: exerciseIndex + 1
+                };
+                
+                // Handle media files
+                const imageFile = document.getElementById(`exercise-image-${exerciseId}`);
+                const videoFile = document.getElementById(`exercise-video-${exerciseId}`);
+                const imagePreview = document.getElementById(`image-preview-${exerciseId}`);
+                const videoPreview = document.getElementById(`video-preview-${exerciseId}`);
+                
+                // Get any existing media URLs from previews
+                if (imagePreview) {
+                    const img = imagePreview.querySelector('img');
+                    if (img && img.src && img.src.startsWith('http')) {
+                        exerciseObj.existing_image_url = img.src;
+                    }
+                }
+                
+                if (videoPreview) {
+                    const link = videoPreview.querySelector('a');
+                    if (link && link.href && link.href.startsWith('http')) {
+                        exerciseObj.existing_video_url = link.href;
+                    }
+                }
+                
+                // Handle new file uploads
+                if (imageFile && imageFile.files && imageFile.files[0]) {
+                    exerciseObj.demonstration_image = imageFile.files[0];
+                    console.log(`Added image file for exercise ${exerciseName}:`, imageFile.files[0].name);
+                }
+                
+                if (videoFile && videoFile.files && videoFile.files[0]) {
+                    exerciseObj.demonstration_video = videoFile.files[0];
+                    console.log(`Added video file for exercise ${exerciseName}:`, videoFile.files[0].name);
+                }
+                
+                exercises.push(exerciseObj);
             }
         });
         
@@ -697,106 +486,215 @@ function saveWorkoutTemplate() {
         return;
     }
     
-    // Prepare template data with unified field naming for API compatibility
-    const templateData = {
-        name: name,
-        workout_type: workoutType,
-        duration_minutes: parseInt(duration) || 0,
-        intensity_level: intensityLevel,
-        instructions: instructions,
-        equipment_needed: equipment,
-        // Format exercise templates in the structure expected by the backend
-        exercise_templates: [].concat(...blocks.map(block => 
-            block.exercises.map((ex, index) => ({
-                // Only send existing backend ID, not temporary frontend IDs
-                id: (ex.id && ex.id < 1000000) ? ex.id : undefined,
-                exercise_name: ex.exercise_name,
-                exercise_category: ex.exercise_category,
-                sets: parseInt(ex.sets) || 1,
-                reps: ex.reps || '8-12',
-                rest_seconds: parseInt(ex.rest_seconds) || 60,
-                instructions: ex.instructions || '',
-                order: index + 1,
-                block_id: block.id,
-                block_name: block.name || `Block ${block.id}`,
-                block_type: block.type || 'standard'
-            }))
-        ))
-    };
-
-    // Create a template first if this is a new workout template
-    const saveBtn = document.getElementById('saveWorkoutTemplateBtn');
-    const originalBtnText = saveBtn.innerHTML;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
-    saveBtn.disabled = true;
+    // Prepare FormData to handle file uploads
+    const formData = new FormData();
     
-    if (currentWorkoutTemplateId) {
-        // Update existing template
-        CoachPlanAPI.workoutTemplates.update(currentWorkoutTemplateId, templateData)
-            .then(response => {
-                showToast('success', 'Workout template updated successfully');
+    // Add basic template info
+    formData.append('name', name);
+    formData.append('workout_type', workoutType);
+    formData.append('duration_minutes', parseInt(duration) || 30);
+    formData.append('intensity_level', intensityLevel);
+    formData.append('instructions', instructions);
+    formData.append('equipment_needed', equipment);
+    
+    // Add blocks data as JSON
+    formData.append('blocks_data', JSON.stringify(blocks));
+    
+    // Add main workout image if selected
+    if (mainImageInput && mainImageInput.files && mainImageInput.files[0]) {
+        formData.append('workout_image', mainImageInput.files[0]);
+        console.log('Adding main workout image:', mainImageInput.files[0].name);
+    }
+    
+    // Add additional images if selected
+    if (additionalImagesInput && additionalImagesInput.files && additionalImagesInput.files.length > 0) {
+        for (let i = 0; i < additionalImagesInput.files.length; i++) {
+            formData.append('workout_images', additionalImagesInput.files[i]);
+            console.log('Adding additional image:', additionalImagesInput.files[i].name);
+        }
+    }
+    
+    // Add videos if selected
+    if (videosInput && videosInput.files && videosInput.files.length > 0) {
+        for (let i = 0; i < videosInput.files.length; i++) {
+            formData.append('workout_videos', videosInput.files[i]);
+            console.log('Adding video:', videosInput.files[i].name);
+        }
+    }
+    
+    // Add IDs of images/videos to remove if any
+    const removeImagesInput = document.getElementById('remove_images');
+    const removeVideosInput = document.getElementById('remove_videos');
+    
+    if (removeImagesInput && removeImagesInput.value) {
+        formData.append('remove_images', removeImagesInput.value);
+    }
+    
+    if (removeVideosInput && removeVideosInput.value) {
+        formData.append('remove_videos', removeVideosInput.value);
+    }
+    
+    // Determine if this is create or update
+    const saveOperation = async () => {
+        try {
+            let workoutTemplate;
+            
+            if (currentWorkoutTemplateId) {
+                // Update existing template
+                console.log('Updating workout template with ID:', currentWorkoutTemplateId);
+                workoutTemplate = await CoachPlanAPI.workoutTemplates.update(currentWorkoutTemplateId, formData, true);
+            } else {
+                // Create new template workflow
+                console.log('Creating new workout template');
+                // Get coach profile ID first
+                const coachProfile = await CoachPlanAPI.getCurrentCoachProfile();
                 
-                // Hide modal and reload templates
-                bootstrap.Modal.getInstance(document.getElementById('workoutTemplateModal')).hide();
-                loadWorkoutTemplates();
+                if (!coachProfile) {
+                    throw new Error('Could not determine coach profile ID');
+                }
                 
-                // Reset button
-                saveBtn.innerHTML = originalBtnText;
-                saveBtn.disabled = false;
-            })
-            .catch(error => {
-                console.error('Error updating workout template:', error);
-                const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
-                showToast('error', `Failed to update template: ${errorMessage}`);
+                // Create plan template
+                const planTemplateData = {
+                    name: name,
+                    description: instructions || '',
+                    template_type: 'workout',
+                    coach: coachProfile.id,
+                    is_public: false
+                };
                 
-                // Reset button
-                saveBtn.innerHTML = originalBtnText;
-                saveBtn.disabled = false;
-            });
-    } else {
-        // Get coach profile ID and create plan template
-        CoachPlanAPI.getCurrentCoachProfile().then(coachId => {
-            if (!coachId) {
-                throw new Error('Could not determine coach profile ID. Please try again later.');
+                const planTemplate = await CoachPlanAPI.planTemplates.create(planTemplateData);
+                formData.append('template', planTemplate.id);
+                
+                // Create workout template
+                workoutTemplate = await CoachPlanAPI.workoutTemplates.create(formData, true);
             }
             
-            // Create plan template with coach ID
-            return CoachPlanAPI.planTemplates.create({
-                name: name,
-                description: document.getElementById('workoutDescription').value,
+            const workoutTemplateId = workoutTemplate.id;
+            console.log('Workout template saved:', workoutTemplate);
+            
+            // Now process exercises block by block
+            const exercisePromises = [];
+            
+            for (const block of blocks) {
+                // Process exercises in this block
+                for (const exercise of block.exercises) {
+                    // Create a FormData object for each exercise to handle file uploads
+                    const exerciseFormData = new FormData();
+                    
+                    // Set basic exercise data
+                    exerciseFormData.append('workout_template', workoutTemplateId);
+                    exerciseFormData.append('exercise_name', exercise.exercise_name);
+                    exerciseFormData.append('exercise_category', exercise.exercise_category);
+                    exerciseFormData.append('sets', exercise.sets);
+                    exerciseFormData.append('reps', exercise.reps);
+                    exerciseFormData.append('rest_seconds', exercise.rest_seconds);
+                    exerciseFormData.append('instructions', exercise.instructions);
+                    exerciseFormData.append('order', exercise.order);
+                    exerciseFormData.append('block_id', exercise.block_id);
+                    exerciseFormData.append('block_type', exercise.block_type);
+                    
+                    // Handle demonstration image file
+                    if (exercise.demonstration_image) {
+                        exerciseFormData.append('demonstration_image', exercise.demonstration_image);
+                        console.log(`Adding image file for exercise ${exercise.exercise_name}`);
+                    } else if (exercise.existing_image_url) {
+                        // Keep existing image URL
+                        exerciseFormData.append('existing_image_url', exercise.existing_image_url);
+                    }
+                    
+                    // Handle demonstration video file
+                    if (exercise.demonstration_video) {
+                        exerciseFormData.append('demonstration_video', exercise.demonstration_video);
+                        console.log(`Adding video file for exercise ${exercise.exercise_name}`);
+                    } else if (exercise.existing_video_url) {
+                        // Keep existing video URL
+                        exerciseFormData.append('existing_video_url', exercise.existing_video_url);
+                    }
+                    
+                    // Handle exercise creation/update
+                    if (exercise.id && !isNaN(exercise.id)) {
+                        // Update existing exercise
+                        exercisePromises.push(
+                            CoachPlanAPI.exerciseTemplates.update(exercise.id, exerciseFormData, true)
+                        );
+                    } else {
+                        // Create new exercise
+                        exercisePromises.push(
+                            CoachPlanAPI.exerciseTemplates.create(exerciseFormData, true)
+                        );
+                    }
+                }
+            }
+            
+            // Wait for all exercise operations to complete
+            await Promise.all(exercisePromises);
+            
+            return workoutTemplate;
+        } catch (error) {
+            console.error('Error in save operation:', error);
+            throw error;
+        }
+    };
+    
+    saveOperation().then(workoutTemplate => {
+        showToast('success', 'Workout template saved successfully');
+        
+        // Hide modal and reload templates
+        const modalElement = document.getElementById('workoutTemplateModal');
+        if (modalElement) {
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            if (modalInstance) modalInstance.hide();
+        }
+        
+        // Reload template list
+        loadWorkoutTemplates();
+        
+        // Reset button state
+        if (saveBtn) {
+            saveBtn.innerHTML = originalBtnText;
+            saveBtn.disabled = false;
+        }
+    }).catch(error => {
+        console.error('Error saving workout template:', error);
+        const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
+        showToast('error', `Failed to save template: ${errorMessage}`);
+        
+        // Reset button
+        saveBtn.innerHTML = originalBtnText;
+        saveBtn.disabled = false;
+    });
+}
+
+/**
+ * Create a workout template workflow
+ * @param {FormData} formData - The form data to create template with
+ * @param {boolean} isMultipart - Whether the request is multipart/form-data
+ * @returns {Promise} Promise for the create operation
+ */
+function createTemplateWorkflow(formData, isMultipart = false) {
+    // First create the plan template
+    return CoachPlanAPI.getCurrentCoachProfile()
+        .then(coachId => {
+            if (!coachId) {
+                throw new Error('Could not determine coach profile ID. Please try again.');
+            }
+            
+            // For plan template creation, we need regular JSON data
+            const planTemplateData = {
+                name: formData.get('name'),
+                description: formData.get('instructions') || '',
                 template_type: 'workout',
-                is_public: false,
-                coach: coachId
-            });
+                coach: coachId,
+                is_public: false
+            };
+            
+            return CoachPlanAPI.planTemplates.create(planTemplateData);
         })
         .then(planTemplate => {
-            // Add template ID to workout template data
-            templateData.template = planTemplate.id;
-            
-            // Create workout template
-            return CoachPlanAPI.workoutTemplates.create(templateData);
-        })
-        .then(response => {
-            showToast('success', 'Workout template created successfully');
-            
-            // Hide modal and reload templates
-            bootstrap.Modal.getInstance(document.getElementById('workoutTemplateModal')).hide();
-            loadWorkoutTemplates();
-            
-            // Reset button
-            saveBtn.innerHTML = originalBtnText;
-            saveBtn.disabled = false;
-        })
-        .catch(error => {
-            console.error('Error creating workout template:', error);
-            const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
-            showToast('error', `Failed to create template: ${errorMessage}`);
-            
-            // Reset button
-            saveBtn.innerHTML = originalBtnText;
-            saveBtn.disabled = false;
+            // Then create the workout template with the new plan template ID
+            formData.append('template', planTemplate.id);
+            return CoachPlanAPI.workoutTemplates.create(formData, isMultipart);
         });
-    }
 }
 
 /**
@@ -867,5 +765,534 @@ function getCurrentUserId() {
     } catch (error) {
         console.error('Error getting user ID from token:', error);
         return null;
+    }
+}
+
+/**
+ * Add a new exercise block to the template editor
+ * @param {string} blockName - Optional name for the block
+ * @param {string} blockType - Optional type of block
+ * @returns {number} The new block ID
+ */
+function addExerciseBlock(blockName = '', blockType = 'circuit') {
+    // Generate a unique block ID
+    exerciseBlockCounter++;
+    const blockId = exerciseBlockCounter;
+    
+    const blockElement = document.createElement('div');
+    blockElement.className = 'exercise-block card mb-4';
+    blockElement.dataset.blockId = blockId;
+    
+    blockElement.innerHTML = `
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center">
+                <div class="form-floating me-3">
+                    <input type="text" class="form-control" id="blockName-${blockId}" 
+                           placeholder="Block Name" value="${blockName || `Block ${blockId}`}" data-field="block-name">
+                    <label for="blockName-${blockId}">Block Name</label>
+                </div>
+                <div class="form-floating">
+                    <select class="form-select" id="blockType-${blockId}" data-field="block-type">
+                        <option value="circuit" ${blockType === 'circuit' ? 'selected' : ''}>Circuit</option>
+                        <option value="superset" ${blockType === 'superset' ? 'selected' : ''}>Superset</option>
+                        <option value="straight_sets" ${blockType === 'straight_sets' ? 'selected' : ''}>Straight Sets</option>
+                        <option value="pyramid" ${blockType === 'pyramid' ? 'selected' : ''}>Pyramid</option>
+                    </select>
+                    <label for="blockType-${blockId}">Block Type</label>
+                </div>
+            </div>
+            <div class="btn-group">
+                <button type="button" class="btn btn-sm btn-success add-exercise-btn" onclick="addExerciseToBlock(${blockId})">
+                    <i class="bi bi-plus-lg me-1"></i> Add Exercise
+                </button>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeExerciseBlock(${blockId})">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="exercises-container" id="exercises-${blockId}">
+                <!-- Exercises will be added here -->
+            </div>
+            <div class="p-3 text-center text-muted small" id="empty-exercises-${blockId}">
+                <i class="bi bi-info-circle me-1"></i>
+                No exercises added yet. Click 'Add Exercise' to start.
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('exerciseBlocksContainer').appendChild(blockElement);
+    
+    // Store block information
+    exerciseBlocks.push({
+        id: blockId,
+        name: blockName || `Block ${blockId}`,
+        type: blockType,
+        exercises: []
+    });
+    
+    return blockId;
+}
+
+/**
+ * Remove an exercise block from the editor
+ * @param {number} blockId - The block ID to remove
+ */
+function removeExerciseBlock(blockId) {
+    let blockElement = document.querySelector(`.exercise-block[data-block-id="${blockId}"]`);
+    if (!blockElement) {
+        blockElement = document.querySelector(`[data-block-id="${blockId}"]`);
+    }
+    
+    if (blockElement) {
+        // Confirm before removing if there are exercises
+        const exercisesContainer = blockElement.querySelector('.exercises-container');
+        const exercisesCount = exercisesContainer ? exercisesContainer.querySelectorAll('.exercise-item').length : 0;
+        
+        if (exercisesCount > 0) {
+            const confirmRemove = confirm(`Are you sure you want to remove this exercise block with ${exercisesCount} exercise(s)?`);
+            if (!confirmRemove) return;
+        }
+        
+        blockElement.remove();
+    }
+    
+    // Remove from tracked blocks
+    exerciseBlocks = exerciseBlocks.filter(block => block.id !== blockId);
+    
+    // If no blocks left, add an empty one
+    if (document.querySelectorAll('.exercise-block').length === 0) {
+        addExerciseBlock();
+    }
+}
+
+/**
+ * Add an exercise to a specific block
+ * @param {number} blockId - The block ID to add the exercise to
+ * @param {object} exerciseData - Optional existing exercise data
+ */
+function addExerciseToBlock(blockId, exerciseData = null) {
+    const exerciseId = `exercise-${blockId}-${Date.now()}`;
+    const exercisesContainer = document.getElementById(`exercises-${blockId}`);
+    const emptyMessage = document.getElementById(`empty-exercises-${blockId}`);
+    
+    if (!exercisesContainer) {
+        console.error(`Exercises container for block ${blockId} not found`);
+        return;
+    }
+    
+    // Hide empty message
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    const exerciseElement = document.createElement('div');
+    exerciseElement.className = 'exercise-item p-3 border-bottom';
+    exerciseElement.id = exerciseId;
+    
+    // Get values from exercise data if provided
+    const name = exerciseData ? exerciseData.exercise_name || '' : '';
+    const category = exerciseData ? exerciseData.exercise_category || 'chest' : 'chest';
+    const sets = exerciseData ? exerciseData.sets || 3 : 3;
+    const reps = exerciseData ? exerciseData.reps || '8-12' : '8-12';
+    const rest = exerciseData ? exerciseData.rest_seconds || 60 : 60;
+    const instructions = exerciseData ? exerciseData.instructions || '' : '';
+    
+    // Check for demonstration media
+    const imageUrl = exerciseData && exerciseData.demonstration_image ? exerciseData.demonstration_image : '';
+    const videoUrl = exerciseData && exerciseData.demonstration_video ? exerciseData.demonstration_video : '';
+    
+    exerciseElement.innerHTML = `
+        <div class="row">
+            <div class="col-md-4">
+                <div class="form-floating mb-2">
+                    <input type="text" class="form-control" id="exercise-name-${exerciseId}" 
+                        placeholder="Exercise Name" value="${name}" data-field="exercise-name" required>
+                    <label for="exercise-name-${exerciseId}">Exercise Name *</label>
+                </div>
+                
+                <div class="form-floating mb-2">
+                    <select class="form-select" id="exercise-category-${exerciseId}" data-field="exercise-category">
+                        <option value="chest" ${category === 'chest' ? 'selected' : ''}>Chest</option>
+                        <option value="back" ${category === 'back' ? 'selected' : ''}>Back</option>
+                        <option value="legs" ${category === 'legs' ? 'selected' : ''}>Legs</option>
+                        <option value="shoulders" ${category === 'shoulders' ? 'selected' : ''}>Shoulders</option>
+                        <option value="arms" ${category === 'arms' ? 'selected' : ''}>Arms</option>
+                        <option value="abs" ${category === 'abs' ? 'selected' : ''}>Core/Abs</option>
+                        <option value="cardio" ${category === 'cardio' ? 'selected' : ''}>Cardio</option>
+                        <option value="full_body" ${category === 'full_body' ? 'selected' : ''}>Full Body</option>
+                    </select>
+                    <label for="exercise-category-${exerciseId}">Muscle Group</label>
+                </div>
+            </div>
+            
+            <div class="col-md-5">
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="form-floating mb-2">
+                            <input type="number" class="form-control" id="exercise-sets-${exerciseId}" 
+                                placeholder="Sets" value="${sets}" min="1" data-field="sets">
+                            <label for="exercise-sets-${exerciseId}">Sets</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-2">
+                            <input type="text" class="form-control" id="exercise-reps-${exerciseId}" 
+                                placeholder="Reps" value="${reps}" data-field="reps">
+                            <label for="exercise-reps-${exerciseId}">Reps/Time</label>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="form-floating mb-2">
+                            <input type="number" class="form-control" id="exercise-rest-${exerciseId}" 
+                                placeholder="Rest" value="${rest}" min="0" data-field="rest">
+                            <label for="exercise-rest-${exerciseId}">Rest (sec)</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-floating">
+                    <textarea class="form-control" style="height: 80px" id="exercise-instructions-${exerciseId}" 
+                        placeholder="Instructions" data-field="instructions">${instructions}</textarea>
+                    <label for="exercise-instructions-${exerciseId}">Instructions</label>
+                </div>
+            </div>
+            
+            <div class="col-md-3">
+                <!-- Demonstration Media Section -->
+                <div class="mb-2">
+                    <label class="form-label">Demonstration Image</label>
+                    <input type="file" class="form-control form-control-sm" id="exercise-image-${exerciseId}" 
+                        accept="image/*" data-field="demonstration-image">
+                    <div class="mt-2" id="image-preview-${exerciseId}">
+                        ${imageUrl ? `<img src="${imageUrl}" class="img-thumbnail" style="max-height: 100px;">` : ''}
+                    </div>
+                </div>
+                
+                <div class="mb-2">
+                    <label class="form-label">Demonstration Video</label>
+                    <input type="file" class="form-control form-control-sm" id="exercise-video-${exerciseId}" 
+                        accept="video/*" data-field="demonstration-video">
+                    <div class="mt-2" id="video-preview-${exerciseId}">
+                        ${videoUrl ? `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-success">Video uploaded</span>
+                                <a href="${videoUrl}" class="btn btn-sm btn-outline-primary" target="_blank">
+                                    <i class="bi bi-play-circle"></i> View
+                                </a>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <button type="button" class="btn btn-sm btn-outline-danger w-100" onclick="removeExercise('${exerciseId}')">
+                    <i class="bi bi-trash me-1"></i> Remove Exercise
+                </button>
+            </div>
+        </div>
+    `;
+    
+    // Add to container
+    exercisesContainer.appendChild(exerciseElement);
+    
+    // Initialize file input event listeners for previews
+    initializeFilePreview(`exercise-image-${exerciseId}`, `image-preview-${exerciseId}`, 'image');
+    initializeFilePreview(`exercise-video-${exerciseId}`, `video-preview-${exerciseId}`, 'video');
+}
+
+/**
+ * Remove an exercise from its block
+ * @param {string} exerciseId - The exercise element ID to remove
+ */
+function removeExercise(exerciseId) {
+    const exerciseElement = document.getElementById(exerciseId);
+    if (!exerciseElement) return;
+    
+    // Get the parent block to check if this is the last exercise
+    const blockElement = exerciseElement.closest('.exercise-block');
+    const exercisesContainer = exerciseElement.closest('.exercises-container');
+    
+    exerciseElement.remove();
+    
+    // Show empty message if no exercises left
+    if (exercisesContainer && exercisesContainer.children.length === 0 && blockElement) {
+        const blockId = blockElement.dataset.blockId;
+        const emptyMessage = document.getElementById(`empty-exercises-${blockId}`);
+        if (emptyMessage) {
+            emptyMessage.style.display = 'block';
+        }
+    }
+}
+
+/**
+ * Initialize file preview functionality for image and video uploads
+ * @param {string} inputId - The ID of the file input element
+ * @param {string} previewId - The ID of the preview container
+ * @param {string} type - The type of media ('image' or 'video')
+ */
+/**
+ * Display image preview in the specified container
+ * @param {string} containerId - The ID of the container element
+ * @param {string} imageUrl - URL of the image to display
+ * @param {number} imageId - Optional ID of the image for removal
+ */
+function displayImagePreview(containerId, imageUrl, imageId = null) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const previewItem = document.createElement('div');
+    previewItem.className = 'preview-item position-relative d-inline-block me-2 mb-2';
+    if (imageId) previewItem.dataset.imageId = imageId;
+    
+    previewItem.innerHTML = `
+        <img src="${imageUrl}" class="img-thumbnail" style="max-height: 100px; max-width: 150px;">
+        ${imageId ? `
+        <button type="button" class="btn btn-sm btn-danger position-absolute top-0 end-0" 
+                onclick="removeMedia('image', ${imageId}, this.parentElement)">
+            <i class="bi bi-x"></i>
+        </button>
+        ` : ''}
+    `;
+    
+    container.appendChild(previewItem);
+}
+
+/**
+ * Display video preview in the specified container
+ * @param {string} containerId - The ID of the container element
+ * @param {string} videoUrl - URL of the video
+ * @param {number} videoId - Optional ID of the video for removal
+ */
+function displayVideoPreview(containerId, videoUrl, videoId = null) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    
+    const previewItem = document.createElement('div');
+    previewItem.className = 'preview-item position-relative d-inline-block me-2 mb-2';
+    if (videoId) previewItem.dataset.videoId = videoId;
+    
+    const fileName = videoUrl.split('/').pop();
+    
+    previewItem.innerHTML = `
+        <div class="video-preview p-2 border rounded">
+            <div class="d-flex align-items-center">
+                <i class="bi bi-file-earmark-play me-2 text-primary"></i>
+                <span class="text-truncate" style="max-width: 120px;">${fileName}</span>
+            </div>
+            <div class="mt-1">
+                <a href="${videoUrl}" target="_blank" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-play-circle"></i> View
+                </a>
+                ${videoId ? `
+                <button type="button" class="btn btn-sm btn-outline-danger" 
+                        onclick="removeMedia('video', ${videoId}, this.parentElement.parentElement.parentElement)">
+                    <i class="bi bi-trash"></i>
+                </button>
+                ` : ''}
+            </div>
+        </div>
+    `;
+    
+    container.appendChild(previewItem);
+}
+
+/**
+ * Handle removal of media files (images/videos)
+ * @param {string} type - Type of media ('image' or 'video')
+ * @param {number} id - ID of the media to remove
+ * @param {HTMLElement} element - The preview element to remove from DOM
+ */
+function removeMedia(type, id, element) {
+    if (!confirm(`Are you sure you want to remove this ${type}?`)) return;
+    
+    // Add ID to the list of items to remove when form is submitted
+    const inputName = type === 'image' ? 'remove_images' : 'remove_videos';
+    let input = document.getElementById(inputName);
+    
+    if (!input) {
+        input = document.createElement('input');
+        input.type = 'hidden';
+        input.id = inputName;
+        input.name = inputName;
+        input.value = JSON.stringify([id]);
+        document.getElementById('workoutTemplateForm').appendChild(input);
+    } else {
+        let ids = JSON.parse(input.value || '[]');
+        ids.push(id);
+        input.value = JSON.stringify(ids);
+    }
+    
+    // Remove the preview element
+    if (element) element.remove();
+}
+
+/**
+ * Initialize file preview functionality for image and video uploads
+ * @param {string} inputId - The ID of the file input element
+ * @param {string} previewContainerId - The ID of the preview container
+ * @param {string} type - The type of media ('image' or 'video')
+ */
+function initializeFileInputPreviews() {
+    // Setup main image preview
+    const mainImageInput = document.getElementById('workoutImage');
+    if (mainImageInput) {
+        mainImageInput.addEventListener('change', function() {
+            const previewContainer = document.getElementById('workoutImagePreview');
+            if (!previewContainer) return;
+            
+            previewContainer.innerHTML = '';
+            
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    displayImagePreview('workoutImagePreview', e.target.result);
+                };
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    }
+    
+    // Setup additional images preview
+    const additionalImagesInput = document.getElementById('additionalImages');
+    if (additionalImagesInput) {
+        additionalImagesInput.addEventListener('change', function() {
+            const previewContainer = document.getElementById('additionalImagesPreview');
+            if (!previewContainer) return;
+            
+            if (this.files && this.files.length > 0) {
+                for (let i = 0; i < this.files.length; i++) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        displayImagePreview('additionalImagesPreview', e.target.result);
+                    };
+                    reader.readAsDataURL(this.files[i]);
+                }
+            }
+        });
+    }
+    
+    // Setup videos preview
+    const videosInput = document.getElementById('workoutVideos');
+    if (videosInput) {
+        videosInput.addEventListener('change', function() {
+            const previewContainer = document.getElementById('videosPreview');
+            if (!previewContainer) return;
+            
+            if (this.files && this.files.length > 0) {
+                for (let i = 0; i < this.files.length; i++) {
+                    const file = this.files[i];
+                    const videoPreviewItem = document.createElement('div');
+                    videoPreviewItem.className = 'preview-item position-relative d-inline-block me-2 mb-2';
+                    
+                    videoPreviewItem.innerHTML = `
+                        <div class="video-preview p-2 border rounded">
+                            <div class="d-flex align-items-center">
+                                <i class="bi bi-file-earmark-play me-2 text-primary"></i>
+                                <span class="text-truncate" style="max-width: 120px;">${file.name}</span>
+                            </div>
+                            <div class="mt-1">
+                                <span class="badge bg-primary">Video selected</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    previewContainer.appendChild(videoPreviewItem);
+                }
+            }
+        });
+    }
+}
+
+function initializeFilePreview(inputId, previewId, type) {
+    const fileInput = document.getElementById(inputId);
+    const previewContainer = document.getElementById(previewId);
+    
+    if (!fileInput || !previewContainer) {
+        console.error(`Could not initialize file preview for ${inputId}`);
+        return;
+    }
+    
+    fileInput.addEventListener('change', function() {
+        // Clear previous preview
+        previewContainer.innerHTML = '';
+        
+        if (this.files && this.files[0]) {
+            const file = this.files[0];
+            
+            if (type === 'image') {
+                // Create image preview
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    previewContainer.innerHTML = `
+                        <img src="${e.target.result}" class="img-thumbnail" style="max-height: 100px;">
+                        <div class="mt-1 small text-muted">${file.name} (${formatFileSize(file.size)})</div>
+                    `;
+                };
+                reader.readAsDataURL(file);
+            } else if (type === 'video') {
+                // Create video indicator
+                previewContainer.innerHTML = `
+                    <div class="d-flex justify-content-between align-items-center p-2 border rounded">
+                        <span><i class="bi bi-file-earmark-play me-2"></i>${file.name} (${formatFileSize(file.size)})</span>
+                        <span class="badge bg-primary">Video selected</span>
+                    </div>
+                `;
+            }
+        }
+    });
+}
+
+/**
+ * Format file size in human-readable format
+ * @param {number} bytes - The file size in bytes
+ * @returns {string} Formatted file size
+ */
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+}
+
+/**
+ * Edit workout template - fetches the template data and opens editor modal
+ * @param {number} templateId - The template ID to edit
+ */
+function editWorkoutTemplate(templateId) {
+    if (!templateId) {
+        showToast('error', 'Invalid template ID');
+        return;
+    }
+    
+    showWorkoutTemplateEditor(templateId);
+}
+
+/**
+ * Delete workout template with confirmation
+ * @param {number} templateId - The template ID to delete
+ */
+function deleteWorkoutTemplate(templateId) {
+    if (!templateId) {
+        showToast('error', 'Invalid template ID');
+        return;
+    }
+    
+    // Confirm before deleting
+    const confirmDelete = confirm('Are you sure you want to delete this workout template? This action cannot be undone.');
+    
+    if (confirmDelete) {
+        CoachPlanAPI.workoutTemplates.delete(templateId)
+            .then(() => {
+                showToast('success', 'Workout template deleted successfully');
+                loadWorkoutTemplates(); // Refresh the list
+            })
+            .catch(error => {
+                console.error('Error deleting template:', error);
+                const errorMessage = error.errorJSON?.detail || error.error || error.message || 'Unknown error';
+                showToast('error', `Failed to delete template: ${errorMessage}`);
+            });
     }
 }

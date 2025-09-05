@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import PlanTemplate, WorkoutTemplate, ExerciseTemplate, MealTemplate, MealTemplateIngredient, MealTemplateImage, MealTemplateVideo
+from .models import PlanTemplate, WorkoutTemplate, ExerciseTemplate, MealTemplate, MealTemplateIngredient, MealTemplateImage, MealTemplateVideo, WorkoutTemplateImage, WorkoutTemplateVideo
 from apps.profiles.coach_profile.models import CoachProfile
 from apps.profiles.utils import get_avatar_url
 import logging
@@ -64,21 +64,95 @@ class ExerciseTemplateSerializer(serializers.ModelSerializer):
             'instructions', 'demonstration_video', 'demonstration_image'
         ]
         read_only_fields = ['id', 'workout_template_name']
+        
+    def to_internal_value(self, data):
+        """Override to handle file objects properly and prevent pickling errors"""
+        # Create a clean copy of the data without file objects
+        cleaned_data = {}
+        for key, value in data.items():
+            # Skip file objects in the main serializer - they'll be handled separately
+            if key not in ['demonstration_video', 'demonstration_image'] and not hasattr(value, 'read'):
+                cleaned_data[key] = value
+        
+        # Continue with standard deserialization
+        return super().to_internal_value(cleaned_data)
+    
+    def to_representation(self, instance):
+        """Customize the output representation of the ExerciseTemplate"""
+        # Get the standard representation
+        representation = super().to_representation(instance)
+        
+        # Make sure both media fields always have values if one is present but the other isn't
+        if representation['demonstration_image'] is None and representation['demonstration_video']:
+            # If we have a video but no image, we can use a default image or placeholder
+            request = self.context.get('request')
+            if request is not None:
+                representation['demonstration_image'] = request.build_absolute_uri('/static/images/default-video-thumbnail.png')
+            else:
+                representation['demonstration_image'] = '/static/images/default-video-thumbnail.png'
+        
+        return representation
 
+
+class WorkoutTemplateImageSerializer(serializers.ModelSerializer):
+    """Serializer for Workout Template Images"""
+    
+    class Meta:
+        model = WorkoutTemplateImage
+        fields = ['id', 'image']
+
+class WorkoutTemplateVideoSerializer(serializers.ModelSerializer):
+    """Serializer for Workout Template Videos"""
+    
+    class Meta:
+        model = WorkoutTemplateVideo
+        fields = ['id', 'video']
 
 class WorkoutTemplateSerializer(serializers.ModelSerializer):
     """Serializer for Workout Templates"""
     template_name = serializers.CharField(source='template.name', read_only=True)
     exercises = ExerciseTemplateSerializer(source='exercise_templates', many=True, read_only=True)
+    workout_images = WorkoutTemplateImageSerializer(many=True, read_only=True)
+    workout_videos = WorkoutTemplateVideoSerializer(many=True, read_only=True)
     
     class Meta:
         model = WorkoutTemplate
         fields = [
             'id', 'template', 'template_name', 'name', 'workout_type',
             'duration_minutes', 'intensity_level', 'instructions',
-            'equipment_needed', 'exercises'
+            'equipment_needed', 'workout_image', 'workout_images', 'workout_videos', 'exercises'
         ]
-        read_only_fields = ['id', 'template_name', 'exercises']
+        read_only_fields = ['id', 'template_name', 'exercises', 'workout_images', 'workout_videos']
+        
+    def to_internal_value(self, data):
+        """Override to handle file objects properly and prevent pickling errors"""
+        # Create a clean copy of the data without file objects
+        cleaned_data = {}
+        for key, value in data.items():
+            # Skip file objects in the main serializer - they'll be handled separately
+            if key not in ['workout_image', 'workout_images', 'workout_videos'] and not hasattr(value, 'read'):
+                cleaned_data[key] = value
+                
+        # Continue with standard deserialization
+        return super().to_internal_value(cleaned_data)
+    
+    def to_representation(self, instance):
+        """Customize the output representation of the WorkoutTemplate"""
+        # Get the standard representation
+        representation = super().to_representation(instance)
+        
+        # Set workout_image URL based on the first image if workout_image is null but we have workout_images
+        if representation['workout_image'] is None and instance.workout_images.exists():
+            first_image = instance.workout_images.first()
+            if first_image and first_image.image:
+                # Update the representation with the URL of the first image
+                request = self.context.get('request')
+                if request is not None:
+                    representation['workout_image'] = request.build_absolute_uri(first_image.image.url)
+                else:
+                    representation['workout_image'] = first_image.image.url
+        
+        return representation
 
 
 class MealTemplateImageSerializer(serializers.ModelSerializer):

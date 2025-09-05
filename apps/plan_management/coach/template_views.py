@@ -25,6 +25,235 @@ class WorkoutTemplateViewSet(viewsets.ModelViewSet):
     serializer_class = WorkoutTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
     
+    def create(self, request, *args, **kwargs):
+        """Override create method to handle media files"""
+        import logging
+        import traceback
+        import copy
+        from django.db import transaction
+        from .models import WorkoutTemplate, WorkoutTemplateImage, WorkoutTemplateVideo
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Request data for workout template: {request.data}")
+        
+        # Create a safe version of request.data that doesn't contain file objects
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['workout_image', 'workout_images', 'workout_videos'] and not hasattr(value, 'read'):
+                safe_data[key] = value
+        
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default create method with our safe request
+        response = super().create(safe_request, *args, **kwargs)
+        
+        # If successful, handle media files
+        if response.status_code in [200, 201]:
+            workout_template_id = response.data.get('id')
+            if not workout_template_id:
+                logger.error("No workout template ID found in response")
+                return response
+                
+            # Get the newly created workout template
+            try:
+                workout_template = WorkoutTemplate.objects.get(id=workout_template_id)
+            except WorkoutTemplate.DoesNotExist:
+                logger.error(f"Could not find workout template with ID {workout_template_id}")
+                return response
+            
+            # Process workout images
+            if 'workout_images' in request.FILES:
+                try:
+                    images = request.FILES.getlist('workout_images')
+                    logger.info(f"Processing {len(images)} workout images")
+                    created_images = []
+                    
+                    for image in images:
+                        logger.info(f"Creating image with file: {image.name}")
+                        image_obj = WorkoutTemplateImage.objects.create(image=image)
+                        workout_template.workout_images.add(image_obj)
+                        created_images.append({
+                            'id': image_obj.id,
+                            'image': image_obj.image.url if image_obj.image else None
+                        })
+                    
+                    response.data['workout_images'] = created_images
+                    logger.info(f"Added {len(created_images)} images to response")
+                    
+                    # Force save to ensure relationships are persisted
+                    workout_template.save()
+                except Exception as e:
+                    logger.error(f"Error processing workout images: {e}", exc_info=True)
+                    
+            # Process workout videos
+            if 'workout_videos' in request.FILES:
+                try:
+                    videos = request.FILES.getlist('workout_videos')
+                    logger.info(f"Processing {len(videos)} workout videos")
+                    created_videos = []
+                    
+                    for video in videos:
+                        logger.info(f"Creating video with file: {video.name}")
+                        video_obj = WorkoutTemplateVideo.objects.create(video=video)
+                        workout_template.workout_videos.add(video_obj)
+                        created_videos.append({
+                            'id': video_obj.id,
+                            'video': video_obj.video.url if video_obj.video else None
+                        })
+                    
+                    response.data['workout_videos'] = created_videos
+                    logger.info(f"Added {len(created_videos)} videos to response")
+                    
+                    # Force save to ensure relationships are persisted
+                    workout_template.save()
+                except Exception as e:
+                    logger.error(f"Error processing workout videos: {e}", exc_info=True)
+        
+        logger.info(f"Final response data: {response.data}")
+        return response
+    
+    def update(self, request, *args, **kwargs):
+        """Override update method to handle media files"""
+        import logging
+        import traceback
+        import copy
+        from django.db import transaction
+        from .models import WorkoutTemplate, WorkoutTemplateImage, WorkoutTemplateVideo
+        import json
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Update request data: {request.data}")
+        
+        # Get the instance being updated
+        instance = self.get_object()
+        instance_id = instance.id
+        
+        # Create a safe version of request.data that doesn't contain file objects
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['workout_image', 'workout_images', 'workout_videos'] and not hasattr(value, 'read'):
+                safe_data[key] = value
+        
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default update method with our safe request
+        response = super().update(safe_request, *args, **kwargs)
+        
+        # If successful, handle media files
+        if response.status_code == 200:
+            # Get the updated workout template
+            try:
+                workout_template = WorkoutTemplate.objects.get(id=instance_id)
+            except WorkoutTemplate.DoesNotExist:
+                logger.error(f"Could not find workout template with ID {instance_id}")
+                return response
+            
+            # Process new workout images if provided
+            if 'workout_images' in request.FILES:
+                try:
+                    images = request.FILES.getlist('workout_images')
+                    logger.info(f"Processing {len(images)} new workout images")
+                    created_images = []
+                    
+                    for image in images:
+                        image_obj = WorkoutTemplateImage.objects.create(image=image)
+                        workout_template.workout_images.add(image_obj)
+                        created_images.append({
+                            'id': image_obj.id,
+                            'image': image_obj.image.url if image_obj.image else None
+                        })
+                    
+                    # Get existing images and combine with new ones
+                    existing_images = [{
+                        'id': img.id,
+                        'image': img.image.url if img.image else None
+                    } for img in workout_template.workout_images.all()]
+                    
+                    response.data['workout_images'] = existing_images
+                    logger.info(f"Added {len(created_images)} images to response")
+                except Exception as e:
+                    logger.error(f"Error processing workout images: {e}")
+                    
+            # Process new workout videos if provided
+            if 'workout_videos' in request.FILES:
+                try:
+                    videos = request.FILES.getlist('workout_videos')
+                    logger.info(f"Processing {len(videos)} new workout videos")
+                    created_videos = []
+                    
+                    for video in videos:
+                        video_obj = WorkoutTemplateVideo.objects.create(video=video)
+                        workout_template.workout_videos.add(video_obj)
+                        created_videos.append({
+                            'id': video_obj.id,
+                            'video': video_obj.video.url if video_obj.video else None
+                        })
+                    
+                    # Get existing videos and combine with new ones
+                    existing_videos = [{
+                        'id': vid.id,
+                        'video': vid.video.url if vid.video else None
+                    } for vid in workout_template.workout_videos.all()]
+                    
+                    response.data['workout_videos'] = existing_videos
+                    logger.info(f"Added {len(created_videos)} videos to response")
+                except Exception as e:
+                    logger.error(f"Error processing workout videos: {e}")
+                    
+            # Handle media removal requests
+            if 'remove_images' in request.data:
+                try:
+                    # Handle both MultiValueDict and regular dict
+                    if hasattr(request.data, 'getlist'):
+                        image_ids = request.data.getlist('remove_images')
+                    elif isinstance(request.data['remove_images'], str):
+                        # Parse JSON string
+                        image_ids = json.loads(request.data['remove_images'])
+                    else:
+                        # If it's already a list or other type
+                        image_ids = request.data['remove_images']
+                    
+                    if image_ids:
+                        logger.info(f"Removing images with IDs: {image_ids}")
+                        for image_id in image_ids:
+                            workout_template.workout_images.remove(image_id)
+                except Exception as e:
+                    logger.error(f"Error removing images: {e}")
+                    
+            if 'remove_videos' in request.data:
+                try:
+                    # Handle both MultiValueDict and regular dict
+                    if hasattr(request.data, 'getlist'):
+                        video_ids = request.data.getlist('remove_videos')
+                    elif isinstance(request.data['remove_videos'], str):
+                        # Parse JSON string
+                        video_ids = json.loads(request.data['remove_videos'])
+                    else:
+                        # If it's already a list or other type
+                        video_ids = request.data['remove_videos']
+                    
+                    if video_ids:
+                        logger.info(f"Removing videos with IDs: {video_ids}")
+                        for video_id in video_ids:
+                            workout_template.workout_videos.remove(video_id)
+                except Exception as e:
+                    logger.error(f"Error removing videos: {e}")
+        
+        logger.info(f"Final update response data: {response.data}")
+        return response
+    
     def get_queryset(self):
         """Filter workout templates by the template's coach"""
         user = self.request.user
@@ -37,6 +266,64 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
     queryset = ExerciseTemplate.objects.all()
     serializer_class = ExerciseTemplateSerializer
     permission_classes = [permissions.IsAuthenticated]
+    
+    def create(self, request, *args, **kwargs):
+        """Override create method to handle media files"""
+        import logging
+        import traceback
+        import copy
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Request data: {request.data}")
+        
+        # Create a safe version of request.data that doesn't contain file objects
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['demonstration_video', 'demonstration_image'] and not hasattr(value, 'read'):
+                safe_data[key] = value
+        
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default create method with our safe request
+        response = super().create(safe_request, *args, **kwargs)
+        
+        logger.info(f"Final response data: {response.data}")
+        return response
+    
+    def update(self, request, *args, **kwargs):
+        """Override update method to handle media files"""
+        import logging
+        import traceback
+        import copy
+        
+        logger = logging.getLogger(__name__)
+        logger.info(f"Update request data: {request.data}")
+        
+        # Create a safe version of request.data that doesn't contain file objects
+        safe_data = {}
+        for key, value in request.data.items():
+            # Skip file fields - they'll be handled separately
+            if key not in ['demonstration_video', 'demonstration_image'] and not hasattr(value, 'read'):
+                safe_data[key] = value
+        
+        # We'll create a new request object with the safe data
+        safe_request = type('SafeRequest', (), {})()
+        safe_request.data = safe_data
+        safe_request.FILES = request.FILES  # Files are handled specially by DRF
+        safe_request.user = request.user
+        safe_request.method = request.method
+        
+        # Use the default update method with our safe request
+        response = super().update(safe_request, *args, **kwargs)
+        
+        logger.info(f"Final update response data: {response.data}")
+        return response
     
     def get_queryset(self):
         """Filter exercise templates by the workout's coach"""
