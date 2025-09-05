@@ -61,7 +61,8 @@ class ExerciseTemplateSerializer(serializers.ModelSerializer):
             'id', 'workout_template', 'workout_template_name', 
             'exercise_name', 'exercise_category', 
             'sets', 'reps', 'rest_seconds', 'order', 
-            'instructions', 'demonstration_video', 'demonstration_image'
+            'instructions', 'demonstration_video', 'demonstration_image',
+            'block_name', 'block_type'
         ]
         read_only_fields = ['id', 'workout_template_name']
         

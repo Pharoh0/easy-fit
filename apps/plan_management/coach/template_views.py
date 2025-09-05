@@ -294,7 +294,7 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         # Use the default create method with our safe request
         response = super().create(safe_request, *args, **kwargs)
         
-        # If successful, now handle the media files explicitly
+        # If successful, now handle the media files and block data explicitly
         if response.status_code in [200, 201]:
             exercise_id = response.data.get('id')
             if not exercise_id:
@@ -304,6 +304,27 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
             try:
                 # Get the newly created exercise template
                 exercise = ExerciseTemplate.objects.get(id=exercise_id)
+                
+                # Process block name and type fields
+                block_updated = False
+                if 'block_name' in request.data:
+                    block_name = request.data['block_name']
+                    logger.info(f"Setting block_name to: {block_name}")
+                    exercise.block_name = block_name
+                    block_updated = True
+                    
+                if 'block_type' in request.data:
+                    block_type = request.data['block_type']
+                    logger.info(f"Setting block_type to: {block_type}")
+                    exercise.block_type = block_type
+                    block_updated = True
+                    
+                # Save block data if updated
+                if block_updated:
+                    exercise.save(update_fields=['block_name', 'block_type'])
+                    response.data['block_name'] = exercise.block_name
+                    response.data['block_type'] = exercise.block_type
+                    logger.info(f"Updated block data: name={exercise.block_name}, type={exercise.block_type}")
                 
                 # Process demonstration image
                 if 'demonstration_image' in request.FILES:
@@ -334,7 +355,7 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
                     # Similar handling for existing video references
                 
             except Exception as e:
-                logger.error(f"Error processing media files: {e}", exc_info=True)
+                logger.error(f"Error processing media files or block data: {e}", exc_info=True)
         
         logger.info(f"Final response data: {response.data}")
         return response
@@ -370,11 +391,32 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
         # Use the default update method with our safe request
         response = super().update(safe_request, *args, **kwargs)
         
-        # If successful, now handle the media files explicitly
+        # If successful, now handle the media files and block data explicitly
         if response.status_code == 200:
             try:
                 # Get the updated exercise template
                 exercise = ExerciseTemplate.objects.get(id=instance_id)
+                
+                # Process block name and type fields
+                block_updated = False
+                if 'block_name' in request.data:
+                    block_name = request.data['block_name']
+                    logger.info(f"Setting block_name to: {block_name}")
+                    exercise.block_name = block_name
+                    block_updated = True
+                    
+                if 'block_type' in request.data:
+                    block_type = request.data['block_type']
+                    logger.info(f"Setting block_type to: {block_type}")
+                    exercise.block_type = block_type
+                    block_updated = True
+                    
+                # Save block data if updated
+                if block_updated:
+                    exercise.save(update_fields=['block_name', 'block_type'])
+                    response.data['block_name'] = exercise.block_name
+                    response.data['block_type'] = exercise.block_type
+                    logger.info(f"Updated block data: name={exercise.block_name}, type={exercise.block_type}")
                 
                 # Process demonstration image
                 if 'demonstration_image' in request.FILES:
@@ -416,7 +458,7 @@ class ExerciseTemplateViewSet(viewsets.ModelViewSet):
                     # Logic to handle existing video references would go here
                 
             except Exception as e:
-                logger.error(f"Error processing media files during update: {e}", exc_info=True)
+                logger.error(f"Error processing media files or block data during update: {e}", exc_info=True)
         
         logger.info(f"Final update response data: {response.data}")
         return response

@@ -150,6 +150,17 @@ class ExerciseTemplate(models.Model):
     rest_seconds = models.PositiveIntegerField(default=60)
     order = models.PositiveIntegerField()
     instructions = models.TextField(blank=True)
+    block_name = models.CharField(max_length=255, default='Default Block', blank=True) 
+    block_type = models.CharField(max_length=30, default='circuit', choices=[
+        ('circuit', 'Circuit'),
+        ('superset', 'Superset'),
+        ('straight_set', 'Straight Set'),
+        ('pyramid', 'Pyramid'),
+        ('drop_set', 'Drop Set'),
+        ('hiit', 'HIIT'),
+        ('amrap', 'AMRAP'),
+        ('emom', 'EMOM')
+    ])
     demonstration_video = models.FileField(upload_to='exercise_templates/videos/', null=True, blank=True)
     demonstration_image = models.ImageField(upload_to='exercise_templates/images/', null=True, blank=True)
     
