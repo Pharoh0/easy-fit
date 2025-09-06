@@ -352,12 +352,10 @@ class CoachPlanCustomizationViewSet(viewsets.ViewSet):
             pk=pk
         )
         
-        # Get plan days with related data
-        plan_days = PlanDay.objects.filter(subscription=subscription).select_related(
-            'nutrition_plan', 'workout_plan'
-        ).prefetch_related(
-            'nutrition_plan__meals',
-            'workout_plan__exercise_blocks__exercises'
+        # Get plan days with related data (plural relations)
+        plan_days = PlanDay.objects.filter(subscription=subscription).prefetch_related(
+            'nutrition_plans__meals__ingredients',
+            'workout_plans__exercise_blocks__exercises'
         ).order_by('day_number')
         
         subscription_data = PlanSubscriptionSerializer(subscription, context={'request': request}).data
@@ -602,33 +600,57 @@ class CoachPlanCustomizationViewSet(viewsets.ViewSet):
         return Response(serializer.data)
     
     def _apply_workout_template(self, template, plan_day, request):
-        """Apply a workout template to a plan day"""
-        # Create or update workout plan
-        workout_plan, created = WorkoutPlan.objects.get_or_create(
-            plan_day=plan_day,
-            defaults={
-                'workout_name': template.name,
-                'workout_type': template.workout_type,
-                'warm_up_duration_minutes': template.warm_up_minutes,
-                'main_workout_duration_minutes': template.main_workout_minutes,
-                'cool_down_duration_minutes': template.cool_down_minutes,
-                'intensity_level': template.intensity_level,
-                'special_instructions': template.instructions
-            }
-        )
-        
-        if not created:
-            workout_plan.workout_name = template.name
-            workout_plan.workout_type = template.workout_type
-            workout_plan.warm_up_duration_minutes = template.warm_up_minutes
-            workout_plan.main_workout_duration_minutes = template.main_workout_minutes
-            workout_plan.cool_down_duration_minutes = template.cool_down_minutes
-            workout_plan.intensity_level = template.intensity_level
-            workout_plan.special_instructions = template.instructions
-            workout_plan.save()
-            
-        # Clear existing blocks if template should replace all
-        if request.data.get('replace_workout', True):
+        """Apply a workout template to a plan day (multi-session aware)"""
+        replace_flag = bool(request.data.get('replace_workout', False))
+        target_workout_plan_id = request.data.get('workout_plan_id')
+
+        # Choose target session
+        if target_workout_plan_id:
+            workout_plan = WorkoutPlan.objects.get(id=target_workout_plan_id, plan_day=plan_day)
+        elif replace_flag:
+            # Use first session or create
+            workout_plan, created = WorkoutPlan.objects.get_or_create(
+                plan_day=plan_day,
+                session_order=1,
+                defaults={
+                    'session_name': 'Session 1',
+                    'workout_name': template.name,
+                    'workout_type': template.workout_type,
+                    'warm_up_duration_minutes': template.warm_up_minutes,
+                    'main_workout_duration_minutes': template.main_workout_minutes,
+                    'cool_down_duration_minutes': template.cool_down_minutes,
+                    'total_duration_minutes': (template.warm_up_minutes or 0) + (template.main_workout_minutes or 0) + (template.cool_down_minutes or 0),
+                    'intensity_level': template.intensity_level,
+                    'special_instructions': template.instructions,
+                }
+            )
+        else:
+            # Create a new session
+            workout_plan = WorkoutPlan.objects.create(
+                plan_day=plan_day,
+                workout_name=template.name,
+                workout_type=template.workout_type,
+                warm_up_duration_minutes=template.warm_up_minutes,
+                main_workout_duration_minutes=template.main_workout_minutes,
+                cool_down_duration_minutes=template.cool_down_minutes,
+                total_duration_minutes=(template.warm_up_minutes or 0) + (template.main_workout_minutes or 0) + (template.cool_down_minutes or 0),
+                intensity_level=template.intensity_level,
+                special_instructions=template.instructions,
+            )
+
+        # Update header from template
+        workout_plan.workout_name = template.name
+        workout_plan.workout_type = template.workout_type
+        workout_plan.warm_up_duration_minutes = template.warm_up_minutes
+        workout_plan.main_workout_duration_minutes = template.main_workout_minutes
+        workout_plan.cool_down_duration_minutes = template.cool_down_minutes
+        workout_plan.total_duration_minutes = (template.warm_up_minutes or 0) + (template.main_workout_minutes or 0) + (template.cool_down_minutes or 0)
+        workout_plan.intensity_level = template.intensity_level
+        workout_plan.special_instructions = template.instructions
+        workout_plan.save()
+
+        # Clear existing blocks if replacing
+        if replace_flag:
             workout_plan.exercise_blocks.all().delete()
             
         # Create exercise blocks and exercises from template
@@ -672,35 +694,54 @@ class CoachPlanCustomizationViewSet(viewsets.ViewSet):
         return Response(serializer.data)
     
     def _apply_meal_template(self, template, plan_day, request):
-        """Apply a meal template to a plan day"""
-        # Create or update nutrition plan
-        nutrition_plan, created = NutritionPlan.objects.get_or_create(
-            plan_day=plan_day,
-            defaults={
-                'target_calories': template.calories,
-                'target_protein_grams': template.protein_grams,
-                'target_carbs_grams': template.carbs_grams,
-                'target_fats_grams': template.fats_grams,
-                'target_fiber_grams': template.fiber_grams,
-                'target_water_liters': template.water_liters,
-                'dietary_restrictions': template.dietary_restrictions,
-                'special_notes': template.special_notes
-            }
-        )
-        
-        if not created:
-            nutrition_plan.target_calories = template.calories
-            nutrition_plan.target_protein_grams = template.protein_grams
-            nutrition_plan.target_carbs_grams = template.carbs_grams
-            nutrition_plan.target_fats_grams = template.fats_grams
-            nutrition_plan.target_fiber_grams = template.fiber_grams
-            nutrition_plan.target_water_liters = template.water_liters
-            nutrition_plan.dietary_restrictions = template.dietary_restrictions
-            nutrition_plan.special_notes = template.special_notes
-            nutrition_plan.save()
-            
-        # Clear existing meals if template should replace all
-        if request.data.get('replace_meals', True):
+        """Apply a meal template to a plan day (multi-plan aware)"""
+        replace_flag = bool(request.data.get('replace_meals', False))
+        target_nutrition_plan_id = request.data.get('nutrition_plan_id')
+
+        if target_nutrition_plan_id:
+            nutrition_plan = NutritionPlan.objects.get(id=target_nutrition_plan_id, plan_day=plan_day)
+        elif replace_flag:
+            nutrition_plan, created = NutritionPlan.objects.get_or_create(
+                plan_day=plan_day,
+                plan_order=1,
+                defaults={
+                    'plan_name': 'Nutrition Plan 1',
+                    'target_calories': template.calories,
+                    'target_protein_grams': template.protein_grams,
+                    'target_carbs_grams': template.carbs_grams,
+                    'target_fats_grams': template.fats_grams,
+                    'target_fiber_grams': template.fiber_grams,
+                    'target_water_liters': template.water_liters,
+                    'dietary_restrictions': template.dietary_restrictions,
+                    'special_notes': template.special_notes
+                }
+            )
+        else:
+            nutrition_plan = NutritionPlan.objects.create(
+                plan_day=plan_day,
+                target_calories=template.calories,
+                target_protein_grams=template.protein_grams,
+                target_carbs_grams=template.carbs_grams,
+                target_fats_grams=template.fats_grams,
+                target_fiber_grams=template.fiber_grams,
+                target_water_liters=template.water_liters,
+                dietary_restrictions=template.dietary_restrictions,
+                special_notes=template.special_notes
+            )
+
+        # Update header targets
+        nutrition_plan.target_calories = template.calories
+        nutrition_plan.target_protein_grams = template.protein_grams
+        nutrition_plan.target_carbs_grams = template.carbs_grams
+        nutrition_plan.target_fats_grams = template.fats_grams
+        nutrition_plan.target_fiber_grams = template.fiber_grams
+        nutrition_plan.target_water_liters = template.water_liters
+        nutrition_plan.dietary_restrictions = template.dietary_restrictions
+        nutrition_plan.special_notes = template.special_notes
+        nutrition_plan.save()
+
+        # Clear existing meals if replacing
+        if replace_flag:
             nutrition_plan.meals.all().delete()
             
         # Create meals from template

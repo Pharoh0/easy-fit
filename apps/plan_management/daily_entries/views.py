@@ -34,12 +34,10 @@ class PlanDayViewSet(viewsets.ModelViewSet):
         return PlanDay.objects.filter(
             subscription__client=self.request.user
         ).select_related(
-            'subscription__product_plan__coach',
-            'nutrition_plan',
-            'workout_plan'
+            'subscription__product_plan__coach'
         ).prefetch_related(
-            'nutrition_plan__meals__ingredients',
-            'workout_plan__exercise_blocks__exercises'
+            'nutrition_plans__meals__ingredients',
+            'workout_plans__exercise_blocks__exercises'
         ).order_by('day_number')
     
     def list(self, request, *args, **kwargs):

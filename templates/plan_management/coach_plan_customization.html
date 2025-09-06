@@ -118,7 +118,13 @@
                                 </h6>
                             </div>
                             <div class="collapse show" id="workoutTemplates">
-                                <div class="template-items p-3 pt-0" id="workoutTemplatesList">
+                                <div class="px-3 pt-3 pb-1 d-flex justify-content-between align-items-center">
+                                    <div class="form-check form-switch small">
+                                        <input class="form-check-input" type="checkbox" id="workoutReplaceToggle">
+                                        <label class="form-check-label" for="workoutReplaceToggle">Replace existing when applying</label>
+                                    </div>
+                                </div>
+                                <div class="template-items p-3 pt-1" id="workoutTemplatesList">
                                     <div class="template-loading-placeholder">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
@@ -142,7 +148,13 @@
                                 </h6>
                             </div>
                             <div class="collapse" id="mealTemplates">
-                                <div class="template-items p-3 pt-0" id="mealTemplatesList">
+                                <div class="px-3 pt-3 pb-1 d-flex justify-content-between align-items-center">
+                                    <div class="form-check form-switch small">
+                                        <input class="form-check-input" type="checkbox" id="mealReplaceToggle">
+                                        <label class="form-check-label" for="mealReplaceToggle">Replace existing when applying</label>
+                                    </div>
+                                </div>
+                                <div class="template-items p-3 pt-1" id="mealTemplatesList">
                                     <div class="template-loading-placeholder">
                                         <div class="spinner-border spinner-border-sm text-primary" role="status">
                                             <span class="visually-hidden">Loading...</span>
@@ -236,21 +248,14 @@
                         <div class="workout-section mb-4">
                             <div class="section-header d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0"><i class="bi bi-activity me-2"></i>Workout</h5>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="applyWorkoutTemplateBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Apply Template
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end" id="workoutTemplatesDropdown" aria-labelledby="applyWorkoutTemplateBtn">
-                                        <li><span class="dropdown-item-text">Loading templates...</span></li>
-                                    </ul>
-                                </div>
+                                <small class="text-muted">Use the Template Library on the left to apply templates</small>
                             </div>
                             
                             <div class="workout-container" id="workoutContainer">
                                 <div class="workout-empty-state text-center p-4 border rounded" id="workoutEmptyState">
                                     <i class="bi bi-clipboard-plus display-4 text-muted"></i>
                                     <h6 class="mt-3">No Workout Assigned</h6>
-                                    <p class="text-muted mb-3">Drag and drop a workout template or use the Apply Template button</p>
+                                    <p class="text-muted mb-3">Drag and drop a workout template or use the Template Library</p>
                                 </div>
                                 
                                 <div class="workout-content" id="workoutContent" style="display: none;">
@@ -291,21 +296,14 @@
                         <div class="meal-section mb-4">
                             <div class="section-header d-flex justify-content-between align-items-center mb-3">
                                 <h5 class="mb-0"><i class="bi bi-egg-fried me-2"></i>Nutrition</h5>
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="applyMealTemplateBtn" data-bs-toggle="dropdown" aria-expanded="false">
-                                        Apply Template
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end" id="mealTemplatesDropdown" aria-labelledby="applyMealTemplateBtn">
-                                        <li><span class="dropdown-item-text">Loading templates...</span></li>
-                                    </ul>
-                                </div>
+                                <small class="text-muted">Use the Template Library on the left to apply templates</small>
                             </div>
                             
                             <div class="meal-container" id="mealContainer">
                                 <div class="meal-empty-state text-center p-4 border rounded" id="mealEmptyState">
                                     <i class="bi bi-clipboard-plus display-4 text-muted"></i>
                                     <h6 class="mt-3">No Meal Plan Assigned</h6>
-                                    <p class="text-muted mb-3">Drag and drop a meal template or use the Apply Template button</p>
+                                    <p class="text-muted mb-3">Drag and drop a meal template or use the Template Library</p>
                                 </div>
                                 
                                 <div class="meal-content" id="mealContent" style="display: none;">

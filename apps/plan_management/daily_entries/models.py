@@ -83,10 +83,27 @@ class PlanDay(models.Model):
         unique_together = ['subscription', 'day_number']
         ordering = ['day_number']
 
+    # Backward-compatible convenience properties for legacy templates/code
+    @property
+    def workout_plan(self):
+        try:
+            return self.workout_plans.order_by('session_order').first()
+        except Exception:
+            return None
+
+    @property
+    def nutrition_plan(self):
+        try:
+            return self.nutrition_plans.order_by('plan_order').first()
+        except Exception:
+            return None
+
 
 class NutritionPlan(models.Model):
-    """Daily nutrition plan with comprehensive tracking"""
-    plan_day = models.OneToOneField(PlanDay, on_delete=models.CASCADE, related_name='nutrition_plan')
+    """Daily nutrition plan with comprehensive tracking. Supports multiple per day."""
+    plan_day = models.ForeignKey(PlanDay, on_delete=models.CASCADE, related_name='nutrition_plans')
+    plan_name = models.CharField(max_length=255, default='Nutrition Plan 1')
+    plan_order = models.PositiveSmallIntegerField(default=1)
     
     # Daily nutrition targets
     target_calories = models.PositiveIntegerField()
@@ -109,7 +126,7 @@ class NutritionPlan(models.Model):
     special_notes = models.TextField(blank=True)
     
     def __str__(self):
-        return f"Nutrition Plan for {self.plan_day}"
+        return f"{self.plan_name} for {self.plan_day}"
     
     @property
     def calorie_adherence_percentage(self):
@@ -231,8 +248,10 @@ class MealIngredient(models.Model):
 
 
 class WorkoutPlan(models.Model):
-    """Daily workout plan with comprehensive structure"""
-    plan_day = models.OneToOneField(PlanDay, on_delete=models.CASCADE, related_name='workout_plan')
+    """Daily workout plan with comprehensive structure. Supports multiple sessions per day."""
+    plan_day = models.ForeignKey(PlanDay, on_delete=models.CASCADE, related_name='workout_plans')
+    session_name = models.CharField(max_length=100, default='Session 1')
+    session_order = models.PositiveSmallIntegerField(default=1)
     
     # Workout overview
     workout_name = models.CharField(max_length=255)
@@ -288,13 +307,23 @@ class WorkoutPlan(models.Model):
     client_notes = models.TextField(blank=True)
     
     def __str__(self):
-        return f"{self.workout_name} - {self.plan_day}"
+        return f"{self.session_name}: {self.workout_name} - {self.plan_day}"
     
     def mark_completed(self):
         """Mark workout as completed"""
         self.is_completed = True
         self.completed_at = timezone.now()
         self.save()
+
+    def save(self, *args, **kwargs):
+        # Auto-assign next session_order within the same day if not provided
+        if self._state.adding and (self.session_order is None or self.session_order == 0):
+            last = WorkoutPlan.objects.filter(plan_day=self.plan_day).order_by('-session_order').first()
+            self.session_order = (last.session_order + 1) if last else 1
+            # Derive session_name if default
+            if not self.session_name or self.session_name.startswith('Session '):
+                self.session_name = f'Session {self.session_order}'
+        super().save(*args, **kwargs)
 
 
 class ExerciseBlock(models.Model):

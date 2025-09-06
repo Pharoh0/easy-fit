@@ -5,6 +5,8 @@
 
 // Global toast notification system
 window.showToast = function(type, message, duration = 5000) {
+    // Normalize type to Bootstrap variants
+    if (type === 'error') type = 'danger';
     // Get or create toast container
     let container = document.getElementById('toastContainer');
     if (!container) {
@@ -15,7 +17,8 @@ window.showToast = function(type, message, duration = 5000) {
     
     // Create toast element
     const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type} border-0`;
+    // Use text-bg-* to avoid transparent background on Bootstrap 5 toasts
+    toast.className = `toast align-items-center text-bg-${type} border-0`;
     toast.setAttribute('role', 'alert');
     toast.setAttribute('aria-live', 'assertive');
     toast.setAttribute('aria-atomic', 'true');
@@ -125,20 +128,28 @@ function navigateToNextDay() {
  * Initialize event handlers for templates
  */
 function initTemplateHandlers() {
-    // Get template buttons
-    const workoutTemplateBtn = document.getElementById('applyWorkoutTemplateBtn');
-    const mealTemplateBtn = document.getElementById('applyMealTemplateBtn');
-    
-    // Add event listeners
-    if (workoutTemplateBtn) {
-        workoutTemplateBtn.addEventListener('click', function() {
-            PlanCustomizationTemplates.openTemplateModal('workout');
+    // We rely on Bootstrap's dropdown for Apply Template buttons.
+    // Dropdown items are populated by PlanCustomizationTemplates.loadTemplates()
+    // and each item calls PlanCustomizationData.applyTemplate(). No extra handlers here.
+    const removeWorkoutBtn = document.getElementById('removeWorkoutBtn');
+    if (removeWorkoutBtn) {
+        removeWorkoutBtn.addEventListener('click', async () => {
+            try {
+                await PlanCustomizationData.removeWorkout();
+            } catch (e) {
+                console.error('Failed to remove workout', e);
+            }
         });
     }
-    
-    if (mealTemplateBtn) {
-        mealTemplateBtn.addEventListener('click', function() {
-            PlanCustomizationTemplates.openTemplateModal('meal');
+
+    const removeNutritionBtn = document.getElementById('removeNutritionBtn');
+    if (removeNutritionBtn) {
+        removeNutritionBtn.addEventListener('click', async () => {
+            try {
+                await PlanCustomizationData.removeNutrition();
+            } catch (e) {
+                console.error('Failed to remove nutrition plan', e);
+            }
         });
     }
 }
@@ -155,7 +166,7 @@ function initializePlanCustomization() {
     // Initialize day navigation
     initDayNavigation();
     
-    // Initialize template handlers
+    // Initialize template handlers (dropdowns already wired by Bootstrap; no extra click handlers)
     initTemplateHandlers();
     
     // Initialize data module

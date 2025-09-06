@@ -95,8 +95,8 @@ def client_plan_progress(request, subscription_id):
             'day_number': day.day_number,
             'scheduled_date': day.scheduled_date,
             'completion_status': day.completion_status,
-            'has_workout': hasattr(day, 'workout_plan'),
-            'has_nutrition': hasattr(day, 'nutrition_plan')
+            'has_workout': day.workout_plans.exists(),
+            'has_nutrition': day.nutrition_plans.exists()
         } for day in recent_days]
         
         return Response({

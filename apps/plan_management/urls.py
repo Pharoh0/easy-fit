@@ -72,7 +72,10 @@ urlpatterns = [
     path('api/v1/coach-plan-customization/<int:subscription_id>/subscription_details/', views_coach_api.get_subscription_details, name='subscription_details_api'),
     path('api/v1/coach-plan-customization/plan_days/', views_coach_api.get_plan_days, name='plan_days_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/', views_coach_api.get_plan_day_details, name='plan_day_details_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/overview/', views_coach_api.save_day_overview, name='save_day_overview_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/apply_template/', views_coach_api.apply_template_to_day, name='apply_template_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/remove_workout/', views_coach_api.remove_workout_from_day, name='remove_workout_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/remove_nutrition/', views_coach_api.remove_nutrition_from_day, name='remove_nutrition_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/notes/', views_coach_api.save_day_notes, name='save_notes_api'),
     
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),

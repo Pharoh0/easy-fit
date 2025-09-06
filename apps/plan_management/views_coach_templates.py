@@ -763,14 +763,12 @@ def coach_client_plan_detail_view(request, subscription_id):
     if subscription.product_plan.coach != coach_profile:
         return HttpResponseForbidden("You don't have permission to view this plan")
     
-    # Get plan days with related data
+    # Get plan days with related data (plural relations)
     plan_days = PlanDay.objects.filter(
         subscription=subscription
-    ).select_related(
-        'nutrition_plan', 'workout_plan'
     ).prefetch_related(
-        'nutrition_plan__meals',
-        'workout_plan__exercise_blocks'
+        'nutrition_plans__meals__ingredients',
+        'workout_plans__exercise_blocks__exercises'
     ).order_by('day_number')
     
     # Calculate plan progress

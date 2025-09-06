@@ -268,9 +268,12 @@ class WorkoutPlanSerializer(serializers.ModelSerializer):
 
 
 class PlanDaySerializer(serializers.ModelSerializer):
-    """Serializer for plan days"""
-    nutrition_plan = NutritionPlanSerializer(read_only=True)
-    workout_plan = WorkoutPlanSerializer(read_only=True)
+    """Serializer for plan days with multiple workout and nutrition containers"""
+    nutrition_plans = NutritionPlanSerializer(many=True, read_only=True)
+    workout_plans = WorkoutPlanSerializer(many=True, read_only=True)
+    # Backward-compatible fields exposing the first plan of each type
+    nutrition_plan = serializers.SerializerMethodField()
+    workout_plan = serializers.SerializerMethodField()
     day_summary = serializers.SerializerMethodField()
     is_overdue = serializers.ReadOnlyField()
     
@@ -281,47 +284,79 @@ class PlanDaySerializer(serializers.ModelSerializer):
             'day_description', 'day_theme', 'completion_status', 'completion_percentage',
             'started_at', 'completed_at', 'coach_instructions', 'coach_notes',
             'client_feedback', 'client_rating', 'planned_difficulty', 'actual_difficulty',
-            'estimated_duration_minutes', 'actual_duration_minutes', 'nutrition_plan',
-            'workout_plan', 'day_summary', 'is_overdue'
+            'estimated_duration_minutes', 'actual_duration_minutes',
+            'nutrition_plan', 'workout_plan',
+            'nutrition_plans', 'workout_plans', 'day_summary', 'is_overdue'
         ]
         read_only_fields = ['id', 'started_at', 'completed_at', 'is_overdue']
     
     def get_day_summary(self, obj):
-        """Get comprehensive day summary"""
+        """Get comprehensive day summary across all sessions/plans"""
+        has_nutrition = obj.nutrition_plans.exists()
+        has_workout = obj.workout_plans.exists()
         summary = {
-            'has_nutrition': hasattr(obj, 'nutrition_plan'),
-            'has_workout': hasattr(obj, 'workout_plan'),
+            'has_nutrition': has_nutrition,
+            'has_workout': has_workout,
             'completion_status': obj.completion_status,
             'completion_percentage': float(obj.completion_percentage),
             'is_overdue': obj.is_overdue
         }
         
-        # Add nutrition summary if exists
-        if hasattr(obj, 'nutrition_plan'):
-            meals = obj.nutrition_plan.meals.all()
+        if has_nutrition:
+            total_meals = 0
+            completed_meals = 0
+            target_calories = 0
+            actual_calories = 0
+            for np in obj.nutrition_plans.all():
+                meals = np.meals.all()
+                total_meals += meals.count()
+                completed_meals += meals.filter(is_completed=True).count()
+                target_calories += (np.target_calories or 0)
+                actual_calories += (np.actual_calories or 0)
             summary['nutrition_summary'] = {
-                'total_meals': meals.count(),
-                'completed_meals': meals.filter(is_completed=True).count(),
-                'target_calories': obj.nutrition_plan.target_calories,
-                'actual_calories': obj.nutrition_plan.actual_calories
+                'total_meals': total_meals,
+                'completed_meals': completed_meals,
+                'target_calories': target_calories,
+                'actual_calories': actual_calories
             }
         
-        # Add workout summary if exists
-        if hasattr(obj, 'workout_plan'):
-            blocks = obj.workout_plan.exercise_blocks.all()
-            total_exercises = sum(block.exercises.count() for block in blocks)
-            completed_exercises = sum(block.exercises.filter(is_completed=True).count() for block in blocks)
-            
+        if has_workout:
+            total_exercises = 0
+            completed_exercises = 0
+            target_duration = 0
+            actual_duration = 0
+            target_calories_burn = 0
+            actual_calories_burned = 0
+            for wp in obj.workout_plans.all():
+                blocks = wp.exercise_blocks.all()
+                total_exercises += sum(block.exercises.count() for block in blocks)
+                completed_exercises += sum(block.exercises.filter(is_completed=True).count() for block in blocks)
+                target_duration += (wp.total_duration_minutes or 0)
+                actual_duration += (wp.actual_duration_minutes or 0)
+                target_calories_burn += (wp.target_calories_burn or 0)
+                actual_calories_burned += (wp.actual_calories_burned or 0)
             summary['workout_summary'] = {
                 'total_exercises': total_exercises,
                 'completed_exercises': completed_exercises,
-                'target_duration': obj.workout_plan.total_duration_minutes,
-                'actual_duration': obj.workout_plan.actual_duration_minutes,
-                'target_calories': obj.workout_plan.target_calories_burn,
-                'actual_calories': obj.workout_plan.actual_calories_burned
+                'target_duration': target_duration,
+                'actual_duration': actual_duration,
+                'target_calories': target_calories_burn,
+                'actual_calories': actual_calories_burned
             }
         
         return summary
+
+    def get_nutrition_plan(self, obj):
+        np = obj.nutrition_plans.order_by('plan_order').first()
+        if not np:
+            return None
+        return NutritionPlanSerializer(np, context=self.context).data
+
+    def get_workout_plan(self, obj):
+        wp = obj.workout_plans.order_by('session_order').first()
+        if not wp:
+            return None
+        return WorkoutPlanSerializer(wp, context=self.context).data
 
 
 class PlanDayCreateSerializer(serializers.ModelSerializer):

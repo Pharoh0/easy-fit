@@ -28,7 +28,7 @@ function loadTemplates() {
         })
     ]).catch(error => {
         console.error('Error loading templates:', error);
-        showToast('error', 'Failed to load templates');
+        showToast('danger', 'Failed to load templates');
     });
 }
 
@@ -51,7 +51,7 @@ function renderWorkoutTemplatesList() {
     workoutTemplates.forEach(template => {
         const templateItem = document.createElement('div');
         templateItem.className = 'template-list-item mb-2 p-2 border rounded';
-        templateItem.dataset.templateId = template.id;
+        templateItem.dataset.templateId = String(template.id);
         templateItem.dataset.templateType = 'workout';
         
         // Template details
@@ -100,6 +100,21 @@ function renderWorkoutTemplatesList() {
         
         container.appendChild(templateItem);
     });
+
+    // Bind delegated handlers once for reliability
+    if (!container.dataset.handlersBound) {
+        container.addEventListener('click', (e) => {
+            const item = e.target.closest('.template-list-item');
+            if (!item || !container.contains(item)) return;
+            const tid = item.dataset.templateId;
+            if (e.target.closest('.apply-template-btn')) {
+                if (tid) applyWorkoutTemplate(tid);
+            } else if (e.target.closest('.preview-template-btn')) {
+                if (tid) previewWorkoutTemplate(tid);
+            }
+        });
+        container.dataset.handlersBound = '1';
+    }
 }
 
 /**
@@ -121,7 +136,7 @@ function renderMealTemplatesList() {
     mealTemplates.forEach(template => {
         const templateItem = document.createElement('div');
         templateItem.className = 'template-list-item mb-2 p-2 border rounded';
-        templateItem.dataset.templateId = template.id;
+        templateItem.dataset.templateId = String(template.id);
         templateItem.dataset.templateType = 'meal';
         
         // Template details
@@ -208,6 +223,9 @@ function renderWorkoutTemplatesDropdown() {
             const link = document.createElement('a');
             link.className = 'dropdown-item';
             link.href = '#';
+            // dataset for robust delegated handling
+            link.dataset.templateId = String(template.id);
+            link.dataset.templateType = 'workout';
             link.innerHTML = `
                 <div class="d-flex justify-content-between">
                     <span>${template.name}</span>
@@ -233,6 +251,20 @@ function renderWorkoutTemplatesDropdown() {
     const dividers = container.querySelectorAll('.dropdown-divider');
     if (dividers.length > 0) {
         dividers[dividers.length - 1].remove();
+    }
+
+    // Bind delegated click handler once
+    if (!container.dataset.handlerBound) {
+        container.addEventListener('click', (e) => {
+            const link = e.target.closest('a.dropdown-item');
+            if (!link || !container.contains(link)) return;
+            e.preventDefault();
+            const tid = link.dataset.templateId;
+            if (tid) {
+                applyWorkoutTemplate(tid);
+            }
+        });
+        container.dataset.handlerBound = '1';
     }
 }
 
@@ -272,6 +304,9 @@ function renderMealTemplatesDropdown() {
             const link = document.createElement('a');
             link.className = 'dropdown-item';
             link.href = '#';
+            // dataset for robust delegated handling
+            link.dataset.templateId = String(template.id);
+            link.dataset.templateType = 'meal';
             link.innerHTML = `
                 <div class="d-flex justify-content-between">
                     <span>${template.meal_name}</span>
@@ -400,7 +435,15 @@ function previewWorkoutTemplate(templateId) {
             
             html += '</div>';
             
-            // Update modal content
+            // Add replace option for workout (single)
+            html += `
+                <div class="form-check mt-2">
+                    <input class="form-check-input" type="checkbox" value="1" id="replaceExistingCheckbox">
+                    <label class="form-check-label" for="replaceExistingCheckbox">
+                        Replace existing workout content (unchecked = add/append)
+                    </label>
+                </div>
+            `;
             modalContent.innerHTML = html;
             
             // Update apply button
@@ -410,7 +453,12 @@ function previewWorkoutTemplate(templateId) {
             
             // Add click event to apply button
             applyBtn.onclick = function() {
-                applyWorkoutTemplate(template.id);
+                const replace = !!document.getElementById('replaceExistingCheckbox')?.checked;
+                if (PlanCustomizationData && typeof PlanCustomizationData.applyTemplate === 'function') {
+                    PlanCustomizationData.applyTemplate('workout', template.id, replace);
+                } else {
+                    showToast('danger', 'Template application not available');
+                }
                 bsModal.hide();
             };
         })
@@ -547,7 +595,12 @@ function previewMealTemplate(templateId) {
             
             // Add click event to apply button
             applyBtn.onclick = function() {
-                applyMealTemplate(template.id);
+                const replace = !!document.getElementById('replaceExistingCheckbox')?.checked;
+                if (PlanCustomizationData && typeof PlanCustomizationData.applyTemplate === 'function') {
+                    PlanCustomizationData.applyTemplate('meal', template.id, replace);
+                } else {
+                    showToast('danger', 'Template application not available');
+                }
                 bsModal.hide();
             };
         })
@@ -567,24 +620,21 @@ function previewMealTemplate(templateId) {
  * @param {number} templateId - The ID of the workout template
  */
 function applyWorkoutTemplate(templateId) {
-    // Find template in loaded templates
-    const template = workoutTemplates.find(t => t.id === templateId);
+    // Find template in loaded templates (tolerate string/number ids)
+    const template = workoutTemplates.find(t => String(t.id) === String(templateId));
     
     if (!template) {
-        showToast('error', 'Workout template not found');
+        showToast('danger', 'Workout template not found');
         return;
     }
     
-    // Store current template
-    currentWorkoutTemplate = template;
-    
-    // Update UI
-    loadWorkoutTemplate(template);
-    
-    // Save day
-    savePlanDay().then(() => {
-        showToast('success', `Applied workout template: ${template.name}`);
-    });
+    // Apply template via data module (server-side)
+    if (PlanCustomizationData && typeof PlanCustomizationData.applyTemplate === 'function') {
+        const replace = !!document.getElementById('workoutReplaceToggle')?.checked;
+        PlanCustomizationData.applyTemplate('workout', parseInt(templateId, 10), replace);
+    } else {
+        showToast('danger', 'Template application not available');
+    }
 }
 
 /**
@@ -592,19 +642,20 @@ function applyWorkoutTemplate(templateId) {
  * @param {number} templateId - The ID of the meal template
  */
 function applyMealTemplate(templateId) {
-    // Find template in loaded templates
-    const template = mealTemplates.find(t => t.id === templateId);
+    // Find template in loaded templates (tolerate string/number ids)
+    const template = mealTemplates.find(t => String(t.id) === String(templateId));
     
     if (!template) {
-        showToast('error', 'Meal template not found');
+        showToast('danger', 'Meal template not found');
         return;
     }
     
     // Apply template to current day
     if (PlanCustomizationData && typeof PlanCustomizationData.applyTemplate === 'function') {
-        PlanCustomizationData.applyTemplate('meal', templateId);
+        const replace = !!document.getElementById('mealReplaceToggle')?.checked;
+        PlanCustomizationData.applyTemplate('meal', parseInt(templateId, 10), replace);
     } else {
-        showToast('error', 'Template application not available');
+        showToast('danger', 'Template application not available');
     }
 }
 

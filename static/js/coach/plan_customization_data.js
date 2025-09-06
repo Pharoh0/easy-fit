@@ -12,6 +12,9 @@ const PlanCustomizationData = (() => {
     let planDays = [];
     let planData = null;
     let clientData = null;
+    // Track current selected session containers (first by default)
+    let currentWorkoutPlanId = null;
+    let currentNutritionPlanId = null;
     
     /**
      * Initialize data from URL parameters
@@ -28,7 +31,7 @@ const PlanCustomizationData = (() => {
             showError('Missing plan or subscription information');
             return false;
         }
-        
+
         return true;
     }
     
@@ -69,6 +72,54 @@ const PlanCustomizationData = (() => {
             showError('Failed to load plan data: ' + error.message);
             showLoading(false, 'planDayLoading');
             return false;
+        }
+    }
+    
+    /**
+     * Remove workout from current day
+     */
+    async function removeWorkout() {
+        if (!currentDayId) return;
+        try {
+            const payload = {};
+            if (currentWorkoutPlanId) payload.workout_plan_id = currentWorkoutPlanId;
+            const res = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/remove_workout/`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            if (res.success) {
+                showToast('success', 'Workout removed');
+                await selectDay(currentDayId, true);
+            } else {
+                throw new Error(res.error || 'Failed to remove workout');
+            }
+        } catch (e) {
+            console.error(e);
+            showError('Failed to remove workout');
+        }
+    }
+
+    /**
+     * Remove nutrition plan from current day
+     */
+    async function removeNutrition() {
+        if (!currentDayId) return;
+        try {
+            const payload = {};
+            if (currentNutritionPlanId) payload.nutrition_plan_id = currentNutritionPlanId;
+            const res = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/remove_nutrition/`, {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+            if (res.success) {
+                showToast('success', 'Nutrition plan removed');
+                await selectDay(currentDayId, true);
+            } else {
+                throw new Error(res.error || 'Failed to remove nutrition');
+            }
+        } catch (e) {
+            console.error(e);
+            showError('Failed to remove nutrition plan');
         }
     }
     
@@ -270,8 +321,8 @@ const PlanCustomizationData = (() => {
     /**
      * Select a day by ID
      */
-    async function selectDay(dayId) {
-        if (currentDayId === dayId) return; // Already selected
+    async function selectDay(dayId, force = false) {
+        if (currentDayId === dayId && !force) return; // Already selected and no force reload
         
         currentDayId = dayId;
         
@@ -296,6 +347,11 @@ const PlanCustomizationData = (() => {
         try {
             showLoading(true, 'planDayLoading');
             const dayData = await fetchDayDetails(dayId);
+            // Update header with per-day title
+            const titleEl = document.getElementById('planDayTitle');
+            if (titleEl) {
+                titleEl.textContent = dayData.day_title || `Day ${dayData.day_number}: Plan Overview`;
+            }
             renderDayContent(dayData);
             showLoading(false, 'planDayLoading');
             const contentArea = document.getElementById('planDayContentArea');
@@ -320,10 +376,106 @@ const PlanCustomizationData = (() => {
      */
     function renderDayContent(dayData) {
         if (!dayData) return;
+        // Maintain selected session ids if still present, otherwise default to first
+        if ((dayData.workouts || []).length) {
+            const found = dayData.workouts.find(w => w.id === currentWorkoutPlanId);
+            currentWorkoutPlanId = found ? found.id : dayData.workouts[0].id;
+        } else {
+            currentWorkoutPlanId = null;
+        }
+        if ((dayData.meals || []).length) {
+            const found = dayData.meals.find(m => m.id === currentNutritionPlanId);
+            currentNutritionPlanId = found ? found.id : dayData.meals[0].id;
+        } else {
+            currentNutritionPlanId = null;
+        }
         // Render sections into existing containers in the template
+        renderDayOverview(dayData);
         renderWorkoutsSection(dayData);
         renderMealsSection(dayData);
         renderCoachNotes(dayData);
+    }
+
+    /**
+     * Render Day Overview section (title, theme, difficulty, type, instructions)
+     */
+    function renderDayOverview(dayData) {
+        const dayTitleEl = document.getElementById('dayTitle');
+        const dayThemeEl = document.getElementById('dayTheme');
+        const diffEl = document.getElementById('difficultyLevel');
+        const coachInstrEl = document.getElementById('coachInstructions');
+        const typeWorkoutEl = document.getElementById('typeWorkout');
+        const typeRestEl = document.getElementById('typeRest');
+        const typeBothEl = document.getElementById('typeBoth');
+
+        if (dayTitleEl) dayTitleEl.value = dayData.day_title || `Day ${dayData.day_number}`;
+        if (dayThemeEl) dayThemeEl.value = dayData.day_theme || '';
+        if (coachInstrEl) coachInstrEl.value = dayData.coach_instructions || '';
+
+        // Map planned_difficulty text -> select value 1..5
+        const diffMap = {
+            'very_easy': 1,
+            'easy': 2,
+            'moderate': 3,
+            'hard': 4,
+            'very_hard': 5
+        };
+        if (diffEl) {
+            const val = String(diffMap[String(dayData.planned_difficulty || 'moderate')] || 3);
+            diffEl.value = val;
+        }
+
+        // Day type radios
+        const dayType = (dayData.day_type || 'both').toLowerCase();
+        if (typeWorkoutEl) typeWorkoutEl.checked = (dayType === 'workout');
+        if (typeRestEl) typeRestEl.checked = (dayType === 'rest');
+        if (typeBothEl) typeBothEl.checked = (dayType === 'both');
+    }
+
+    /**
+     * Save Day Overview
+     */
+    async function saveDayOverview(dayId) {
+        const dayTitleEl = document.getElementById('dayTitle');
+        const dayThemeEl = document.getElementById('dayTheme');
+        const diffEl = document.getElementById('difficultyLevel');
+        const coachInstrEl = document.getElementById('coachInstructions');
+        const typeWorkoutEl = document.getElementById('typeWorkout');
+        const typeRestEl = document.getElementById('typeRest');
+        const typeBothEl = document.getElementById('typeBoth');
+
+        const payload = {
+            day_title: dayTitleEl ? dayTitleEl.value : undefined,
+            day_theme: dayThemeEl ? dayThemeEl.value : undefined,
+            difficulty_level: diffEl ? diffEl.value : undefined,
+            coach_instructions: coachInstrEl ? coachInstrEl.value : undefined,
+            day_type: (typeWorkoutEl && typeWorkoutEl.checked) ? 'workout' : (typeRestEl && typeRestEl.checked) ? 'rest' : 'both'
+        };
+
+        const res = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${dayId}/overview/`, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        });
+
+        if (!res || !res.success) {
+            throw new Error((res && res.error) || 'Failed to save overview');
+        }
+
+        // Update local cache
+        const idx = planDays.findIndex(d => d.id === dayId);
+        if (idx >= 0) {
+            planDays[idx].day_title = payload.day_title;
+            planDays[idx].day_theme = payload.day_theme;
+            planDays[idx].planned_difficulty = payload.difficulty_level;
+            planDays[idx].coach_instructions = payload.coach_instructions;
+            planDays[idx].day_type = payload.day_type;
+        }
+        // Update header title
+        const titleEl = document.getElementById('planDayTitle');
+        if (titleEl && payload.day_title) {
+            titleEl.textContent = `${payload.day_title}`;
+        }
+        return true;
     }
     
     /**
@@ -346,7 +498,10 @@ const PlanCustomizationData = (() => {
             return;
         }
 
-        const workout = dayData.workouts[0];
+        // Determine selected session
+        const sessions = dayData.workouts;
+        let workout = sessions.find(w => w.id === currentWorkoutPlanId) || sessions[0];
+        currentWorkoutPlanId = workout.id;
         emptyState.style.display = 'none';
         content.style.display = '';
         if (nameEl) nameEl.textContent = workout.name || 'Workout';
@@ -354,8 +509,58 @@ const PlanCustomizationData = (() => {
         if (durationEl) durationEl.textContent = workout.duration || '';
         if (intensityEl) intensityEl.textContent = workout.intensity || '';
 
+        // Render session selector in header
+        const headerRow = document.querySelector('#workoutContent .workout-header .row');
+        if (headerRow) {
+            let selWrap = document.getElementById('workoutSessionSelectWrap');
+            if (!selWrap) {
+                selWrap = document.createElement('div');
+                selWrap.id = 'workoutSessionSelectWrap';
+                selWrap.className = 'col-auto';
+                headerRow.appendChild(selWrap);
+            }
+            selWrap.innerHTML = `
+                <label class="form-label small mb-1">Workout Sessions</label>
+                <select class="form-select form-select-sm" id="workoutSessionSelect"></select>
+            `;
+            const selectEl = document.getElementById('workoutSessionSelect');
+            if (selectEl) {
+                selectEl.innerHTML = sessions.map((s, idx) => `<option value="${s.id}" ${s.id===currentWorkoutPlanId?'selected':''}>${s.session_name || ('Session ' + (idx+1))} - ${s.name || ''}</option>`).join('');
+                selectEl.onchange = () => {
+                    currentWorkoutPlanId = parseInt(selectEl.value, 10);
+                    renderWorkoutsSection(dayData);
+                };
+            }
+        }
+
         if (blocksContainer) {
             blocksContainer.innerHTML = '';
+            // Media row under header
+            let mediaRow = document.getElementById('workoutMediaRow');
+            if (!mediaRow) {
+                mediaRow = document.createElement('div');
+                mediaRow.id = 'workoutMediaRow';
+                mediaRow.className = 'mb-3';
+                const header = document.querySelector('#workoutContent .workout-header');
+                if (header && header.parentNode) {
+                    header.parentNode.insertBefore(mediaRow, header.nextSibling);
+                } else {
+                    blocksContainer.parentNode.insertBefore(mediaRow, blocksContainer);
+                }
+            }
+            mediaRow.innerHTML = '';
+            if (workout.image || workout.video_url) {
+                let html = '<div class="row g-2">';
+                if (workout.image) {
+                    html += `<div class="col-auto"><img src="${workout.image}" class="img-thumbnail" style="max-height:120px" alt="Workout"></div>`;
+                }
+                if (workout.video_url) {
+                    html += `<div class="col-auto align-self-center"><a href="${workout.video_url}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-play-circle me-1"></i>Watch Video</a></div>`;
+                }
+                html += '</div>';
+                mediaRow.innerHTML = html;
+            }
+
             (workout.exercises || []).forEach(exercise => {
                 const block = document.createElement('div');
                 block.className = 'exercise-block';
@@ -370,18 +575,22 @@ const PlanCustomizationData = (() => {
                             <div class="col-md-3"><strong>Weight:</strong> ${exercise.weight || '-'}</div>
                             <div class="col-md-3"><strong>Rest:</strong> ${exercise.rest || '-'}</div>
                         </div>
+                        ${(exercise.demo_image || exercise.demo_video_url || exercise.demo_video) ? `
+                        <div class="mt-2">
+                            ${exercise.demo_image ? `<img src="${exercise.demo_image}" class="img-fluid rounded" style="max-height:120px" alt="Demo">` : ''}
+                            ${exercise.demo_video_url ? `<div class="mt-1"><a href="${exercise.demo_video_url}" target="_blank" class="link-secondary"><i class="bi bi-play-circle me-1"></i>Exercise Video</a></div>` : ''}
+                            ${exercise.demo_video ? `<div class="mt-1"><a href="${exercise.demo_video}" target="_blank" class="link-secondary"><i class="bi bi-play-circle me-1"></i>Exercise Video</a></div>` : ''}
+                        </div>` : ''}
                         ${exercise.notes ? `<div class="mt-2"><strong>Notes:</strong> ${exercise.notes}</div>` : ''}
                     </div>`;
                 blocksContainer.appendChild(block);
             });
         }
 
-        // Template button in header already exists; ensure it opens modal
-        const addBtn = document.getElementById('applyWorkoutTemplateBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', function() {
-                PlanCustomizationTemplates.openTemplateModal('workout');
-            });
+        // Apply Template button is a Bootstrap dropdown toggle; no extra click handler needed here
+        const removeBtn = document.getElementById('removeWorkoutBtn');
+        if (removeBtn) {
+            removeBtn.onclick = removeWorkout;
         }
     }
     
@@ -407,7 +616,10 @@ const PlanCustomizationData = (() => {
             return;
         }
 
-        const nutrition = dayData.meals[0];
+        // Determine selected nutrition plan
+        const plans = dayData.meals;
+        let nutrition = plans.find(p => p.id === currentNutritionPlanId) || plans[0];
+        currentNutritionPlanId = nutrition.id;
         emptyState.style.display = 'none';
         content.style.display = '';
         if (nameEl) nameEl.textContent = nutrition.name || 'Nutrition Plan';
@@ -417,26 +629,72 @@ const PlanCustomizationData = (() => {
         if (carbsEl) carbsEl.textContent = nutrition.nutrition?.carbs || nutrition.carbs_grams || '-';
         if (fatsEl) fatsEl.textContent = nutrition.nutrition?.fats || nutrition.fats_grams || '-';
 
+        // Render plan selector in header
+        const summaryRow = document.querySelector('#mealContent .nutrition-summary .row');
+        if (summaryRow) {
+            let selWrap = document.getElementById('nutritionPlanSelectWrap');
+            if (!selWrap) {
+                selWrap = document.createElement('div');
+                selWrap.id = 'nutritionPlanSelectWrap';
+                selWrap.className = 'col-auto';
+                summaryRow.appendChild(selWrap);
+            }
+            selWrap.innerHTML = `
+                <label class="form-label small mb-1">Nutrition Plans</label>
+                <select class="form-select form-select-sm" id="nutritionPlanSelect"></select>
+            `;
+            const selectEl = document.getElementById('nutritionPlanSelect');
+            if (selectEl) {
+                selectEl.innerHTML = plans.map((p, idx) => `<option value="${p.id}" ${p.id===currentNutritionPlanId?'selected':''}>${p.name || ('Plan ' + (idx+1))}</option>`).join('');
+                selectEl.onchange = () => {
+                    currentNutritionPlanId = parseInt(selectEl.value, 10);
+                    renderMealsSection(dayData);
+                };
+            }
+        }
+
         if (mealsContainer) {
             mealsContainer.innerHTML = '';
-            (nutrition.items || []).forEach(item => {
+            (nutrition.items || []).forEach(meal => {
                 const el = document.createElement('div');
                 el.className = 'meal-item p-2 border-bottom';
+                const subtitle = [meal.meal_time, meal.nutrition?.calories ? (meal.nutrition.calories + ' kcal') : '']
+                    .filter(Boolean).join(' · ');
                 el.innerHTML = `
                     <div class="d-flex justify-content-between">
                         <div>
-                            <strong>${item.name}</strong> ${item.quantity ? `<span class="text-muted"> - ${item.quantity}</span>` : ''}
+                            <strong>${meal.name}</strong> ${subtitle ? `<span class="text-muted"> - ${subtitle}</span>` : ''}
                         </div>
                     </div>`;
                 mealsContainer.appendChild(el);
             });
         }
 
-        const addBtn = document.getElementById('applyMealTemplateBtn');
-        if (addBtn) {
-            addBtn.addEventListener('click', function() {
-                PlanCustomizationTemplates.openTemplateModal('meal');
-            });
+        // Media row for nutrition
+        let mealMediaRow = document.getElementById('mealMediaRow');
+        if (!mealMediaRow) {
+            mealMediaRow = document.createElement('div');
+            mealMediaRow.id = 'mealMediaRow';
+            mealMediaRow.className = 'mb-3';
+            const summary = document.querySelector('#mealContent .nutrition-summary');
+            if (summary && summary.parentNode) {
+                summary.parentNode.insertBefore(mealMediaRow, summary.nextSibling);
+            }
+        }
+        mealMediaRow.innerHTML = '';
+        if (nutrition.image || nutrition.video_url || nutrition.video) {
+            let html = '<div class="row g-2">';
+            if (nutrition.image) html += `<div class="col-auto"><img src="${nutrition.image}" class="img-thumbnail" style="max-height:120px" alt="Meal"></div>`;
+            if (nutrition.video_url) html += `<div class="col-auto align-self-center"><a href="${nutrition.video_url}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-play-circle me-1"></i>Recipe Video</a></div>`;
+            if (nutrition.video) html += `<div class="col-auto align-self-center"><a href="${nutrition.video}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-play-circle me-1"></i>Recipe Video</a></div>`;
+            html += '</div>';
+            mealMediaRow.innerHTML = html;
+        }
+
+        // Apply Template button is a Bootstrap dropdown toggle; no extra click handler needed here
+        const removeBtn = document.getElementById('removeNutritionBtn');
+        if (removeBtn) {
+            removeBtn.onclick = removeNutrition;
         }
     }
     
@@ -450,9 +708,17 @@ const PlanCustomizationData = (() => {
             notesTextarea.value = dayData.coach_notes || '';
         }
         if (saveBtn) {
-            saveBtn.onclick = function() {
-                const notes = notesTextarea ? notesTextarea.value : '';
-                saveCoachNotes(currentDayId, notes);
+            saveBtn.onclick = async function() {
+                try {
+                    const notes = notesTextarea ? notesTextarea.value : '';
+                    // Save overview first, then notes
+                    await saveDayOverview(currentDayId);
+                    await saveCoachNotes(currentDayId, notes);
+                    showToast('success', 'Day saved');
+                } catch (e) {
+                    console.error(e);
+                    showToast('danger', 'Failed to save day');
+                }
             };
         }
     }
@@ -473,8 +739,6 @@ const PlanCustomizationData = (() => {
             
             if (response.success) {
                 showToast('success', 'Notes saved successfully');
-                
-                // Update notes in our local data
                 const dayIndex = planDays.findIndex(d => d.id === dayId);
                 if (dayIndex >= 0) {
                     planDays[dayIndex].coach_notes = notes;
@@ -482,7 +746,6 @@ const PlanCustomizationData = (() => {
             } else {
                 throw new Error('Failed to save notes');
             }
-            
             showLoading(false, 'saveNotes');
         } catch (error) {
             console.error('Error saving notes:', error);
@@ -494,7 +757,7 @@ const PlanCustomizationData = (() => {
     /**
      * Apply template to current day
      */
-    async function applyTemplate(templateType, templateId) {
+    async function applyTemplate(templateType, templateId, replace = false) {
         if (!currentDayId || !templateType || !templateId) {
             showError('Missing required information to apply template');
             return false;
@@ -503,19 +766,27 @@ const PlanCustomizationData = (() => {
         try {
             showLoading(true, 'applyTemplate');
             
+            const payload = {
+                template_type: templateType,
+                template_id: templateId,
+                replace: !!replace
+            };
+            if (replace && templateType === 'workout' && currentWorkoutPlanId) {
+                payload.workout_plan_id = currentWorkoutPlanId;
+            }
+            if (replace && templateType === 'meal' && currentNutritionPlanId) {
+                payload.nutrition_plan_id = currentNutritionPlanId;
+            }
             const response = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/apply_template/`, {
                 method: 'POST',
-                body: JSON.stringify({
-                    template_type: templateType,
-                    template_id: templateId
-                })
+                body: JSON.stringify(payload)
             });
             
             if (response.success) {
                 showToast('success', 'Template applied successfully');
                 
                 // Reload day data
-                await selectDay(currentDayId);
+                await selectDay(currentDayId, true);
                 return true;
             } else {
                 throw new Error('Failed to apply template');
@@ -567,6 +838,8 @@ const PlanCustomizationData = (() => {
         loadPlanData,
         selectDay,
         applyTemplate,
+        removeWorkout,
+        removeNutrition,
         getCurrentDayId: () => currentDayId,
         getCurrentPlanId: () => currentPlanId,
         getCurrentClientId: () => currentClientId,
