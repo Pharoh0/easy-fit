@@ -22,6 +22,12 @@ class PlanRatingViewSet(viewsets.ModelViewSet):
         if self.action == 'create':
             return PlanRatingCreateSerializer
         elif self.action == 'list':
+            # When requesting public reviews, return full serializer so review_content is included
+            try:
+                if self.request and self.request.query_params.get('public_only') == 'true':
+                    return PlanRatingSerializer
+            except Exception:
+                pass
             return RatingListSerializer
         return PlanRatingSerializer
     
@@ -41,8 +47,15 @@ class PlanRatingViewSet(viewsets.ModelViewSet):
         ).select_related('coach__user', 'subscription__product_plan').order_by('-created_at')
     
     def list(self, request, *args, **kwargs):
-        """List ratings with filtering options"""
-        queryset = self.get_queryset()
+        """List ratings with filtering options. If public_only=true, show public ratings across plans/coaches."""
+        public_only = request.query_params.get('public_only') == 'true'
+        if public_only:
+            # Bypass user scoping to allow browsing public ratings
+            queryset = PlanRating.objects.filter(is_public=True).select_related(
+                'client', 'coach__user', 'subscription__product_plan'
+            ).order_by('-created_at')
+        else:
+            queryset = self.get_queryset()
         
         # Filter by coach
         coach_id = request.query_params.get('coach')
@@ -58,9 +71,14 @@ class PlanRatingViewSet(viewsets.ModelViewSet):
         min_rating = request.query_params.get('min_rating')
         if min_rating:
             queryset = queryset.filter(overall_rating__gte=min_rating)
-        
-        # Filter public ratings only
-        if request.query_params.get('public_only') == 'true':
+
+        # Filter by specific plan
+        plan_id = request.query_params.get('plan_id') or request.query_params.get('plan')
+        if plan_id:
+            queryset = queryset.filter(subscription__product_plan_id=plan_id)
+
+        # Filter public ratings only (for non-public list paths that still request it)
+        if not public_only and request.query_params.get('public_only') == 'true':
             queryset = queryset.filter(is_public=True)
         
         # Filter verified ratings only

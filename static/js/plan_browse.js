@@ -194,6 +194,13 @@ class PlanBrowseManager {
                 
                 const modal = new bootstrap.Modal(document.getElementById('planDetailsModal'));
                 modal.show();
+
+                // Load recent public reviews for this plan
+                try {
+                    await this.loadPlanReviews(plan.id);
+                } catch (e) {
+                    console.warn('Failed to load plan reviews', e);
+                }
             } else {
                 utils.handleApiError(response, 'Failed to load plan details');
             }
@@ -242,9 +249,70 @@ class PlanBrowseManager {
                 </div>
             </div>
             ` : ''}
+
+            <div class="mt-4">
+                <h6>Recent Reviews</h6>
+                <div class="table-responsive">
+                    <table id="planReviewsTable" class="table table-striped align-middle" style="width:100%">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>By</th>
+                                <th>Rating</th>
+                                <th>Review</th>
+                            </tr>
+                        </thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+                <div class="text-end mt-2">
+                    <a class="btn btn-outline-primary btn-sm" id="viewAllReviewsBtn" href="/plan-management/client/ratings/?tab=all-ratings&plan_id=${plan.id}" target="_self">View All Reviews</a>
+                </div>
+            </div>
         `;
 
         this.selectedPlan = plan;
+    }
+
+    async loadPlanReviews(planId) {
+        const tableEl = document.getElementById('planReviewsTable');
+        if (!tableEl) return;
+        try {
+            const resp = await api.get(`/plan-management/api/v1/plan-ratings/?public_only=true&plan_id=${planId}&page_size=5`);
+            if (!resp.ok) {
+                console.warn('Ratings list failed', resp.status);
+                return;
+            }
+            const data = await resp.json();
+            const items = data.results || data || [];
+            const rows = items.map(r => ({
+                date: utils.formatDate(r.created_at),
+                by: r.client?.full_name || r.client?.username || 'Client',
+                rating: r.overall_rating,
+                review: (r.review_content || r.review_title || '').toString().substring(0, 180)
+            }));
+            // Initialize or reload DataTable
+            if ($.fn.DataTable.isDataTable('#planReviewsTable')) {
+                const dt = $('#planReviewsTable').DataTable();
+                dt.clear().rows.add(rows).draw();
+            } else {
+                $('#planReviewsTable').DataTable({
+                    paging: false,
+                    searching: false,
+                    info: false,
+                    data: rows,
+                    columns: [
+                        { data: 'date' },
+                        { data: 'by' },
+                        { data: 'rating', render: (v) => this.renderStars(v) },
+                        { data: 'review' }
+                    ],
+                    order: [[0, 'desc']]
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to render plan reviews', e);
+        }
     }
 
     async showPlanRequestModal() {

@@ -55,6 +55,7 @@
     font-size: 0.9rem;
 }
 </style>
+<link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
 {% endblock %}
 
 {% block content %}
@@ -101,6 +102,35 @@
                                 {{ progress.completed_days }}/{{ progress.total_days }} days completed
                             </p>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Reviews -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0">Client Reviews</h6>
+                    <small class="text-muted">Latest ratings and feedback from your client</small>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table id="reviewsTable" class="table table-striped align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Day</th>
+                                    <th>Type</th>
+                                    <th>Item</th>
+                                    <th>Rating</th>
+                                    <th>Feedback</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
                     </div>
                 </div>
             </div>
@@ -190,6 +220,9 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Generate client avatar if helper is available
@@ -212,6 +245,69 @@ document.addEventListener('DOMContentLoaded', function() {
         const progressValue = '{{ progress.progress_percentage|floatformat:1 }}';
         mainProgressBar.style.width = progressValue + '%';
     }
+    // Load client reviews into DataTable
+    const reviewsTable = $('#reviewsTable').DataTable({
+        processing: true,
+        paging: true,
+        pageLength: 10,
+        columns: [
+            { data: 'date' },
+            { data: 'day' },
+            { data: 'type' },
+            { data: 'item' },
+            { data: 'rating', render: function(data, type, row){
+                const val = parseFloat(data) || 0;
+                const max = row.type === 'Workout' ? 5 : 5; // normalized to 5 stars
+                const stars = Math.round(val);
+                return '★'.repeat(stars) + '☆'.repeat(max - stars);
+            }},
+            { data: 'feedback' }
+        ]
+    });
+
+    async function loadReviews(){
+        try {
+            const url = `/plan-management/api/v1/coach-plan-customization/subscription_reviews/?subscription_id={{ subscription.id }}`;
+            const res = await APIBase.request(url, { method: 'GET' });
+            if (!res || (!res.success && !res.day_reviews)) throw new Error(res?.error || 'Failed to load');
+            const payload = res.success ? res : { success: true, ...res };
+            const rows = [];
+            (payload.day_reviews || []).forEach(r => {
+                rows.push({
+                    date: r.scheduled_date,
+                    day: `Day ${r.day_number}`,
+                    type: 'Day',
+                    item: `Day ${r.day_number}`,
+                    rating: r.rating || 0,
+                    feedback: r.feedback || ''
+                });
+            });
+            (payload.workout_reviews || []).forEach(r => {
+                rows.push({
+                    date: '',
+                    day: `Day ${r.day_number}`,
+                    type: 'Workout',
+                    item: `${r.session_name || ''} ${r.workout_name ? '— ' + r.workout_name : ''}`.trim(),
+                    rating: (r.effort_rating ? Math.round((parseInt(r.effort_rating)||0)/2) : 0),
+                    feedback: r.notes || ''
+                });
+            });
+            (payload.meal_reviews || []).forEach(r => {
+                rows.push({
+                    date: '',
+                    day: `Day ${r.day_number}`,
+                    type: 'Meal',
+                    item: `${r.plan_name || ''} ${r.meal_name ? '— ' + r.meal_name : ''}`.trim(),
+                    rating: r.rating || 0,
+                    feedback: r.notes || ''
+                });
+            });
+            reviewsTable.clear().rows.add(rows).draw();
+        } catch(err){
+            console.error('Failed to load reviews', err);
+        }
+    }
+    loadReviews();
 });
 
 function sendMessage() {

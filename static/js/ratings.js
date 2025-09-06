@@ -110,6 +110,8 @@ class RatingsManager {
 
             let endpoint = '';
             let container = '';
+            const urlParams = new URLSearchParams(window.location.search);
+            const planIdFilter = urlParams.get('plan_id');
 
             switch (this.currentTab) {
                 case 'my-ratings':
@@ -121,7 +123,7 @@ class RatingsManager {
                     container = 'pendingRatingsContainer';
                     break;
                 case 'all-ratings':
-                    endpoint = '/plan-management/api/v1/plan-ratings/?public_only=true';
+                    endpoint = '/plan-management/api/v1/plan-ratings/?public_only=true' + (planIdFilter ? `&plan_id=${planIdFilter}` : '');
                     container = 'allRatingsContainer';
                     break;
             }
@@ -364,12 +366,10 @@ class RatingsManager {
             overall_rating: parseInt(formData.get('overall_rating')),
             effectiveness_rating: parseInt(formData.get('effectiveness_rating')) || null,
             communication_rating: parseInt(formData.get('communication_rating')) || null,
-            value_rating: parseInt(formData.get('value_rating')) || null,
-            difficulty_rating: parseInt(formData.get('difficulty_rating')) || null,
-            review_text: formData.get('review_text'),
-            would_recommend: formData.get('would_recommend') === 'true',
-            is_public: formData.get('is_public') === 'on',
-            tags: formData.get('tags')
+            value_for_money_rating: parseInt(formData.get('value_rating')) || null,
+            review_title: '',
+            review_content: formData.get('review_text') || '' ,
+            is_public: formData.get('is_public') === 'on'
         };
 
         // Validate required rating
@@ -379,6 +379,24 @@ class RatingsManager {
         }
 
         try {
+            // Prefer global APIBase if available
+            if (window.APIBase && typeof APIBase.request === 'function') {
+                const res = await APIBase.request('/plan-management/api/v1/plan-ratings/', {
+                    method: 'POST',
+                    body: JSON.stringify(ratingData)
+                });
+                if (res && res.success) {
+                    utils.showToast('Rating submitted successfully!', 'success');
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('ratePlanModal'));
+                    modal.hide();
+                    e.target.reset();
+                    this.selectedPlan = null;
+                    this.loadRatings();
+                    return;
+                } else {
+                    throw new Error(res?.error || 'Failed to submit rating');
+                }
+            }
             const response = await api.post('/plan-management/api/v1/plan-ratings/', ratingData);
             
             if (response.ok) {

@@ -396,6 +396,23 @@ class ClientPlanDetailManager {
                     </div>
                 </div>
 
+                <div class="card mb-3">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-star text-warning me-2"></i>Your Day Review</span>
+                        <small class="text-muted">Help your coach improve your plan</small>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
+                            <div class="me-2 small text-muted">Rating:</div>
+                            ${this.renderStars(5, day.client_rating || 0, 'day', day.id)}
+                        </div>
+                        <textarea id="dayReviewText" class="form-control" rows="2" placeholder="Write your feedback (optional)">${day.client_feedback || ''}</textarea>
+                        <div class="text-end mt-2">
+                            <button class="btn btn-primary save-day-review" data-day-id="${day.id}">Save Review</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="row g-3">
                     <div class="col-12 col-lg-6">
                         <div class="card h-100">
@@ -423,10 +440,21 @@ class ClientPlanDetailManager {
             `;
 
             if (bodyEl) bodyEl.innerHTML = content;
+            this.bindModalEvents();
         } catch (e) {
             console.error('Failed to open day view', e);
             this.showError('Failed to load day details');
         }
+    }
+
+    renderStars(max, current, type, id) {
+        const cur = parseInt(current) || 0;
+        let stars = `<div class="rating-stars" data-type="${type}" data-id="${id}" data-value="${cur}">`;
+        for (let i = 1; i <= max; i++) {
+            stars += `<span class="star ${i <= cur ? 'text-warning' : 'text-muted'}" data-value="${i}" style="cursor:pointer;font-size:1.1rem;">★</span>`;
+        }
+        stars += '</div>';
+        return stars;
     }
 
     buildWorkoutsHtml(workoutPlans) {
@@ -444,6 +472,16 @@ class ClientPlanDetailManager {
                     </div>
                     ${wp.workout_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${wp.workout_video_url}" title="Workout Video" allowfullscreen></iframe></div>` : ''}
                     ${this.buildBlocksHtml(wp.exercise_blocks || [])}
+                    <div class="mt-2 p-2 bg-light rounded">
+                        <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
+                            <div class="small text-muted">Workout rating:</div>
+                            ${this.renderStars(5, wp.client_effort_rating ? Math.round((parseInt(wp.client_effort_rating)||0)/2) : 0, 'workout', wp.id)}
+                        </div>
+                        <textarea id="workoutNotes_${wp.id}" class="form-control" rows="2" placeholder="Notes about this workout (optional)">${wp.client_notes || ''}</textarea>
+                        <div class="text-end mt-2">
+                            <button class="btn btn-sm btn-outline-primary save-workout-review" data-workout-id="${wp.id}">Save Workout Review</button>
+                        </div>
+                    </div>
                 </div>
             `;
         });
@@ -490,6 +528,15 @@ class ClientPlanDetailManager {
                             ${ex.form_instructions ? `<div class="small mt-1">${ex.form_instructions}</div>` : ''}
                             ${ex.demonstration_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${ex.demonstration_video_url}" title="Exercise Video" allowfullscreen></iframe></div>` : ''}
                             ${(ex.secondary_images_urls && ex.secondary_images_urls.length) ? `<div class="mt-2 d-flex flex-wrap gap-2">${ex.secondary_images_urls.map(u => `<img src="${u}" class="rounded" style="width:56px;height:56px;object-fit:cover">`).join('')}</div>` : ''}
+                            <div class="mt-2 p-2 bg-light rounded">
+                                <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
+                                    <div class="small text-muted">Difficulty:</div>
+                                    ${this.renderStars(5, ex.perceived_difficulty ? Math.round((parseInt(ex.perceived_difficulty)||0)/2) : 0, 'exercise', ex.id)}
+                                </div>
+                                <div class="text-end">
+                                    <button class="btn btn-sm btn-outline-primary save-exercise-rating" data-exercise-id="${ex.id}">Save Exercise Rating</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -538,6 +585,16 @@ class ClientPlanDetailManager {
                             ${m.recipe_video_file_url ? `<div class=\"ratio ratio-16x9 mt-2\"><video controls src=\"${m.recipe_video_file_url}\"></video></div>` : (m.recipe_video_url ? `<div class=\"ratio ratio-16x9 mt-2\"><iframe src=\"${m.recipe_video_url}\" title=\"Recipe Video\" allowfullscreen></iframe></div>` : '')}
                             ${this.buildIngredientsHtml(m.ingredients || [])}
                             ${(m.additional_images_urls && m.additional_images_urls.length) ? `<div class=\"mt-2 d-flex flex-wrap gap-2\">${m.additional_images_urls.map(u => `<img src=\"${u}\" class=\"rounded\" style=\"width:72px;height:72px;object-fit:cover\">`).join('')}</div>` : ''}
+                            <div class=\"mt-2 p-2 bg-light rounded\">
+                                <div class=\"d-flex align-items-center flex-wrap gap-3 mb-2\">
+                                    <div class=\"small text-muted\">Meal rating:</div>
+                                    ${this.renderStars(5, m.client_rating || 0, 'meal', m.id)}
+                                </div>
+                                <textarea id=\"mealNotes_${m.id}\" class=\"form-control\" rows=\"2\" placeholder=\"Notes about this meal (optional)\">${m.client_notes || ''}</textarea>
+                                <div class=\"text-end mt-2\">
+                                    <button class=\"btn btn-sm btn-outline-primary save-meal-review\" data-meal-id=\"${m.id}\">Save Meal Review</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -545,6 +602,140 @@ class ClientPlanDetailManager {
         });
         html += '</div>';
         return html;
+    }
+
+    bindModalEvents() {
+        const container = document.getElementById('dayDetailsContent');
+        if (!container) return;
+
+        // Star click handler (delegate)
+        container.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target && target.classList.contains('star') && target.closest('.rating-stars')) {
+                const starsWrap = target.closest('.rating-stars');
+                const value = parseInt(target.getAttribute('data-value')) || 0;
+                starsWrap.setAttribute('data-value', value);
+                // repaint
+                starsWrap.querySelectorAll('.star').forEach((s, idx) => {
+                    if (idx < value) {
+                        s.classList.add('text-warning');
+                        s.classList.remove('text-muted');
+                    } else {
+                        s.classList.add('text-muted');
+                        s.classList.remove('text-warning');
+                    }
+                });
+            }
+        });
+
+        // Save day review
+        container.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.save-day-review');
+            if (!btn) return;
+            const dayId = parseInt(btn.getAttribute('data-day-id'));
+            const stars = container.querySelector('.rating-stars[data-type="day"][data-id="' + dayId + '"]');
+            const rating = parseInt(stars?.getAttribute('data-value')) || 0;
+            const notes = document.getElementById('dayReviewText')?.value || '';
+            try {
+                const res = await APIBase.request(`/plan-management/api/v1/plan-days/${dayId}/`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ client_rating: rating, client_feedback: notes })
+                });
+                if (res && res.success) {
+                    this.showSuccess('Day review saved');
+                    this.planDaysTable?.ajax?.reload(null, false);
+                    this.loadPlanProgress();
+                } else {
+                    throw new Error(res?.error || 'Failed to save');
+                }
+            } catch (err) {
+                console.error(err);
+                this.showError('Failed to save day review');
+            }
+        });
+
+        // Save workout review
+        container.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.save-workout-review');
+            if (!btn) return;
+            const workoutId = parseInt(btn.getAttribute('data-workout-id'));
+            const stars = container.querySelector('.rating-stars[data-type="workout"][data-id="' + workoutId + '"]');
+            const ratingStars = parseInt(stars?.getAttribute('data-value')) || 0;
+            const effort = ratingStars * 2; // map 1..5 -> 2..10
+            const notes = document.getElementById('workoutNotes_' + workoutId)?.value || '';
+            try {
+                const res = await APIBase.request(`/plan-management/api/v1/workout-plans/${workoutId}/rate_workout/`, {
+                    method: 'POST',
+                    body: JSON.stringify({ effort_rating: effort, notes })
+                });
+                if (res && res.success) {
+                    this.showSuccess('Workout review saved');
+                } else {
+                    // Some viewsets return object directly without success flag
+                    if (res && res.id) {
+                        this.showSuccess('Workout review saved');
+                    } else {
+                        throw new Error(res?.error || 'Failed to save');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                this.showError('Failed to save workout review');
+            }
+        });
+
+        // Save meal review
+        container.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.save-meal-review');
+            if (!btn) return;
+            const mealId = parseInt(btn.getAttribute('data-meal-id'));
+            const stars = container.querySelector('.rating-stars[data-type="meal"][data-id="' + mealId + '"]');
+            const rating = parseInt(stars?.getAttribute('data-value')) || 0;
+            const notes = document.getElementById('mealNotes_' + mealId)?.value || '';
+            try {
+                const res = await APIBase.request(`/plan-management/api/v1/meal-plans/${mealId}/rate_meal/`, {
+                    method: 'POST',
+                    body: JSON.stringify({ rating, notes })
+                });
+                if (res && res.success) {
+                    this.showSuccess('Meal review saved');
+                } else {
+                    // Some viewsets may return object directly
+                    if (res && res.id) {
+                        this.showSuccess('Meal review saved');
+                    } else {
+                        throw new Error(res?.error || 'Failed to save');
+                    }
+                }
+            } catch (err) {
+                console.error(err);
+                this.showError('Failed to save meal review');
+            }
+        });
+
+        // Save exercise rating
+        container.addEventListener('click', async (e) => {
+            const btn = e.target.closest('.save-exercise-rating');
+            if (!btn) return;
+            const exId = parseInt(btn.getAttribute('data-exercise-id'));
+            const stars = container.querySelector('.rating-stars[data-type="exercise"][data-id="' + exId + '"]');
+            const starVal = parseInt(stars?.getAttribute('data-value')) || 0;
+            const difficulty = starVal * 2; // map 1..5 -> 2..10
+            try {
+                const res = await APIBase.request(`/plan-management/api/v1/exercises/${exId}/rate_exercise/`, {
+                    method: 'POST',
+                    body: JSON.stringify({ difficulty })
+                });
+                if (res && (res.success || res.id)) {
+                    this.showSuccess('Exercise rating saved');
+                } else {
+                    throw new Error(res?.error || 'Failed to save');
+                }
+            } catch (err) {
+                console.error(err);
+                this.showError('Failed to save exercise rating');
+            }
+        });
     }
 
     buildIngredientsHtml(ings) {
@@ -584,9 +775,11 @@ class ClientPlanDetailManager {
             });
 
             if (response.success && response.data) {
-                this.showSuccess('Day completed successfully!');
+                this.showSuccess('Day completed successfully! Please add your rating.');
                 this.planDaysTable.ajax.reload();
                 this.loadPlanProgress(); // Refresh progress
+                // Prompt for rating by opening the detailed day modal with review section
+                this.viewDay(dayId);
             } else {
                 throw new Error(response.error || 'Failed to complete day');
             }
