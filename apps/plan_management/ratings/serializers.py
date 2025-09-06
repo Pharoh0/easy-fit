@@ -121,6 +121,26 @@ class PlanRatingCreateSerializer(serializers.ModelSerializer):
         
         return data
 
+    def create(self, validated_data):
+        """Create rating and attach client/subscription/coach from context"""
+        request = self.context.get('request')
+        if request and request.user and request.user.is_authenticated:
+            validated_data['client'] = request.user
+
+        # Resolve subscription from context
+        subscription = self.context.get('subscription')
+        if not subscription:
+            subscription_id = self.context.get('subscription_id')
+            if subscription_id:
+                from ..client.models import PlanSubscription
+                subscription = PlanSubscription.objects.get(id=subscription_id)
+
+        if subscription:
+            validated_data['subscription'] = subscription
+            validated_data['coach'] = subscription.product_plan.coach
+
+        return PlanRating.objects.create(**validated_data)
+
 
 class CoachResponseSerializer(serializers.Serializer):
     """Serializer for coach responses to ratings"""

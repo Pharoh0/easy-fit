@@ -226,6 +226,24 @@ class WorkoutPlanViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(workout)
         return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def rate_workout(self, request, pk=None):
+        """Rate a workout session without marking it completed"""
+        workout = self.get_object()
+        effort = request.data.get('effort_rating')
+        notes = request.data.get('notes', '')
+
+        try:
+            if effort is not None:
+                workout.client_effort_rating = int(effort)
+        except (TypeError, ValueError):
+            pass
+        workout.client_notes = notes
+        workout.save()
+
+        serializer = self.get_serializer(workout)
+        return Response(serializer.data)
     
     @action(detail=True, methods=['post'])
     def complete_workout(self, request, pk=None):
@@ -282,6 +300,24 @@ class ExerciseViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(exercise)
         return Response(serializer.data)
     
+    @action(detail=True, methods=['post'])
+    def rate_exercise(self, request, pk=None):
+        """Set perceived difficulty (1-10) for an exercise without completing it"""
+        exercise = self.get_object()
+        difficulty = request.data.get('difficulty')
+        try:
+            if difficulty is None:
+                return Response({'error': 'difficulty is required (1-10)'}, status=status.HTTP_400_BAD_REQUEST)
+            difficulty = int(difficulty)
+            if difficulty < 1 or difficulty > 10:
+                return Response({'error': 'difficulty must be between 1 and 10'}, status=status.HTTP_400_BAD_REQUEST)
+            exercise.perceived_difficulty = difficulty
+            exercise.save()
+            serializer = self.get_serializer(exercise)
+            return Response(serializer.data)
+        except (TypeError, ValueError):
+            return Response({'error': 'difficulty must be an integer 1-10'}, status=status.HTTP_400_BAD_REQUEST)
+
     @action(detail=True, methods=['post'])
     def log_performance(self, request, pk=None):
         """Log exercise performance without marking as completed"""

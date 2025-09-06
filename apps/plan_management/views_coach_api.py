@@ -244,6 +244,8 @@ def get_plan_day_details(request, day_id):
                 'intensity': getattr(workout, 'intensity_level', ''),
                 'image': (workout.workout_image.url if getattr(workout, 'workout_image', None) else None),
                 'video_url': getattr(workout, 'workout_video_url', ''),
+                'client_effort_rating': getattr(workout, 'client_effort_rating', None),
+                'client_notes': getattr(workout, 'client_notes', ''),
                 'exercises': []
             }
             for block in workout.exercise_blocks.all():
@@ -294,6 +296,8 @@ def get_plan_day_details(request, day_id):
                     'additional_images': getattr(meal, 'additional_images', None),
                     'video_url': getattr(meal, 'recipe_video_url', ''),
                     'video': (meal.recipe_video.url if getattr(meal, 'recipe_video', None) else None),
+                    'client_rating': getattr(meal, 'client_rating', None),
+                    'client_notes': getattr(meal, 'client_notes', ''),
                     'items': []
                 }
                 for ingredient in meal.ingredients.all():
@@ -310,6 +314,99 @@ def get_plan_day_details(request, day_id):
         return Response(day_data)
     except PlanDay.DoesNotExist:
         return Response({'error': 'Plan day not found'}, status=404)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_subscription_reviews(request):
+    """Return recent client reviews/ratings for a subscription for the coach."""
+    try:
+        coach_profile = request.user.coach_profile
+    except Exception:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    subscription_id = request.GET.get('subscription_id')
+    if not subscription_id:
+        return Response({'error': 'subscription_id is required'}, status=400)
+
+    try:
+        subscription = PlanSubscription.objects.select_related('product_plan', 'client').get(id=subscription_id)
+    except PlanSubscription.DoesNotExist:
+        return Response({'error': 'Subscription not found'}, status=404)
+
+    if subscription.product_plan.coach != coach_profile:
+        return Response({'error': 'Access denied'}, status=403)
+
+    # Prefetch related to minimize queries
+    plan_days = PlanDay.objects.filter(subscription=subscription).prefetch_related(
+        'workout_plans', 'workout_plans__exercise_blocks__exercises',
+        'nutrition_plans', 'nutrition_plans__meals__ingredients'
+    ).order_by('-scheduled_date')
+
+    # Collect reviews
+    day_reviews = []
+    workout_reviews = []
+    meal_reviews = []
+    exercise_reviews = []
+    for day in plan_days:
+        if day.client_rating or (day.client_feedback and day.client_feedback.strip()):
+            day_reviews.append({
+                'day_id': day.id,
+                'day_number': day.day_number,
+                'scheduled_date': day.scheduled_date,
+                'rating': day.client_rating,
+                'feedback': day.client_feedback or ''
+            })
+        for wp in day.workout_plans.all():
+            if wp.client_effort_rating or (wp.client_notes and wp.client_notes.strip()):
+                workout_reviews.append({
+                    'workout_id': wp.id,
+                    'day_id': day.id,
+                    'day_number': day.day_number,
+                    'session_name': getattr(wp, 'session_name', ''),
+                    'workout_name': getattr(wp, 'workout_name', ''),
+                    'effort_rating': getattr(wp, 'client_effort_rating', None),
+                    'notes': getattr(wp, 'client_notes', '')
+                })
+            # Collect exercise level difficulty if available
+            for block in wp.exercise_blocks.all():
+                for ex in block.exercises.all():
+                    if getattr(ex, 'perceived_difficulty', None):
+                        exercise_reviews.append({
+                            'exercise_id': ex.id,
+                            'day_id': day.id,
+                            'day_number': day.day_number,
+                            'session_name': getattr(wp, 'session_name', ''),
+                            'workout_name': getattr(wp, 'workout_name', ''),
+                            'block_name': getattr(block, 'block_name', ''),
+                            'exercise_name': getattr(ex, 'exercise_name', ''),
+                            'difficulty': getattr(ex, 'perceived_difficulty', None)
+                        })
+        for np in day.nutrition_plans.all():
+            for meal in np.meals.all():
+                if meal.client_rating or (meal.client_notes and meal.client_notes.strip()):
+                    meal_reviews.append({
+                        'meal_id': meal.id,
+                        'day_id': day.id,
+                        'day_number': day.day_number,
+                        'plan_name': getattr(np, 'plan_name', ''),
+                        'meal_name': getattr(meal, 'meal_name', ''),
+                        'rating': getattr(meal, 'client_rating', None),
+                        'notes': getattr(meal, 'client_notes', '')
+                    })
+
+    # Limit to most recent 20 across each
+    day_reviews = day_reviews[:20]
+    workout_reviews = workout_reviews[:20]
+    meal_reviews = meal_reviews[:20]
+
+    return Response({
+        'success': True,
+        'day_reviews': day_reviews,
+        'workout_reviews': workout_reviews,
+        'meal_reviews': meal_reviews,
+        'exercise_reviews': exercise_reviews,
+    })
 
 
 @api_view(['POST'])
