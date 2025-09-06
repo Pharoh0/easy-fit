@@ -31,7 +31,8 @@ class ClientPlanDetailManager {
 
     async loadPlanProgress() {
         try {
-            const response = await APIBase.request(`/plan-management/api/v1/client/plan-progress/${this.subscriptionId}/`, {
+            // Correct client progress URL (not under api/v1 prefix)
+            const response = await APIBase.request(`/plan-management/client/plan-progress/${this.subscriptionId}/`, {
                 method: 'GET'
             });
 
@@ -47,27 +48,27 @@ class ClientPlanDetailManager {
     }
 
     updateProgressDisplay(progressData) {
-        // Update progress circle
-        const progressCircle = document.querySelector('.progress-circle .percentage');
-        const progressBar = document.querySelector('.progress-circle .progress-bar');
-        
-        if (progressCircle && progressData.stats) {
-            progressCircle.textContent = `${progressData.stats.completion_percentage}%`;
-            if (progressBar) {
-                progressBar.style.strokeDasharray = `${progressData.stats.completion_percentage * 2.51}, 251`;
-            }
+        // Update progress circle (matches template markup)
+        const percent = progressData.stats?.completion_percentage || 0;
+        const circle = document.getElementById('progressCircle');
+        const percentText = document.getElementById('progressPercent');
+        if (circle) {
+            const deg = Math.min(360, Math.max(0, percent * 3.6));
+            circle.style.background = `conic-gradient(#28a745 0deg ${deg}deg, #e9ecef ${deg}deg 360deg)`;
+        }
+        if (percentText) {
+            percentText.textContent = `${percent}%`;
         }
 
         // Update stats
-        const statsElements = {
-            'completed-days': progressData.stats?.completed_days || 0,
-            'total-days': progressData.stats?.total_days || 0,
-            'days-remaining': progressData.stats?.days_remaining || 0
-        };
-
-        Object.entries(statsElements).forEach(([id, value]) => {
-            const element = document.getElementById(id);
-            if (element) element.textContent = value;
+        const statsMap = [
+            ['completedDays', progressData.stats?.completed_days || 0],
+            ['totalDays', progressData.stats?.total_days || 0],
+            ['daysRemaining', progressData.stats?.days_remaining || 0],
+        ];
+        statsMap.forEach(([id, value]) => {
+            const el = document.getElementById(id);
+            if (el) el.textContent = value;
         });
 
         // Update plan name
@@ -84,6 +85,7 @@ class ClientPlanDetailManager {
                 this.planDaysTable.destroy();
             }
 
+            const self = this;
             this.planDaysTable = $('#planDaysTable').DataTable({
                 processing: true,
                 serverSide: false,
@@ -108,6 +110,14 @@ class ClientPlanDetailManager {
                     }
                 },
                 columns: [
+                    {
+                        data: null,
+                        className: 'details-control',
+                        orderable: false,
+                        defaultContent: '<i class="fas fa-chevron-right text-muted"></i>',
+                        title: '',
+                        width: '24px'
+                    },
                     { 
                         data: 'day_number',
                         title: 'Day',
@@ -163,12 +173,18 @@ class ClientPlanDetailManager {
                             `;
                         }
                     },
-                    { 
+                    {
                         data: 'client_rating',
                         title: 'Rating',
-                        render: function(data) {
-                            if (!data) return '-';
-                            return '★'.repeat(data) + '☆'.repeat(5 - data);
+                        orderable: false,
+                        render: function(data, type, row) {
+                            const rating = parseInt(data) || 0;
+                            let stars = '<div class="day-rating" data-day-id="' + row.id + '">';
+                            for (let i = 1; i <= 5; i++) {
+                                stars += `<span class="star ${i <= rating ? 'text-warning' : 'text-muted'}" data-rating="${i}" style="cursor:pointer;">★</span>`;
+                            }
+                            stars += '</div>';
+                            return stars;
                         }
                     },
                     { 
@@ -176,32 +192,25 @@ class ClientPlanDetailManager {
                         title: 'Actions',
                         orderable: false,
                         render: function(data, type, row) {
-                            let actions = '';
-                            
-                            if (row.completion_status === 'not_started') {
-                                actions += `<button class="btn btn-sm btn-primary me-1" onclick="clientPlanDetail.startDay(${row.id})">Start</button>`;
-                            }
-                            
-                            if (row.completion_status === 'in_progress') {
-                                actions += `<button class="btn btn-sm btn-success me-1" onclick="clientPlanDetail.completeDay(${row.id})">Complete</button>`;
-                            }
-                            
+                            const viewBtn = `<button class=\"btn btn-sm btn-outline-primary me-1\" onclick=\"clientPlanDetail.viewDay(${row.id})\">View</button>`;
                             if (row.completion_status !== 'completed') {
-                                actions += `<button class="btn btn-sm btn-warning me-1" onclick="clientPlanDetail.skipDay(${row.id})">Skip</button>`;
-                                actions += `<button class="btn btn-sm btn-info" onclick="clientPlanDetail.rescheduleDay(${row.id})">Reschedule</button>`;
+                                return viewBtn + `<button class=\"btn btn-sm btn-success\" onclick=\"clientPlanDetail.completeDay(${row.id})\">Mark Complete</button>`;
                             }
-                            
-                            return actions || '-';
+                            return viewBtn;
                         }
                     }
                 ],
-                order: [[0, 'asc']],
+                order: [[1, 'asc']],
                 pageLength: 10,
                 responsive: true,
                 language: {
                     emptyTable: "No plan days available",
                     loadingRecords: "Loading plan days...",
                     processing: "Loading..."
+                },
+                initComplete: function() {
+                    // Bind events for details toggle and rating
+                    self.bindTableEvents();
                 }
             });
 
@@ -212,10 +221,18 @@ class ClientPlanDetailManager {
     }
 
     setupEventListeners() {
-        // Filter buttons
-        document.getElementById('filterAll')?.addEventListener('click', () => this.filterPlanDays('all'));
-        document.getElementById('filterToday')?.addEventListener('click', () => this.filterPlanDays('today'));
-        document.getElementById('filterUpcoming')?.addEventListener('click', () => this.filterPlanDays('upcoming'));
+        // Quick filter buttons
+        document.getElementById('todayToggle')?.addEventListener('click', () => this.filterPlanDays('today'));
+        document.getElementById('upcomingToggle')?.addEventListener('click', () => this.filterPlanDays('upcoming'));
+        document.getElementById('clearFilters')?.addEventListener('click', () => {
+            const start = document.getElementById('startDate');
+            const end = document.getElementById('endDate');
+            const status = document.getElementById('statusFilter');
+            if (start) start.value = '';
+            if (end) end.value = '';
+            if (status) status.value = 'all';
+            this.filterPlanDays('all');
+        });
 
         // Date range filters
         document.getElementById('applyFilters')?.addEventListener('click', () => this.applyDateFilters());
@@ -252,6 +269,293 @@ class ClientPlanDetailManager {
         if (status && status !== 'all') url += `&status=${status}`;
 
         this.planDaysTable.ajax.url(url).load();
+    }
+
+    bindTableEvents() {
+        const self = this;
+        const tbody = $('#planDaysTable tbody');
+        // Toggle details
+        tbody.off('click', 'td.details-control').on('click', 'td.details-control', function() {
+            const tr = $(this).closest('tr');
+            const row = self.planDaysTable.row(tr);
+            const icon = $(this).find('i.fas');
+            if (row.child.isShown()) {
+                row.child.hide();
+                tr.removeClass('shown');
+                if (icon.length) icon.removeClass('fa-chevron-down').addClass('fa-chevron-right');
+            } else {
+                const data = row.data();
+                row.child(self.formatDayDetails(data)).show();
+                tr.addClass('shown');
+                if (icon.length) icon.removeClass('fa-chevron-right').addClass('fa-chevron-down');
+            }
+        });
+
+        // Rating stars click
+        tbody.off('click', '.day-rating .star').on('click', '.day-rating .star', async function() {
+            const star = $(this);
+            const rating = parseInt(star.data('rating'));
+            const dayId = parseInt(star.closest('.day-rating').data('day-id'));
+            try {
+                const res = await APIBase.request(`/plan-management/api/v1/plan-days/${dayId}/`, {
+                    method: 'PATCH',
+                    body: JSON.stringify({ client_rating: rating })
+                });
+                if (res && res.success) {
+                    // Refresh table row data to reflect updated rating
+                    self.planDaysTable.ajax.reload(null, false);
+                    self.showSuccess('Rating saved');
+                } else {
+                    throw new Error((res && res.error) || 'Failed to save rating');
+                }
+            } catch (e) {
+                console.error('Failed to save rating', e);
+                self.showError('Failed to save rating');
+            }
+        });
+    }
+
+    formatDayDetails(day) {
+        // Build nested HTML with workouts and meals
+        let html = '<div class="row g-3 p-2">';
+        // Workouts
+        html += '<div class="col-12 col-md-6">';
+        html += '<h6 class="mb-2"><i class="fas fa-dumbbell me-1"></i> Workouts</h6>';
+        if (day.workout_plans && day.workout_plans.length) {
+            html += '<ul class="list-group list-group-flush">';
+            day.workout_plans.forEach((wp, idx) => {
+                const blocks = (wp.exercise_blocks || []).length;
+                const exercises = (wp.exercise_blocks || []).reduce((acc, b) => acc + (b.exercises ? b.exercises.length : 0), 0);
+                html += `<li class="list-group-item">
+                    <div class="fw-semibold">${wp.session_name || 'Session ' + (idx+1)} — ${wp.workout_name || ''}</div>
+                    <div class="text-muted small">Type: ${wp.workout_type || '-'} • Duration: ${wp.total_duration_minutes || 0} min • Blocks: ${blocks} • Exercises: ${exercises}</div>
+                </li>`;
+            });
+            html += '</ul>';
+        } else {
+            html += '<div class="text-muted">No workouts planned.</div>';
+        }
+        html += '</div>';
+
+        // Meals
+        html += '<div class="col-12 col-md-6">';
+        html += '<h6 class="mb-2"><i class="fas fa-utensils me-1"></i> Meals</h6>';
+        if (day.nutrition_plans && day.nutrition_plans.length) {
+            html += '<ul class="list-group list-group-flush">';
+            day.nutrition_plans.forEach((np, idx) => {
+                const meals = (np.meals || []).length;
+                html += `<li class="list-group-item">
+                    <div class="fw-semibold">${np.plan_name || 'Plan ' + (idx+1)}</div>`;
+                if (np.meals && np.meals.length) {
+                    html += '<div class="small mt-1">';
+                    np.meals.forEach(m => {
+                        html += `<div class="text-muted">${(m.meal_type || '').toString().replace('_',' ')} — ${m.meal_name || ''} (${m.calories_per_serving || 0} kcal)</div>`;
+                    });
+                    html += '</div>';
+                } else {
+                    html += '<div class="text-muted small">No meals.</div>';
+                }
+                html += '</li>';
+            });
+            html += '</ul>';
+        } else {
+            html += '<div class="text-muted">No meals planned.</div>';
+        }
+        html += '</div>';
+
+        html += '</div>';
+        return html;
+    }
+
+    async viewDay(dayId) {
+        try {
+            // Show loading in modal
+            const modalEl = document.getElementById('dayDetailsModal');
+            const bodyEl = document.getElementById('dayDetailsContent');
+            if (bodyEl) bodyEl.innerHTML = '<div class="text-center py-5"><div class="spinner-border" role="status"></div><div class="mt-2 small text-muted">Loading day details...</div></div>';
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+
+            const res = await APIBase.request(`/plan-management/api/v1/plan-days/${dayId}/`, { method: 'GET' });
+            if (!res || !res.success) throw new Error(res?.error || 'Failed to load day');
+            const day = res.data;
+
+            const content = `
+                <div class="mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <div>
+                            <h5 class="mb-1">Day ${day.day_number}${day.day_title ? ' — ' + day.day_title : ''}</h5>
+                            <div class="text-muted small">
+                                <i class="fas fa-calendar me-1"></i> ${new Date(day.scheduled_date).toLocaleDateString()} · 
+                                <span class="ms-1"><i class="fas fa-chart-line me-1"></i> ${parseFloat(day.completion_percentage || 0).toFixed(1)}%</span>
+                            </div>
+                        </div>
+                        <div>
+                            ${day.completion_status !== 'completed' ? `<button class="btn btn-success" onclick="clientPlanDetail.completeDay(${day.id})">Mark Complete</button>` : '<span class="badge bg-success">Completed</span>'}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <span><i class="fas fa-dumbbell me-2"></i>Workouts</span>
+                                <span class="badge bg-light text-dark">${(day.workout_plans || []).length} session(s)</span>
+                            </div>
+                            <div class="card-body">
+                                ${this.buildWorkoutsHtml(day.workout_plans || [])}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-12 col-lg-6">
+                        <div class="card h-100">
+                            <div class="card-header d-flex align-items-center justify-content-between">
+                                <span><i class="fas fa-utensils me-2"></i>Meals</span>
+                                <span class="badge bg-light text-dark">${(day.nutrition_plans || []).length} plan(s)</span>
+                            </div>
+                            <div class="card-body">
+                                ${this.buildMealsHtml(day.nutrition_plans || [])}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (bodyEl) bodyEl.innerHTML = content;
+        } catch (e) {
+            console.error('Failed to open day view', e);
+            this.showError('Failed to load day details');
+        }
+    }
+
+    buildWorkoutsHtml(workoutPlans) {
+        if (!workoutPlans.length) return '<div class="text-muted">No workouts planned.</div>';
+        let html = '';
+        workoutPlans.forEach((wp, wIdx) => {
+            html += `
+                <div class="mb-3 p-2 border rounded">
+                    <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                        <div>
+                            <div class="fw-semibold">${wp.session_name || 'Session ' + (wIdx+1)} ${wp.workout_name ? '— ' + wp.workout_name : ''}</div>
+                            <div class="text-muted small">Type: ${wp.workout_type || '-'} • Intensity: ${wp.intensity_level || '-'} • Duration: ${wp.total_duration_minutes || 0} min • Target kcal: ${wp.target_calories_burn || 0}</div>
+                        </div>
+                        ${wp.workout_image_url ? `<img src="${wp.workout_image_url}" class="rounded" style="max-height:60px">` : ''}
+                    </div>
+                    ${wp.workout_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${wp.workout_video_url}" title="Workout Video" allowfullscreen></iframe></div>` : ''}
+                    ${this.buildBlocksHtml(wp.exercise_blocks || [])}
+                </div>
+            `;
+        });
+        return html;
+    }
+
+    buildBlocksHtml(blocks) {
+        if (!blocks.length) return '';
+        let html = '<div class="mt-2">';
+        blocks.forEach((b, i) => {
+            const collapseId = `blk_${b.id}`;
+            html += `
+                <div class="card mb-2">
+                    <div class="card-header p-2">
+                        <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">
+                            <i class="fas fa-list me-1"></i>${b.block_name || 'Block ' + (i+1)} <span class="text-muted">(${b.block_type || 'set'})</span>
+                        </button>
+                    </div>
+                    <div id="${collapseId}" class="collapse">
+                        <div class="card-body p-2">
+                            ${this.buildExercisesHtml(b.exercises || [])}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    buildExercisesHtml(exercises) {
+        if (!exercises.length) return '<div class="text-muted small">No exercises.</div>';
+        let html = '<div class="list-group list-group-flush">';
+        exercises.forEach(ex => {
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex gap-3 align-items-start flex-wrap">
+                        ${ex.demonstration_image_url ? `<img src="${ex.demonstration_image_url}" class="rounded" style="width:64px;height:64px;object-fit:cover">` : ''}
+                        <div class="flex-grow-1">
+                            <div class="fw-semibold">${ex.exercise_name}</div>
+                            <div class="text-muted small">
+                                Sets: ${ex.sets_count || '-'} · ${ex.reps_per_set ? `Reps: ${ex.reps_per_set}` : (ex.duration_seconds ? `Duration: ${ex.duration_seconds}s` : '')} · Rest: ${ex.rest_between_sets_seconds || 0}s
+                            </div>
+                            ${ex.form_instructions ? `<div class="small mt-1">${ex.form_instructions}</div>` : ''}
+                            ${ex.demonstration_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${ex.demonstration_video_url}" title="Exercise Video" allowfullscreen></iframe></div>` : ''}
+                            ${(ex.secondary_images_urls && ex.secondary_images_urls.length) ? `<div class="mt-2 d-flex flex-wrap gap-2">${ex.secondary_images_urls.map(u => `<img src="${u}" class="rounded" style="width:56px;height:56px;object-fit:cover">`).join('')}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    buildMealsHtml(nutritionPlans) {
+        if (!nutritionPlans.length) return '<div class="text-muted">No meals planned.</div>';
+        let html = '';
+        nutritionPlans.forEach((np, nIdx) => {
+            html += `
+                <div class="mb-3 p-2 border rounded">
+                    <div class="fw-semibold">${np.plan_name || 'Plan ' + (nIdx+1)}</div>
+                    <div class="text-muted small">Target: ${np.nutritional_summary?.targets?.calories || np.target_calories || 0} kcal · Protein: ${np.nutritional_summary?.targets?.protein || np.target_protein_grams || 0}g · Carbs: ${np.nutritional_summary?.targets?.carbs || np.target_carbs_grams || 0}g · Fats: ${np.nutritional_summary?.targets?.fats || np.target_fats_grams || 0}g</div>
+                    ${this.buildMealsListHtml(np.meals || [])}
+                </div>
+            `;
+        });
+        return html;
+    }
+
+    buildMealsListHtml(meals) {
+        if (!meals.length) return '<div class="text-muted small">No meals.</div>';
+        let html = '<div class="list-group list-group-flush mt-2">';
+        meals.forEach(m => {
+            const collapseId = `meal_${m.id}`;
+            html += `
+                <div class="list-group-item">
+                    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+                        <div class="d-flex gap-3 align-items-start">
+                            ${m.meal_image_url ? `<img src="${m.meal_image_url}" class="rounded" style="width:64px;height:64px;object-fit:cover">` : ''}
+                            <div>
+                                <div class="fw-semibold">${m.meal_name || 'Meal'} <span class="text-muted">(${(m.meal_type || '').toString().replace('_',' ')})</span></div>
+                                <div class="text-muted small">${m.calories_per_serving || 0} kcal · P: ${m.protein_grams || 0}g · C: ${m.carbs_grams || 0}g · F: ${m.fats_grams || 0}g</div>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-link text-decoration-none" type="button" data-bs-toggle="collapse" data-bs-target="#${collapseId}">Details</button>
+                    </div>
+                    <div id="${collapseId}" class="collapse mt-2">
+                        <div class="small">
+                            ${m.meal_description ? `<div class=\"mb-2\"><strong>Description:</strong> ${m.meal_description}</div>` : ''}
+                            ${m.recipe_instructions ? `<div class=\"mb-2\"><strong>Recipe:</strong> ${m.recipe_instructions}</div>` : ''}
+                            ${m.recipe_video_file_url ? `<div class=\"ratio ratio-16x9 mt-2\"><video controls src=\"${m.recipe_video_file_url}\"></video></div>` : (m.recipe_video_url ? `<div class=\"ratio ratio-16x9 mt-2\"><iframe src=\"${m.recipe_video_url}\" title=\"Recipe Video\" allowfullscreen></iframe></div>` : '')}
+                            ${this.buildIngredientsHtml(m.ingredients || [])}
+                            ${(m.additional_images_urls && m.additional_images_urls.length) ? `<div class=\"mt-2 d-flex flex-wrap gap-2\">${m.additional_images_urls.map(u => `<img src=\"${u}\" class=\"rounded\" style=\"width:72px;height:72px;object-fit:cover\">`).join('')}</div>` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        html += '</div>';
+        return html;
+    }
+
+    buildIngredientsHtml(ings) {
+        if (!ings.length) return '';
+        let html = '<div><strong>Ingredients:</strong><ul class="mt-2">';
+        ings.forEach(ing => {
+            const qty = [ing.quantity, ing.unit].filter(Boolean).join(' ');
+            html += `<li>${ing.ingredient_name} ${qty ? '(' + qty + ')' : ''}</li>`;
+        });
+        html += '</ul></div>';
+        return html;
     }
 
     async startDay(dayId) {

@@ -27,6 +27,7 @@ class MealPlanSerializer(serializers.ModelSerializer):
     additional_images_urls = serializers.SerializerMethodField()
     total_prep_time = serializers.SerializerMethodField()
     completion_status = serializers.SerializerMethodField()
+    recipe_video_file_url = serializers.SerializerMethodField()
     
     class Meta:
         model = MealPlan
@@ -36,7 +37,7 @@ class MealPlanSerializer(serializers.ModelSerializer):
             'calories_per_serving', 'protein_grams', 'carbs_grams', 'fats_grams', 'fiber_grams',
             'sugar_grams', 'sodium_mg', 'servings_count', 'serving_size_description', 
             'meal_image', 'meal_image_url', 'additional_images', 'additional_images_urls',
-            'recipe_video', 'recipe_video_url', 'dietary_tags', 'allergens',
+            'recipe_video', 'recipe_video_url', 'recipe_video_file_url', 'dietary_tags', 'allergens',
             'recommended_timing', 'grocery_list', 'meal_prep_tips',
             'is_completed', 'completed_at', 'client_rating', 'client_notes', 'client_photo',
             'alternative_options', 'ingredient_substitutions', 'ingredients', 'total_prep_time',
@@ -70,6 +71,17 @@ class MealPlanSerializer(serializers.ModelSerializer):
         except (TypeError, AttributeError):
             return []
     
+    def get_recipe_video_file_url(self, obj):
+        """Return absolute URL for uploaded recipe_video file (if present)."""
+        if obj.recipe_video:
+            request = self.context.get('request')
+            if request:
+                try:
+                    return request.build_absolute_uri(obj.recipe_video.url)
+                except Exception:
+                    return obj.recipe_video.url
+        return None
+    
     def get_total_prep_time(self, obj):
         """Calculate total preparation time"""
         return obj.preparation_time_minutes + obj.cooking_time_minutes
@@ -92,7 +104,8 @@ class NutritionPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = NutritionPlan
         fields = [
-            'id', 'target_calories', 'target_protein_grams', 'target_carbs_grams',
+            'id', 'plan_name', 'plan_order',
+            'target_calories', 'target_protein_grams', 'target_carbs_grams',
             'target_fats_grams', 'target_fiber_grams', 'target_water_liters',
             'actual_calories', 'actual_protein_grams', 'actual_carbs_grams',
             'actual_fats_grams', 'actual_fiber_grams', 'actual_water_liters',
@@ -229,7 +242,8 @@ class WorkoutPlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = WorkoutPlan
         fields = [
-            'id', 'workout_name', 'workout_type', 'warm_up_duration_minutes',
+            'id', 'session_name', 'session_order',
+            'workout_name', 'workout_type', 'warm_up_duration_minutes',
             'main_workout_duration_minutes', 'cool_down_duration_minutes', 'total_duration_minutes',
             'intensity_level', 'target_calories_burn', 'target_heart_rate_zone',
             'required_equipment', 'location_type', 'workout_video_url',
