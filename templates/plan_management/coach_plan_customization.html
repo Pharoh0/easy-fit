@@ -1,0 +1,401 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Plan Customization - Eazy Fit{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'css/coach/plan_customization.css' %}">
+<style>
+/* Fallback styles in case the CSS file isn't loaded properly */
+.client-avatar {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    object-fit: cover;
+    margin-bottom: 1rem;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.plan-day-item {
+    padding: 0.5rem 1rem;
+    border-left: 3px solid transparent;
+}
+
+.plan-day-item.active {
+    background-color: rgba(13, 110, 253, 0.1);
+    border-left-color: #0d6efd;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="modern-card hero-gradient shadow-sm">
+                <div class="card-body p-4 p-lg-5">
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center">
+                        <div class="mb-3 mb-md-0">
+                            <h1 class="h3 mb-2 text-white fw-bold">Plan Customization</h1>
+                            <p class="text-white-50 mb-0">Customize client plan days with workout and meal templates</p>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'plan_management:coach_dashboard' %}" class="btn btn-light">
+                                <i class="bi bi-arrow-left me-2"></i> Back to Dashboard
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-3">
+            <!-- Client Information -->
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Client Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="client-profile text-center mb-3">
+                        <img src="{{ client_avatar_url|default:'/static/images/default-avatar.svg' }}" alt="Client Avatar" class="rounded-circle client-avatar mb-3" data-fallback="/static/images/default-avatar.svg">
+                        <h5 class="mb-1">{{ client_name|default:"Client Name" }}</h5>
+                        <p class="text-muted small mb-0">Member since: {{ client_joined_date|default:"Unknown" }}</p>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item px-0">
+                            <span class="text-muted">Email:</span>
+                            <span class="float-end">{{ client_email|default:"email@example.com" }}</span>
+                        </div>
+                        <div class="list-group-item px-0">
+                            <span class="text-muted">Subscription Type:</span>
+                            <span class="float-end">{{ subscription_type|default:"Monthly" }}</span>
+                        </div>
+                        <div class="list-group-item px-0">
+                            <span class="text-muted">Status:</span>
+                            <span class="badge {{ subscription_status|default:'bg-success' }}">{{ subscription_status_text|default:"Active" }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plan Navigation -->
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0">Plan Navigation</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush" id="planNavigation">
+                        <!-- Week navigation will be populated dynamically -->
+                        <div class="text-center py-3">
+                            <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                            <span class="ms-2">Loading plan days...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Template Library -->
+            <div class="modern-card mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Template Library</h5>
+                    <button type="button" class="btn btn-sm btn-outline-primary" id="refreshTemplatesBtn">
+                        <i class="bi bi-arrow-clockwise"></i>
+                    </button>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <div class="template-category">
+                            <div class="template-category-header p-3" data-bs-toggle="collapse" data-bs-target="#workoutTemplates">
+                                <h6 class="mb-0 d-flex align-items-center">
+                                    <i class="bi bi-lightning-charge-fill me-2"></i>
+                                    Workout Templates
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </h6>
+                            </div>
+                            <div class="collapse show" id="workoutTemplates">
+                                <div class="template-items p-3 pt-0" id="workoutTemplatesList">
+                                    <div class="template-loading-placeholder">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span class="ms-2">Loading workout templates...</span>
+                                    </div>
+                                </div>
+                                <div class="px-3 pb-2">
+                                    <a href="{% url 'plan_management:coach_workout_templates' %}" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="bi bi-gear me-1"></i> Manage Templates
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="template-category">
+                            <div class="template-category-header p-3" data-bs-toggle="collapse" data-bs-target="#mealTemplates">
+                                <h6 class="mb-0 d-flex align-items-center">
+                                    <i class="bi bi-egg-fried me-2"></i>
+                                    Meal Templates
+                                    <i class="bi bi-chevron-down ms-auto"></i>
+                                </h6>
+                            </div>
+                            <div class="collapse" id="mealTemplates">
+                                <div class="template-items p-3 pt-0" id="mealTemplatesList">
+                                    <div class="template-loading-placeholder">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        <span class="ms-2">Loading meal templates...</span>
+                                    </div>
+                                </div>
+                                <div class="px-3 pb-2">
+                                    <a href="{% url 'plan_management:coach_meal_templates' %}" class="btn btn-sm btn-outline-primary w-100">
+                                        <i class="bi bi-gear me-1"></i> Manage Templates
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-9">
+            <!-- Plan Day Content -->
+            <div class="modern-card mb-4" id="planDayContent">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0" id="planDayTitle">Day 1: Plan Overview</h5>
+                    <div class="btn-group">
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="previousDayBtn">
+                            <i class="bi bi-arrow-left"></i>
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="nextDayBtn">
+                            <i class="bi bi-arrow-right"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="plan-day-loading text-center py-5" id="planDayLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading plan day...</span>
+                        </div>
+                        <p class="mt-2 mb-0">Loading plan day data...</p>
+                    </div>
+                    
+                    <div class="plan-day-content" id="planDayContentArea" style="display: none;">
+                        <!-- Plan Day Overview -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Day Title</label>
+                                    <input type="text" class="form-control" id="dayTitle" placeholder="Enter day title">
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Day Theme</label>
+                                    <input type="text" class="form-control" id="dayTheme" placeholder="E.g., Recovery, High Intensity, etc.">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Difficulty Level</label>
+                                    <select class="form-select" id="difficultyLevel">
+                                        <option value="1">Easy (1)</option>
+                                        <option value="2">Moderate (2)</option>
+                                        <option value="3">Challenging (3)</option>
+                                        <option value="4">Hard (4)</option>
+                                        <option value="5">Very Hard (5)</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Day Type</label>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="dayType" id="typeWorkout" value="workout">
+                                        <label class="form-check-label" for="typeWorkout">Workout</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="dayType" id="typeRest" value="rest">
+                                        <label class="form-check-label" for="typeRest">Rest</label>
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        <input class="form-check-input" type="radio" name="dayType" id="typeBoth" value="both" checked>
+                                        <label class="form-check-label" for="typeBoth">Both</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Coach Instructions -->
+                        <div class="mb-4">
+                            <label class="form-label">Coach Instructions</label>
+                            <textarea class="form-control" id="coachInstructions" rows="2" placeholder="Add instructions for this day"></textarea>
+                        </div>
+                        
+                        <!-- Workout Section -->
+                        <div class="workout-section mb-4">
+                            <div class="section-header d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0"><i class="bi bi-activity me-2"></i>Workout</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="applyWorkoutTemplateBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Apply Template
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="workoutTemplatesDropdown" aria-labelledby="applyWorkoutTemplateBtn">
+                                        <li><span class="dropdown-item-text">Loading templates...</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="workout-container" id="workoutContainer">
+                                <div class="workout-empty-state text-center p-4 border rounded" id="workoutEmptyState">
+                                    <i class="bi bi-clipboard-plus display-4 text-muted"></i>
+                                    <h6 class="mt-3">No Workout Assigned</h6>
+                                    <p class="text-muted mb-3">Drag and drop a workout template or use the Apply Template button</p>
+                                </div>
+                                
+                                <div class="workout-content" id="workoutContent" style="display: none;">
+                                    <div class="workout-header mb-3 p-3 border rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4">
+                                                <h6 class="mb-0" id="workoutName">Upper Body Strength</h6>
+                                                <small class="text-muted" id="workoutType">Strength Training</small>
+                                            </div>
+                                            <div class="col">
+                                                <div class="row g-2">
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Duration</small>
+                                                        <span class="badge bg-light text-dark" id="workoutDuration">45 min</span>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Intensity</small>
+                                                        <span class="badge bg-light text-dark" id="workoutIntensity">Medium</span>
+                                                    </div>
+                                                    <div class="col-auto ms-auto">
+                                                        <button class="btn btn-sm btn-outline-danger" id="removeWorkoutBtn">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="exercise-blocks-container" id="exerciseBlocksContainer">
+                                        <!-- Exercise blocks will be dynamically added here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Meal Section -->
+                        <div class="meal-section mb-4">
+                            <div class="section-header d-flex justify-content-between align-items-center mb-3">
+                                <h5 class="mb-0"><i class="bi bi-egg-fried me-2"></i>Nutrition</h5>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="applyMealTemplateBtn" data-bs-toggle="dropdown" aria-expanded="false">
+                                        Apply Template
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end" id="mealTemplatesDropdown" aria-labelledby="applyMealTemplateBtn">
+                                        <li><span class="dropdown-item-text">Loading templates...</span></li>
+                                    </ul>
+                                </div>
+                            </div>
+                            
+                            <div class="meal-container" id="mealContainer">
+                                <div class="meal-empty-state text-center p-4 border rounded" id="mealEmptyState">
+                                    <i class="bi bi-clipboard-plus display-4 text-muted"></i>
+                                    <h6 class="mt-3">No Meal Plan Assigned</h6>
+                                    <p class="text-muted mb-3">Drag and drop a meal template or use the Apply Template button</p>
+                                </div>
+                                
+                                <div class="meal-content" id="mealContent" style="display: none;">
+                                    <div class="nutrition-summary mb-3 p-3 border rounded">
+                                        <div class="row align-items-center">
+                                            <div class="col-md-4">
+                                                <h6 class="mb-0" id="nutritionPlanName">High Protein Diet</h6>
+                                                <small class="text-muted" id="nutritionPlanType">Weight Management</small>
+                                            </div>
+                                            <div class="col">
+                                                <div class="row g-2">
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Calories</small>
+                                                        <span class="badge bg-light text-dark" id="nutritionCalories">2200 kcal</span>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Protein</small>
+                                                        <span class="badge bg-light text-dark" id="nutritionProtein">180g</span>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Carbs</small>
+                                                        <span class="badge bg-light text-dark" id="nutritionCarbs">220g</span>
+                                                    </div>
+                                                    <div class="col-auto">
+                                                        <small class="d-block text-muted">Fats</small>
+                                                        <span class="badge bg-light text-dark" id="nutritionFats">60g</span>
+                                                    </div>
+                                                    <div class="col-auto ms-auto">
+                                                        <button class="btn btn-sm btn-outline-danger" id="removeNutritionBtn">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="meals-container" id="mealsContainer">
+                                        <!-- Meals will be dynamically added here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Notes Section -->
+                        <div class="notes-section mb-4">
+                            <h5 class="mb-3"><i class="bi bi-journal-text me-2"></i>Day Notes</h5>
+                            <textarea class="form-control" id="dayNotes" rows="3" placeholder="Add notes for this plan day"></textarea>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-outline-secondary" id="resetDayBtn">
+                                <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Changes
+                            </button>
+                            <button type="button" class="btn btn-primary" id="saveDayBtn">
+                                <i class="bi bi-save me-1"></i> Save Day
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Template Preview Modal -->
+<div class="modal fade" id="templatePreviewModal" tabindex="-1" aria-labelledby="templatePreviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="templatePreviewModalLabel">Template Preview</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="templatePreviewContent">
+                <!-- Template preview content will be dynamically populated -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="applyTemplateBtn">Apply to Day</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/api/coach_plan_api.js' %}"></script>
+<script src="{% static 'js/avatar_fallback.js' %}"></script>
+<script src="{% static 'js/coach/plan_customization_data.js' %}"></script>
+<script src="{% static 'js/coach/plan_customization_templates.js' %}"></script>
+<script src="{% static 'js/coach/plan_customization.js' %}"></script>
+{% endblock %}

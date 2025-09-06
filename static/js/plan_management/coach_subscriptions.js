@@ -132,8 +132,10 @@
           const statusHtml = `<span class="${st.class}">${st.text}</span>`;
 
           const id = s.id;
+          const planId = s.product_plan?.id;
+          const clientId = s.client?.id;
           const viewUrl = `/plan-management/coach/client-measurements/?subscription_id=${id}`;
-          const customizeUrl = `/plan-management/coach/plan-customization/?subscription_id=${id}`;
+          const customizeUrl = planId && clientId ? `/plan-management/coach/plan-customization/${planId}/?client_id=${clientId}` : `/plan-management/coach/plan-customization/?subscription_id=${id}`;
 
           const actions = [];
           actions.push(`<a href="${viewUrl}" class="btn btn-sm btn-outline-primary me-1"><i class="fas fa-eye me-1"></i>View</a>`);

@@ -3600,8 +3600,6 @@ function updatePlanStructureNavigation() {
             document.getElementById('plan-basics-tab').click();
         });
     }
-        });
-    }
     
     // Setup Select All checkbox for workout templates
     const selectAllWorkoutTemplates = document.getElementById('selectAllWorkoutTemplates');
@@ -3726,9 +3724,9 @@ function updatePlanStructureNavigation() {
     });
     
     // Setup meal templates navigation buttons
-    const nextToReviewBtn = document.getElementById('nextToReview');
-    if (nextToReviewBtn) {
-        nextToReviewBtn.addEventListener('click', function() {
+    const mealTabNextToReviewBtn = document.getElementById('nextToReview');
+    if (mealTabNextToReviewBtn) {
+        mealTabNextToReviewBtn.addEventListener('click', function() {
             saveMealTemplateSelections()
                 .then(() => {
                     showToast('success', 'Meal templates saved successfully');

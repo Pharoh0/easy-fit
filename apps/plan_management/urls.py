@@ -12,6 +12,7 @@ from .notifications import views as notification_views
 from . import views_coach
 from . import views_coach_templates
 from . import views_client_templates
+from . import views_coach_api
 
 
 app_name = "plan_management"
@@ -67,6 +68,13 @@ urlpatterns = [
     path('api/v1/coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights_api'),
     path('api/v1/coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api_v1'),
     
+    # Coach plan customization API endpoints
+    path('api/v1/coach-plan-customization/<int:subscription_id>/subscription_details/', views_coach_api.get_subscription_details, name='subscription_details_api'),
+    path('api/v1/coach-plan-customization/plan_days/', views_coach_api.get_plan_days, name='plan_days_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/', views_coach_api.get_plan_day_details, name='plan_day_details_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/apply_template/', views_coach_api.apply_template_to_day, name='apply_template_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/notes/', views_coach_api.save_day_notes, name='save_notes_api'),
+    
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),
     
     # Coach measurement access templates
@@ -82,6 +90,7 @@ urlpatterns = [
     path('coach/plan-management/', views_coach_templates.coach_plan_management_view, name='coach_plan_management'),
     path('coach/client-plan/<int:subscription_id>/', views_coach_templates.coach_client_plan_detail_view, name='coach_client_plan_detail'),
     path('coach/plan-customization/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization'),
+    path('coach/plan-customization/<int:plan_id>/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization_with_id'),
     path('coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),
     
     # Template management views

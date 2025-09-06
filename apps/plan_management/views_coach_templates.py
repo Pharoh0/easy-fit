@@ -1,16 +1,16 @@
-from django.shortcuts import render, get_object_or_404, redirect
+from django.shortcuts import render, redirect, get_object_or_404
+from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.http import JsonResponse, HttpResponseForbidden
-from django.views.decorators.http import require_http_methods
+from django.db.models import Count, Sum, Avg, F, Q, Case, When, Value, IntegerField
+from django.db.models.functions import TruncDate
+from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from django.db.models import Count, Q, Avg
-from django.db.models.functions import TruncDate
-from django.utils import timezone
 from datetime import datetime, timedelta, date
 from apps.profiles.coach_profile.models import CoachProfile
+from apps.profiles.utils import get_avatar_url
 from .coach.models import ProductPlan
 from .client.models import PlanSubscription
 from .daily_entries.models import PlanDay
@@ -602,18 +602,96 @@ def coach_plan_management_view(request):
 
 
 @login_required
-def coach_plan_customization_view(request):
+def coach_plan_customization_view(request, plan_id=None):
     """
     Coach plan customization interface
     """
     # Ensure user is a coach
-    coach_profile = getattr(request.user, 'coach_profile', None)
-    if not coach_profile:
-        return redirect('dashboard:dashboard')
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return render(request, 'errors/403.html', {
+            'error_message': 'Access denied. Coach profile required.'
+        })
     
-    return render(request, 'plan_management/coach_plan_customization.html', {
-        'page_title': 'Plan Customization'
-    })
+    # Variables to track
+    client_id = None
+    subscription = None
+    
+    # Handle subscription_id parameter first (for backward compatibility)
+    subscription_id = request.GET.get('subscription_id')
+    if subscription_id:
+        try:
+            subscription = PlanSubscription.objects.get(id=int(subscription_id))
+            if subscription.product_plan.coach == coach_profile:
+                # Override plan_id with the one from subscription
+                plan_id = subscription.product_plan.id
+                client_id = subscription.client.id
+                print(f"Found subscription {subscription_id}, using plan_id={plan_id}, client_id={client_id}")
+            else:
+                return HttpResponseForbidden("You don't have permission to customize this subscription's plan")
+        except (PlanSubscription.DoesNotExist, ValueError):
+            print(f"Subscription not found: {subscription_id}")
+    
+    # Get the plan ID from URL parameter or query parameter if not set from subscription
+    plan_id = plan_id or request.GET.get('plan_id')
+    if not client_id:
+        client_id = request.GET.get('client_id')
+    
+    print(f"Final parameters: plan_id={plan_id}, client_id={client_id}")
+    
+    if not plan_id:
+        print("No plan_id found, redirecting to dashboard")
+        return redirect('plan_management:coach_dashboard')
+    
+    try:
+        # Get the plan with security check
+        plan = get_object_or_404(ProductPlan, id=int(plan_id))
+        
+        # Verify coach has access to this plan
+        if plan.coach != coach_profile:
+            print(f"Access denied: plan {plan_id} doesn't belong to coach {coach_profile.id}")
+            return HttpResponseForbidden("You don't have permission to customize this plan")
+    except (ProductPlan.DoesNotExist, ValueError) as e:
+        print(f"Error finding plan: {e}")
+        return HttpResponse(f"Plan not found: {e}", status=404)
+    
+    # Get client information if client_id is provided
+    client_data = None
+    if client_id:
+        try:
+            client_user = User.objects.get(id=client_id)
+            # Verify coach has access to this client through subscriptions
+            has_access = PlanSubscription.objects.filter(
+                client=client_user,
+                product_plan__coach=coach_profile
+            ).exists()
+            
+            if has_access:
+                client_data = {
+                    'id': client_user.id,
+                    'name': client_user.get_full_name() or client_user.username,
+                    'email': client_user.email,
+                    'joined_date': client_user.date_joined.strftime('%b %Y'),
+                    'avatar_url': get_avatar_url(client_user.client_profile, request) if hasattr(client_user, 'client_profile') else None
+                }
+        except User.DoesNotExist:
+            pass
+    
+    # Prepare context
+    context = {
+        'coach_profile': coach_profile,
+        'page_title': f'Customize Plan: {plan.name}',
+        'plan': plan,
+        'client_data': client_data,
+        'breadcrumbs': [
+            {'name': 'Dashboard', 'url': '/coach/dashboard/'},
+            {'name': 'Plan Management', 'url': '/plan-management/'},
+            {'name': 'Plan Customization', 'url': None}
+        ]
+    }
+    
+    return render(request, 'plan_management/coach_plan_customization.html', context)
 
 
 @login_required
