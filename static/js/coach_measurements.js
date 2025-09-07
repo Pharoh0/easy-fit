@@ -11,6 +11,12 @@ class CoachMeasurementsManager {
         this.currentMeasurements = [];
         this.clients = [];
         this.filteredClients = [];
+        this.subscriptionsTable = null;
+        this.ratingsTable = null;
+        this.dayReviewsTable = null;
+        this.workoutReviewsTable = null;
+        this.mealReviewsTable = null;
+        this.exerciseReviewsTable = null;
         this.init();
     }
     
@@ -41,11 +47,71 @@ class CoachMeasurementsManager {
         // Client selector
         const clientSelector = document.getElementById('clientSelector');
         if (clientSelector) {
-            clientSelector.addEventListener('change', this.onClientSelect.bind(this));
+            // Use arrow to preserve context and avoid calling .bind on undefined
+            clientSelector.addEventListener('change', (e) => this.onClientSelect(e));
         }
         
         // Call the chat button initialization
         this.initChatButtons();
+
+        // Ratings subscription filter
+        const ratingsFilter = document.getElementById('ratingsSubscriptionFilter');
+        if (ratingsFilter) {
+            ratingsFilter.addEventListener('change', () => {
+                const subId = ratingsFilter.value || '';
+                const clientId = this.currentClient && this.currentClient.id;
+                if (clientId) {
+                    this.loadAndRenderRatings(clientId, subId);
+                }
+                this.loadAndRenderDayFeedback(subId);
+            });
+        }
+
+        // Ratings extra filters
+        const ratingsMinStars = document.getElementById('ratingsMinStars');
+        const ratingsVerifiedOnly = document.getElementById('ratingsVerifiedOnly');
+        if (ratingsMinStars) {
+            ratingsMinStars.addEventListener('change', () => {
+                const subId = (ratingsFilter && ratingsFilter.value) || '';
+                const clientId = this.currentClient && this.currentClient.id;
+                if (clientId) this.loadAndRenderRatings(clientId, subId);
+            });
+        }
+        if (ratingsVerifiedOnly) {
+            ratingsVerifiedOnly.addEventListener('change', () => {
+                const subId = (ratingsFilter && ratingsFilter.value) || '';
+                const clientId = this.currentClient && this.currentClient.id;
+                if (clientId) this.loadAndRenderRatings(clientId, subId);
+            });
+        }
+
+        // Per-day feedback filters
+        const perDayFilterIds = ['filterDayFrom','filterDayTo','filterDateFrom','filterDateTo','filterMinStars','filterMinEffort','filterMinDifficulty','filterText'];
+        perDayFilterIds.forEach(id => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.addEventListener('input', () => this.applyPerDayFilters());
+                el.addEventListener('change', () => this.applyPerDayFilters());
+            }
+        });
+        const resetBtn = document.getElementById('filterResetBtn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                perDayFilterIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (!el) return;
+                    if (el.tagName === 'SELECT' || el.tagName === 'INPUT') el.value = '';
+                });
+                this.applyPerDayFilters();
+            });
+        }
+
+        // Progress Photos: simple filter select handler
+        const photoFilter = document.getElementById('photoViewFilter');
+        if (photoFilter) {
+            photoFilter.addEventListener('change', (e) => this.filterProgressPhotos(e.target.value));
+        }
     }
     
     async loadClients() {
@@ -70,174 +136,185 @@ class CoachMeasurementsManager {
         }
     }
     
-    /**
-     * Get a query parameter value from URL
-     */
+    // --- Missing helpers restored ---
     getQueryParam(name) {
         const params = new URLSearchParams(window.location.search);
         return params.get(name);
     }
     
-    /**
-     * Handle deep linking via subscription_id in URL by resolving client_id and auto-loading
-     */
     async handleDeepLinkIfPresent() {
         try {
-            // 1) Direct client deep-linking
+            // Prefer direct client deep link
             const clientIdParam = this.getQueryParam('client_id');
             if (clientIdParam) {
                 const selector = document.getElementById('clientSelector');
                 if (selector) {
-                    // Ensure the selector has this client
+                    // ensure option exists
                     if (!selector.querySelector(`option[value="${clientIdParam}"]`)) {
                         this.populateClientSelector();
                     }
-
-                    const optionEl = selector.querySelector(`option[value="${clientIdParam}"]`);
-                    if (!optionEl) {
-                        // Attempt to append if client exists in loaded list
-                        const clientObj = (this.clients || []).find(c => String(c.id) === String(clientIdParam));
-                        if (clientObj) {
-                            const opt = document.createElement('option');
-                            opt.value = clientObj.id;
-                            opt.textContent = `${clientObj.full_name} (${clientObj.username})`;
-                            opt.dataset.client = JSON.stringify(clientObj);
-                            selector.appendChild(opt);
-                        }
-                    }
-
                     selector.value = String(clientIdParam);
                     await this.onClientSelect({ target: selector });
-                    return; // If client_id is present, we're done
+                    return;
                 }
             }
 
-            // 2) Fallback: deep-link via subscription_id
+            // Fallback: resolve client from subscription_id
             const subId = this.getQueryParam('subscription_id');
-            if (!subId) return; // No deep link
+            if (!subId) return;
 
-            // Fetch subscription details to resolve client_id
-            let subscriptionResp = null;
-            if (window.SubscriptionsAPI && typeof window.SubscriptionsAPI.getSubscription === 'function') {
-                subscriptionResp = await window.SubscriptionsAPI.getSubscription(subId);
-            } else if (this.authManager && typeof this.authManager.apiCall === 'function') {
-                const resp = await this.authManager.apiCall(`/plan-management/api/v1/plan-subscriptions/${subId}/`, { method: 'GET' });
-                if (resp && resp.success) {
-                    subscriptionResp = { success: true, subscription: resp.data };
-                } else {
-                    subscriptionResp = resp;
-                }
+            let subscription = null;
+            const resp = await this.authManager.apiCall(`/plan-management/api/v1/plan-subscriptions/${subId}/`, { method: 'GET' });
+            if (resp && resp.success && resp.data) {
+                subscription = resp.data;
             }
+            const clientId = subscription && (subscription.client_id || (subscription.client && subscription.client.id));
+            if (!clientId) return;
 
-            if (!subscriptionResp || !subscriptionResp.success || !subscriptionResp.subscription) {
-                this.showError('Unable to load subscription for deep link');
-                return;
-            }
-
-            const subscription = subscriptionResp.subscription;
-            const clientId = subscription.client_id;
-            if (!clientId) {
-                this.showError('Subscription missing client information');
-                return;
-            }
-
-            // Find the client in the loaded clients list and select it
             const selector = document.getElementById('clientSelector');
             if (!selector) return;
-
-            // Ensure options are populated; populateClientSelector already ran in loadClients
-            // Verify the option exists; if not, repopulate as a fallback
             if (!selector.querySelector(`option[value="${clientId}"]`)) {
                 this.populateClientSelector();
             }
-
-            const optionEl = selector.querySelector(`option[value="${clientId}"]`);
-            if (!optionEl) {
-                // As a last resort, attempt to append an option if client exists in memory
-                const clientObj = (this.clients || []).find(c => String(c.id) === String(clientId));
-                if (clientObj) {
-                    const opt = document.createElement('option');
-                    opt.value = clientObj.id;
-                    opt.textContent = `${clientObj.full_name} (${clientObj.username})`;
-                    opt.dataset.client = JSON.stringify(clientObj);
-                    selector.appendChild(opt);
-                }
-            }
-
-            // Select and trigger loading
             selector.value = String(clientId);
-            // Trigger the same flow as manual selection
             await this.onClientSelect({ target: selector });
-        } catch (err) {
-            console.error('Deep link handling error:', err);
-            this.showError('Failed to apply deep link');
+        } catch (e) {
+            console.warn('Deep link handling error:', e);
         }
     }
-    
+
     populateClientSelector() {
         const selector = document.getElementById('clientSelector');
-        if (!selector) {
-            console.warn('Client selector element not found in the DOM');
-            return;
-        }
-        
+        if (!selector) return;
         selector.innerHTML = '<option value="">Choose a client...</option>';
-        
-        this.clients.forEach(client => {
-            const option = document.createElement('option');
-            option.value = client.id;
-            option.textContent = `${client.full_name} (${client.username})`;
-            option.dataset.client = JSON.stringify(client);
-            selector.appendChild(option);
+        (this.clients || []).forEach(client => {
+            const opt = document.createElement('option');
+            opt.value = client.id;
+            opt.textContent = `${client.full_name || client.username} (${client.username || ''})`;
+            opt.dataset.client = JSON.stringify(client);
+            selector.appendChild(opt);
         });
     }
-    
+
     async searchClients(query) {
-        if (query.length < 2) {
+        if (!query || query.length < 2) {
             this.populateClientSelector();
             return;
         }
-        
         try {
-            const response = await this.authManager.apiCall(
-                `/plan-management/api/v1/coach-client-access/client_search/?q=${encodeURIComponent(query)}`, {
-                method: 'GET'
-            });
-            
-            if (response.success) {
-                const selector = document.getElementById('clientSelector');
-                if (!selector) {
-                    console.warn('Client selector element not found in the DOM');
-                    return;
-                }
-                
-                selector.innerHTML = '<option value="">Choose a client...</option>';
-                
-                response.data.clients.forEach(client => {
-                    const option = document.createElement('option');
-                    option.value = client.id;
-                    option.textContent = `${client.full_name} (${client.username})`;
-                    option.dataset.client = JSON.stringify(client);
-                    selector.appendChild(option);
-                });
+            const res = await this.authManager.apiCall(`/plan-management/api/v1/coach-client-access/client_search/?q=${encodeURIComponent(query)}`, { method: 'GET' });
+            if (res && res.success && res.data && Array.isArray(res.data.clients)) {
+                this.clients = res.data.clients;
+                this.populateClientSelector();
             }
-        } catch (error) {
-            console.error('Error searching clients:', error);
+        } catch (e) {
+            console.warn('Client search failed', e);
         }
     }
-    
+
     async onClientSelect(event) {
-        const clientId = event.target.value;
+        const clientId = event && event.target ? event.target.value : null;
         if (!clientId) {
             this.hideClientData();
             return;
         }
-        
-        const selectedOption = event.target.selectedOptions[0];
-        const clientData = JSON.parse(selectedOption.dataset.client);
-        
-        this.currentClient = clientData;
+        const selectedOpt = event.target.selectedOptions[0];
+        try {
+            const dataAttr = selectedOpt && selectedOpt.dataset && selectedOpt.dataset.client;
+            this.currentClient = dataAttr ? JSON.parse(dataAttr) : { id: clientId };
+        } catch {
+            this.currentClient = { id: clientId };
+        }
         await this.loadClientData(clientId);
+    }
+
+    updateClientInfo(clientInfo, totalMeasurements) {
+        const details = [
+            { el: document.getElementById('clientName'), val: clientInfo.full_name || clientInfo.username || '-' },
+            { el: document.getElementById('clientEmail'), val: clientInfo.email || '-' }
+        ];
+        details.forEach(x => { if (x.el) x.el.textContent = x.val; });
+
+        const avatarImg = document.getElementById('clientAvatar');
+        if (avatarImg) {
+            if (clientInfo.profile && clientInfo.profile.avatar) {
+                avatarImg.src = clientInfo.profile.avatar;
+            } else if (window.AvatarGenerator) {
+                const displayName = clientInfo.full_name || clientInfo.username || 'User';
+                avatarImg.src = AvatarGenerator.generateAvatar(displayName, { background: '667eea', color: 'fff', size: 64 });
+            } else {
+                avatarImg.src = '/static/images/default-avatar.svg';
+            }
+            avatarImg.onerror = () => { avatarImg.onerror = null; avatarImg.src = '/static/images/default-avatar.svg'; };
+            // Simplify loading performance
+            avatarImg.loading = 'lazy';
+            avatarImg.decoding = 'async';
+        }
+
+        const totalEl = document.getElementById('totalMeasurements');
+        if (totalEl) totalEl.textContent = totalMeasurements || 0;
+        const memberEl = document.getElementById('memberSince');
+        if (memberEl) memberEl.textContent = clientInfo.date_joined ? this.formatDate(clientInfo.date_joined) : '-';
+
+        // Ensure chat button has the selected client info
+        const chatBtn = document.getElementById('chatWithClientBtn');
+        if (chatBtn) {
+            const resolvedId = clientInfo.id || (this.currentClient && this.currentClient.id) || '';
+            chatBtn.dataset.clientId = resolvedId;
+            chatBtn.dataset.clientName = clientInfo.full_name || clientInfo.username || 'Client';
+        }
+
+        // Update customize plan controls and subscriptions badge
+        this.updateActivePlansCount(clientInfo.id);
+        this.updateCustomizePlanButtons(clientInfo.id);
+    }
+
+    async updateCustomizePlanButtons(clientId) {
+        const singleBtn = document.getElementById('customizePlanBtn');
+        const group = document.getElementById('customizePlanGroup');
+        const dropdown = document.getElementById('customizePlanDropdown');
+        if (!singleBtn || !group || !dropdown || !clientId) return;
+        singleBtn.style.display = 'none';
+        group.style.display = 'none';
+        dropdown.innerHTML = '';
+        try {
+            const resp = await this.authManager.apiCall(`/plan-management/api/v1/coach-plan-customization/client_subscriptions/?client_id=${clientId}`, { method: 'GET' });
+            let subs = Array.isArray(resp?.data) ? resp.data : (resp?.data?.results || resp?.data?.subscriptions || []);
+            subs = subs || [];
+            const allowed = new Set(['active','pending']);
+            subs = subs.filter(s => allowed.has(String(s.status || '').toLowerCase()));
+            if (subs.length === 1) {
+                const subId = subs[0].id;
+                singleBtn.href = `/plan-management/coach/plan-customization/?subscription_id=${subId}`;
+                singleBtn.style.display = 'inline-block';
+            } else if (subs.length > 1) {
+                subs.forEach(s => {
+                    const li = document.createElement('li');
+                    const a = document.createElement('a');
+                    a.className = 'dropdown-item';
+                    a.href = `/plan-management/coach/plan-customization/?subscription_id=${s.id}`;
+                    a.textContent = (s.product_plan && s.product_plan.name) ? s.product_plan.name : `Subscription #${s.id}`;
+                    li.appendChild(a);
+                    dropdown.appendChild(li);
+                });
+                group.style.display = 'inline-block';
+            }
+        } catch (e) {
+            console.warn('Failed to update customize plan buttons', e);
+        }
+    }
+
+    async updateActivePlansCount(clientId) {
+        const el = document.getElementById('activePlans');
+        if (!el || !clientId) return;
+        try {
+            const resp = await this.authManager.apiCall(`/plan-management/api/v1/coach-client-access/client_profile/?client_id=${clientId}`, { method: 'GET' });
+            if (resp && resp.success && resp.data && resp.data.subscription_summary) {
+                el.textContent = resp.data.subscription_summary.total_subscriptions || 0;
+            }
+        } catch (e) {
+            console.warn('Failed to fetch active plans count', e);
+        }
     }
     
     async loadClientData(clientId) {
@@ -286,6 +363,10 @@ class CoachMeasurementsManager {
                     if (clientMeasurementsContainer) clientMeasurementsContainer.style.display = 'none';
                     if (noDataMessage) noDataMessage.style.display = 'block';
                 }
+
+                // Load subscriptions and ratings for this client (for this coach)
+                await this.loadClientSubscriptions(clientId);
+                await this.loadAndRenderRatings(clientId);
             } else {
                 this.showError('Failed to load client data');
             }
@@ -297,253 +378,345 @@ class CoachMeasurementsManager {
         }
     }
     
-    displayClientData(data) {
-        const container = document.getElementById('clientMeasurementsContainer');
-        const noDataMessage = document.getElementById('noDataMessage');
-        
-        if (!data.measurements || data.measurements.length === 0) {
-            if (container) container.style.display = 'none';
-            if (noDataMessage) noDataMessage.style.display = 'block';
+    async loadClientSubscriptions(clientId) {
+        const section = document.getElementById('clientSubscriptionsSection');
+        try {
+            const resp = await this.authManager.apiCall(`/plan-management/api/v1/coach-plan-customization/client_subscriptions/?client_id=${clientId}`, { method: 'GET' });
+            if (!resp || !resp.success || !resp.data) {
+                if (section) section.style.display = 'none';
+                return;
+            }
+            let subs = Array.isArray(resp.data) ? resp.data : (resp.data.results || resp.data.subscriptions || []);
+            subs = subs || [];
+            this.setupSubscriptionsTableIfNeeded();
+            const rows = subs.map(s => ({
+                subscribed: this.formatDate(s.subscribed_at),
+                plan: (s.product_plan && s.product_plan.name) ? s.product_plan.name : `Subscription #${s.id}`,
+                status: (s.status || '').toString(),
+                actions: `<a class="btn btn-sm btn-outline-primary" href="/plan-management/coach/plan-customization/?subscription_id=${s.id}"><i class="fas fa-sliders-h me-1"></i>Customize</a>`
+            }));
+            const dt = this.subscriptionsTable;
+            dt.clear();
+            dt.rows.add(rows).draw();
+            if (section) section.style.display = 'block';
+
+            // Populate ratings filter with these subscriptions
+            this.populateRatingsSubscriptionFilter(subs);
+        } catch (e) {
+            console.warn('Failed to load client subscriptions', e);
+            if (section) section.style.display = 'none';
+        }
+    }
+
+    setupSubscriptionsTableIfNeeded() {
+        if (this.subscriptionsTable) return;
+        const el = '#clientSubscriptionsTable';
+        if (!$.fn.DataTable.isDataTable(el)) {
+            this.subscriptionsTable = $(el).DataTable({
+                paging: true,
+                searching: false,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'subscribed' },
+                    { data: 'plan' },
+                    { data: 'status' },
+                    { data: 'actions', orderable: false }
+                ],
+                order: [[0, 'desc']]
+            });
+        } else {
+            this.subscriptionsTable = $(el).DataTable();
+        }
+    }
+
+    populateRatingsSubscriptionFilter(subs) {
+        const filter = document.getElementById('ratingsSubscriptionFilter');
+        if (!filter) return;
+        const current = filter.value;
+        filter.innerHTML = '<option value="">All subscriptions</option>';
+        subs.forEach(s => {
+            const opt = document.createElement('option');
+            opt.value = s.id;
+            opt.textContent = (s.product_plan && s.product_plan.name) ? s.product_plan.name : `Subscription #${s.id}`;
+            filter.appendChild(opt);
+        });
+        // Restore previous selection if still present
+        if (current && [...filter.options].some(o => String(o.value) === String(current))) {
+            filter.value = current;
+        }
+        // If only one subscription, auto-select it and trigger loads
+        if (!current && subs.length === 1) {
+            filter.value = String(subs[0].id);
+            const selectedId = filter.value;
+            const clientId = this.currentClient && this.currentClient.id;
+            if (clientId) {
+                this.loadAndRenderRatings(clientId, selectedId);
+            }
+            this.loadAndRenderDayFeedback(selectedId);
+        }
+    }
+
+    async loadAndRenderRatings(clientId, subscriptionId = '') {
+        const section = document.getElementById('clientRatingsSection');
+        try {
+            let url = `/plan-management/api/v1/plan-ratings/?client_id=${clientId}&full=true`;
+            if (subscriptionId) url += `&subscription_id=${subscriptionId}`;
+            // Ratings filters
+            const minStarsEl = document.getElementById('ratingsMinStars');
+            const verifiedEl = document.getElementById('ratingsVerifiedOnly');
+            const minStars = minStarsEl && minStarsEl.value ? parseInt(minStarsEl.value, 10) : null;
+            const verifiedOnly = !!(verifiedEl && verifiedEl.checked);
+            if (minStars && minStars >= 1) url += `&min_rating=${minStars}`;
+            if (verifiedOnly) url += `&verified_only=true`;
+            const resp = await this.authManager.apiCall(url, { method: 'GET' });
+            if (!resp || !resp.success) {
+                if (section) section.style.display = 'none';
+                return;
+            }
+            const data = resp.data;
+            const items = Array.isArray(data) ? data : (data.results || data.ratings || []);
+            this.setupRatingsTableIfNeeded();
+            const rows = (items || []).map(r => ({
+                date: this.formatDate(r.created_at),
+                plan: r.plan_name || '-',
+                rating: r.overall_rating,
+                title: r.review_title || '',
+                review: (r.review_content || '').toString().substring(0, 240),
+                is_public: r.is_public ? 'Yes' : 'No'
+            }));
+            const dt = this.ratingsTable;
+            dt.clear();
+            dt.rows.add(rows).draw();
+            if (section) section.style.display = 'block';
+        } catch (e) {
+            console.warn('Failed to load client ratings', e);
+            if (section) section.style.display = 'none';
+        }
+    }
+
+    setupRatingsTableIfNeeded() {
+        if (this.ratingsTable) return;
+        const el = '#clientRatingsTable';
+        if (!$.fn.DataTable.isDataTable(el)) {
+            this.ratingsTable = $(el).DataTable({
+                paging: true,
+                searching: false,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'date' },
+                    { data: 'plan' },
+                    { data: 'rating', render: v => this.renderStars(v) },
+                    { data: 'title' },
+                    { data: 'review' },
+                    { data: 'is_public' }
+                ],
+                order: [[0, 'desc']]
+            });
+        } else {
+            this.ratingsTable = $(el).DataTable();
+        }
+    }
+
+    // Initialize Per-Day Feedback DataTables if needed
+    setupDayFeedbackTablesIfNeeded() {
+        // Day Reviews
+        if (!this.dayReviewsTable && $('#dayReviewsTable').length) {
+            this.dayReviewsTable = $('#dayReviewsTable').DataTable({
+                paging: true,
+                searching: true,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'day_number' },
+                    { data: 'scheduled_date' },
+                    { data: 'rating', render: v => this.renderStars(v) },
+                    { data: 'feedback' }
+                ],
+                order: [[0, 'asc']]
+            });
+        }
+        // Workout Reviews
+        if (!this.workoutReviewsTable && $('#workoutReviewsTable').length) {
+            this.workoutReviewsTable = $('#workoutReviewsTable').DataTable({
+                paging: true,
+                searching: true,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'day_number' },
+                    { data: 'session_name' },
+                    { data: 'workout_name' },
+                    { data: 'effort_rating' },
+                    { data: 'notes' }
+                ],
+                order: [[0, 'asc']]
+            });
+        }
+        // Meal Reviews
+        if (!this.mealReviewsTable && $('#mealReviewsTable').length) {
+            this.mealReviewsTable = $('#mealReviewsTable').DataTable({
+                paging: true,
+                searching: true,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'day_number' },
+                    { data: 'plan_name' },
+                    { data: 'meal_name' },
+                    { data: 'rating', render: v => this.renderStars(v) },
+                    { data: 'notes' }
+                ],
+                order: [[0, 'asc']]
+            });
+        }
+        // Exercise Difficulty
+        if (!this.exerciseReviewsTable && $('#exerciseReviewsTable').length) {
+            this.exerciseReviewsTable = $('#exerciseReviewsTable').DataTable({
+                paging: true,
+                searching: true,
+                info: false,
+                lengthChange: false,
+                pageLength: 5,
+                data: [],
+                columns: [
+                    { data: 'day_number' },
+                    { data: 'session_name' },
+                    { data: 'workout_name' },
+                    { data: 'block_name' },
+                    { data: 'exercise_name' },
+                    { data: 'difficulty' }
+                ],
+                order: [[0, 'asc']]
+            });
+        }
+    }
+
+    // Load and render Per-Day feedback for a subscription
+    async loadAndRenderDayFeedback(subscriptionId = '') {
+        const section = document.getElementById('perDayFeedbackSection');
+        if (!subscriptionId) {
+            if (section) section.style.display = 'none';
             return;
         }
-        
-        if (container) container.style.display = 'block';
-        if (noDataMessage) noDataMessage.style.display = 'none';
-        
-        // Update client info
-        this.updateClientInfo(data.client_info, data.total_measurements);
-        
-        // Update measurements display
-        this.updateLatestMeasurements(data.measurements[0]);
-        
-        // Update progress summary
-        this.updateProgressSummary(data.analytics);
-        
-        // Update health information
-        this.updateHealthInfo(data.client_info.profile);
-        
-        // Update measurement timeline
-        this.updateMeasurementTimeline(data.measurements);
-        
-        // Update progress photos
-        this.updateProgressPhotos(data.measurements[0]);
-        
-        // Create measurement chart
-        this.createMeasurementChart(data.measurements);
-    }
-    
-    updateClientInfo(clientInfo, totalMeasurements) {
-        const detailsElements = [
-            // Client details elements with animation delays
-            { el: document.getElementById('clientName'), value: clientInfo.full_name || '-', delay: 0 },
-            { el: document.getElementById('clientEmail'), value: clientInfo.email || '-', delay: 0.1 },
-            { el: document.getElementById('clientAge'), value: (clientInfo.age != null ? clientInfo.age : '-') , delay: 0.2 },
-            { el: document.getElementById('clientGender'), value: clientInfo.gender || '-', delay: 0.3 },
-            { el: document.getElementById('clientActivityLevel'), value: clientInfo.activity_level || '-', delay: 0.4 }
-        ];
-        
-        detailsElements.forEach(item => {
-            if (item.el) {
-                item.el.textContent = item.value;
-                item.el.classList.add('animate-slide-up');
-                item.el.style.animationDelay = `${item.delay}s`;
-            }
-        });
-        
-        // Normalize profile object from clientInfo
-        const profile = (clientInfo && clientInfo.profile) ? clientInfo.profile : {};
-        
-        // Avatar with animation
-        const avatarImg = document.getElementById('clientAvatar');
-        if (avatarImg) {
-            // Set avatar source
-            if (profile.avatar) {
-                avatarImg.src = profile.avatar;
-            } else {
-                // Use local AvatarGenerator if available, else fallback to default avatar
-                const displayName = clientInfo.full_name || clientInfo.username || 'User';
-                if (window.AvatarGenerator) {
-                    avatarImg.src = AvatarGenerator.generateAvatar(displayName, { background: '667eea', color: 'fff', size: 64 });
-                } else {
-                    avatarImg.src = '/static/images/default-avatar.svg';
-                }
-            }
-            
-            // Add animation
-            avatarImg.classList.add('animate-fade-in');
-            avatarImg.style.animationDelay = '0.1s';
-            
-            // Add pulse effect on hover
-            avatarImg.classList.add('hover-pulse');
-        }
-        
-        // Update stats with animations
-        const statsElements = [
-            { 
-                el: document.getElementById('totalMeasurements'),
-                value: totalMeasurements || 0,
-                delay: 0.3
-            },
-            { 
-                el: document.getElementById('memberSince'),
-                value: (clientInfo.date_joined || profile.date_joined) ? this.formatDate(clientInfo.date_joined || profile.date_joined) : '-',
-                delay: 0.4
-            },
-            { 
-                el: document.getElementById('completionRateValue'),
-                value: `${clientInfo.completion_rate || 0}%`,
-                delay: 0.5
-            },
-            { 
-                el: document.getElementById('activePlans'),
-                value: '...',  // Will be updated asynchronously
-                delay: 0.6
-            }
-        ];
-        
-        statsElements.forEach(item => {
-            if (item.el) {
-                item.el.textContent = item.value;
-                item.el.classList.add('animate-count-up');
-                item.el.style.animationDelay = `${item.delay}s`;
-            }
-        });
-        
-        // Update active plans count asynchronously
-        this.updateActivePlansCount(clientInfo.id);
-        
-        // Update Customize Plan actions (button/dropdown) based on active subscriptions
-        this.updateCustomizePlanButtons(clientInfo.id);
-        
-        // Show chat with client button with animation
-        document.querySelectorAll('[id="chatWithClientBtn"]').forEach((btn, index) => {
-            btn.dataset.clientId = clientInfo.id;
-            btn.style.display = 'inline-block';
-            btn.classList.add('animate-fade-in');
-            btn.style.animationDelay = `${0.5 + (index * 0.1)}s`;
-        });
-        
-        // Add badges for client status if available
-        this.updateClientStatusBadges(clientInfo, profile);
-    }
-    
-    /**
-     * Add status badges to client info based on profile data
-     * @param {Object} clientInfo - Client information
-     * @param {Object} profile - Client profile
-     */
-    updateClientStatusBadges(clientInfo, profile) {
-        const badgesContainer = document.getElementById('clientStatusBadges');
-        if (!badgesContainer) return;
-        
-        badgesContainer.innerHTML = '';
-        let badgeDelay = 0.2;
-        
-        // Define possible badges
-        const badges = [
-            {
-                condition: clientInfo.is_active,
-                text: 'Active',
-                class: 'badge-success'
-            },
-            {
-                condition: profile.premium_member,
-                text: 'Premium',
-                class: 'badge-premium'
-            },
-            {
-                condition: clientInfo.subscription_count > 3,
-                text: 'Loyal',
-                class: 'badge-info'
-            },
-            {
-                condition: clientInfo.completion_rate >= 80,
-                text: 'High Adherence',
-                class: 'badge-primary'
-            },
-            {
-                condition: clientInfo.has_recent_measurement,
-                text: 'Recent Update',
-                class: 'badge-warning'
-            }
-        ];
-        
-        // Add badges that match conditions
-        badges.forEach(badge => {
-            if (badge.condition) {
-                const badgeEl = document.createElement('span');
-                badgeEl.className = `client-badge ${badge.class} animate-fade-in`;
-                badgeEl.style.animationDelay = `${badgeDelay}s`;
-                badgeEl.textContent = badge.text;
-                badgesContainer.appendChild(badgeEl);
-                badgeDelay += 0.1;
-            }
-        });
-    }
-
-    /**
-     * Toggle and populate the Customize Plan button/dropdown based on active or pending subscriptions
-     */
-    async updateCustomizePlanButtons(clientId) {
-        const singleBtn = document.getElementById('customizePlanBtn');
-        const group = document.getElementById('customizePlanGroup');
-        const dropdown = document.getElementById('customizePlanDropdown');
-        if (!singleBtn || !group || !dropdown || !clientId) return;
-
-        // Reset UI
-        singleBtn.style.display = 'none';
-        group.style.display = 'none';
-        dropdown.innerHTML = '';
-
         try {
-            // Use coach-specific endpoint filtered by client; include both active and pending
-            const resp = await this.authManager.apiCall(`/plan-management/api/v1/coach-plan-customization/client_subscriptions/?client_id=${clientId}`, { method: 'GET' });
-            if (!resp || !resp.success || !resp.data) return;
-
-            const data = resp.data;
-            let subs = Array.isArray(data) ? data : (data.results || data.subscriptions || []);
-            // Allow customizing for active or pending subscriptions
-            const allowedStatuses = new Set(['active', 'pending']);
-            subs = subs.filter(s => allowedStatuses.has((s.status || '').toLowerCase()));
-
-            if (subs.length === 1) {
-                const s = subs[0];
-                const subId = s.id;
-                const url = `/plan-management/coach/plan-customization/?subscription_id=${subId}`;
-                singleBtn.href = url;
-                singleBtn.style.display = 'inline-block';
-            } else if (subs.length > 1) {
-                subs.forEach(s => {
-                    const subId = s.id;
-                    const name = (s.product_plan && s.product_plan.name) ? s.product_plan.name : `Subscription #${subId}`;
-                    const li = document.createElement('li');
-                    const a = document.createElement('a');
-                    a.className = 'dropdown-item';
-                    a.href = `/plan-management/coach/plan-customization/?subscription_id=${subId}`;
-                    a.textContent = name;
-                    li.appendChild(a);
-                    dropdown.appendChild(li);
-                });
-                group.style.display = 'inline-block';
+            const url = `/plan-management/api/v1/coach-plan-customization/subscription_reviews/?subscription_id=${encodeURIComponent(subscriptionId)}`;
+            const resp = await this.authManager.apiCall(url, { method: 'GET' });
+            if (!resp || !resp.success || !resp.data) {
+                if (section) section.style.display = 'none';
+                return;
             }
+            this.setupDayFeedbackTablesIfNeeded();
+            const { day_reviews = [], workout_reviews = [], meal_reviews = [], exercise_reviews = [] } = resp.data;
+            // store originals for client-side filtering
+            this.dayReviewsData = day_reviews;
+            this.workoutReviewsData = workout_reviews;
+            this.mealReviewsData = meal_reviews;
+            this.exerciseReviewsData = exercise_reviews;
+            // initial draw (unfiltered); then apply any current filters
+            if (this.dayReviewsTable) { this.dayReviewsTable.clear(); this.dayReviewsTable.rows.add(day_reviews).draw(); }
+            if (this.workoutReviewsTable) { this.workoutReviewsTable.clear(); this.workoutReviewsTable.rows.add(workout_reviews).draw(); }
+            if (this.mealReviewsTable) { this.mealReviewsTable.clear(); this.mealReviewsTable.rows.add(meal_reviews).draw(); }
+            if (this.exerciseReviewsTable) { this.exerciseReviewsTable.clear(); this.exerciseReviewsTable.rows.add(exercise_reviews).draw(); }
+            if (section) section.style.display = 'block';
+            // Apply UI filters if any set
+            this.applyPerDayFilters();
         } catch (e) {
-            console.warn('Failed to update Customize Plan actions', e);
+            console.warn('Failed to load per-day feedback', e);
+            if (section) section.style.display = 'none';
         }
     }
 
-    // Fetch and update active plans count for the client (if element present)
-    async updateActivePlansCount(clientId) {
-        const activePlansEl = document.getElementById('activePlans');
-        if (!activePlansEl || !clientId) return;
-        try {
-            const resp = await this.authManager.apiCall(`/plan-management/api/v1/coach-client-access/client_profile/?client_id=${clientId}`, { method: 'GET' });
-            if (resp && resp.success && resp.data && resp.data.subscription_summary) {
-                // Show total subscriptions to match the "Subscriptions" label
-                const count = resp.data.subscription_summary.total_subscriptions || 0;
-                activePlansEl.textContent = count;
-            }
-        } catch (e) {
-            console.warn('Failed to fetch active plans count', e);
+    // Apply UI filters to per-day feedback tables
+    applyPerDayFilters() {
+        const getVal = (id) => {
+            const el = document.getElementById(id);
+            return el ? el.value : '';
+        };
+        const dayFrom = parseInt(getVal('filterDayFrom'), 10) || null;
+        const dayTo = parseInt(getVal('filterDayTo'), 10) || null;
+        const dateFrom = getVal('filterDateFrom') || null;
+        const dateTo = getVal('filterDateTo') || null;
+        const minStars = parseInt(getVal('filterMinStars'), 10) || null;
+        const minEffort = parseInt(getVal('filterMinEffort'), 10) || null;
+        const minDifficulty = parseInt(getVal('filterMinDifficulty'), 10) || null;
+        const text = (getVal('filterText') || '').toLowerCase();
+
+        // Helpers
+        const inRange = (val, minVal, maxVal) => {
+            if (minVal && val < minVal) return false;
+            if (maxVal && val > maxVal) return false;
+            return true;
+        };
+        const dateInRange = (dateStr) => {
+            if (!dateStr) return true;
+            if (dateFrom && dateStr < dateFrom) return false;
+            if (dateTo && dateStr > dateTo) return false;
+            return true;
+        };
+        const includesText = (fields) => {
+            if (!text) return true;
+            return fields.some(f => (f || '').toString().toLowerCase().includes(text));
+        };
+
+        // Day reviews
+        if (this.dayReviewsTable && Array.isArray(this.dayReviewsData)) {
+            const filtered = this.dayReviewsData.filter(r => {
+                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
+                if (!dateInRange((r.scheduled_date || '').toString())) return false;
+                if (minStars && (!r.rating || r.rating < minStars)) return false;
+                if (!includesText([r.feedback, r.scheduled_date])) return false;
+                return true;
+            });
+            this.dayReviewsTable.clear();
+            this.dayReviewsTable.rows.add(filtered).draw();
+        }
+
+        // Workout reviews
+        if (this.workoutReviewsTable && Array.isArray(this.workoutReviewsData)) {
+            const filtered = this.workoutReviewsData.filter(r => {
+                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
+                if (minEffort && (!r.effort_rating || parseInt(r.effort_rating, 10) < minEffort)) return false;
+                if (!includesText([r.session_name, r.workout_name, r.notes])) return false;
+                return true;
+            });
+            this.workoutReviewsTable.clear();
+            this.workoutReviewsTable.rows.add(filtered).draw();
+        }
+
+        // Meal reviews
+        if (this.mealReviewsTable && Array.isArray(this.mealReviewsData)) {
+            const filtered = this.mealReviewsData.filter(r => {
+                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
+                if (minStars && (!r.rating || r.rating < minStars)) return false;
+                if (!includesText([r.plan_name, r.meal_name, r.notes])) return false;
+                return true;
+            });
+            this.mealReviewsTable.clear();
+            this.mealReviewsTable.rows.add(filtered).draw();
+        }
+
+        // Exercise reviews
+        if (this.exerciseReviewsTable && Array.isArray(this.exerciseReviewsData)) {
+            const filtered = this.exerciseReviewsData.filter(r => {
+                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
+                if (minDifficulty && (!r.difficulty || parseInt(r.difficulty, 10) < minDifficulty)) return false;
+                if (!includesText([r.session_name, r.workout_name, r.block_name, r.exercise_name])) return false;
+                return true;
+            });
+            this.exerciseReviewsTable.clear();
+            this.exerciseReviewsTable.rows.add(filtered).draw();
         }
     }
     
@@ -895,6 +1068,7 @@ formatHealthInfoContent(content, type) {
 
 updateProgressPhotos(measurement) {
         const container = document.getElementById('measurementPhotos');
+        if (!container) return;
         container.innerHTML = '';
 
         if (!measurement) {
@@ -906,34 +1080,14 @@ updateProgressPhotos(measurement) {
             `;
             return;
         }
-        
-        // Add filter dropdown to header
-        const filterContainer = document.querySelector('.measurement-photos-header .header-actions');
-        if (filterContainer && !document.getElementById('photoFilterSelect')) {
-            const filterSelect = document.createElement('select');
-            filterSelect.id = 'photoFilterSelect';
-            filterSelect.className = 'form-select form-select-sm';
-            filterSelect.innerHTML = `
-                <option value="all">All Photos</option>
-                <option value="front">Front View</option>
-                <option value="side">Side View</option>
-                <option value="back">Back View</option>
-            `;
-            filterSelect.addEventListener('change', (e) => {
-                this.filterProgressPhotos(e.target.value);
-            });
-            filterContainer.appendChild(filterSelect);
-        }
-        
+
         const photos = [
-            { label: 'Front', photo: measurement.front_photo, icon: 'user', delay: 0, type: 'front' },
-            { label: 'Side', photo: measurement.side_photo, icon: 'user-friends', delay: 0.1, type: 'side' },
-            { label: 'Back', photo: measurement.back_photo, icon: 'user-shield', delay: 0.2, type: 'back' }
+            { label: 'Front', photo: measurement.front_photo, type: 'front' },
+            { label: 'Side', photo: measurement.side_photo, type: 'side' },
+            { label: 'Back', photo: measurement.back_photo, type: 'back' }
         ];
-        
-        // Check if any photos exist
+
         const hasPhotos = photos.some(p => p.photo);
-        
         if (!hasPhotos) {
             container.innerHTML = `
                 <div class="empty-state">
@@ -944,83 +1098,37 @@ updateProgressPhotos(measurement) {
             `;
             return;
         }
-        
-        // Create photo grid container
+
+        // Simple grid
         const photoGrid = document.createElement('div');
         photoGrid.className = 'measurement-photos';
         container.appendChild(photoGrid);
-        
-        // Store all photos data for lightbox
-        this.allPhotos = [];
-        
-        // Process all measurements to build a complete photo gallery
-        this.currentMeasurements.forEach((m, measurementIndex) => {
-            if (!m) return;
-            
-            const photoTypes = [
-                { type: 'front', photo: m.front_photo, label: 'Front View', icon: 'user' },
-                { type: 'side', photo: m.side_photo, label: 'Side View', icon: 'user-friends' },
-                { type: 'back', photo: m.back_photo, label: 'Back View', icon: 'user-shield' }
-            ];
-            
-            photoTypes.forEach(p => {
-                if (p.photo) {
-                    this.allPhotos.push({
-                        src: p.photo,
-                        type: p.label,
-                        date: m.date,
-                        weight: m.weight,
-                        measurementId: m.id,
-                        photoType: p.type
-                    });
-                }
-            });
-        });
-        
-        // Display only the latest measurement photos in the grid
-        photos.forEach((p, photoIndex) => {
-            const photoContainer = document.createElement('div');
-            photoContainer.className = `photo-container animate-on-scroll ${p.type}-view`;
-            photoContainer.style.animationDelay = `${p.delay}s`;
-            
+
+        photos.forEach((p) => {
+            const card = document.createElement('div');
+            card.className = `photo-container ${p.type}-view`;
             if (p.photo) {
-                photoContainer.innerHTML = `
+                card.innerHTML = `
                     <div class="photo-card">
                         <div class="photo-wrapper">
                             <img src="${p.photo}" alt="${p.label} Photo">
-                            <div class="photo-overlay">
-                                <div class="photo-date-tag">${this.formatDate(measurement.date, 'short')}</div>
-                                <div class="photo-type-tag">${p.label}</div>
-                                <button class="btn btn-sm btn-light rounded-circle zoom-btn">
-                                    <i class="fas fa-search-plus"></i>
-                                </button>
-                            </div>
                         </div>
+                        <div class="small text-muted mt-1">${p.label} • ${this.formatDate(measurement.date, 'short')}</div>
                     </div>
                 `;
-                
-                // Add click event to open lightbox
-                const img = photoContainer.querySelector('img');
-                const zoomBtn = photoContainer.querySelector('.zoom-btn');
-                
-                const openPhotoLightbox = (e) => {
-                    e.preventDefault();
-                    // Find the index of this photo in the allPhotos array
-                    const photoData = this.allPhotos.find(photo => 
-                        photo.src === p.photo && 
-                        photo.measurementId === measurement.id
-                    );
-                    const photoIndex = this.allPhotos.indexOf(photoData);
-                    
-                    if (window.progressPhotosLightbox) {
-                        window.progressPhotosLightbox.openLightbox(this.allPhotos, photoIndex);
-                    }
-                };
-                
-                img.addEventListener('click', openPhotoLightbox);
-                zoomBtn.addEventListener('click', openPhotoLightbox);
+                const img = card.querySelector('img');
+                if (img) {
+                    img.loading = 'lazy';
+                    img.decoding = 'async';
+                    img.style.objectFit = 'cover';
+                    img.style.width = '100%';
+                    img.style.maxHeight = '220px';
+                    img.onerror = () => { img.onerror = null; img.src = '/static/images/empty-state.svg'; };
+                    // Simple modal view, not a lightbox gallery
+                    img.addEventListener('click', () => this.viewPhotoModal(p.photo, `${p.label} — ${this.formatDate(measurement.date)}`));
+                }
             } else {
-                photoContainer.innerHTML = `
+                card.innerHTML = `
                     <div class="photo-card empty-photo">
                         <div class="photo-placeholder">
                             <i class="fas fa-camera fa-2x mb-2"></i>
@@ -1030,38 +1138,8 @@ updateProgressPhotos(measurement) {
                     </div>
                 `;
             }
-            
-            photoGrid.appendChild(photoContainer);
+            photoGrid.appendChild(card);
         });
-        
-        // Add view all button if we have more than the latest measurement
-        if (this.currentMeasurements.length > 1 && this.allPhotos.length > 3) {
-            const viewAllBtn = document.createElement('button');
-            viewAllBtn.className = 'btn btn-outline-primary btn-sm mt-3 d-block mx-auto view-all-photos-btn';
-            viewAllBtn.innerHTML = '<i class="fas fa-images me-1"></i> View All Photos';
-            viewAllBtn.addEventListener('click', () => this.viewAllPhotos());
-            container.appendChild(viewAllBtn);
-        }
-        
-        // Add date information if available
-        if (measurement.date) {
-            const dateInfo = document.createElement('div');
-            dateInfo.className = 'photo-date text-center mt-3';
-            dateInfo.innerHTML = `
-                <small class="text-muted">
-                    <i class="fas fa-calendar-alt me-1"></i>
-                    Photos from ${this.formatDate(measurement.date)}
-                </small>
-            `;
-            container.appendChild(dateInfo);
-        }
-        
-        // Trigger animations
-        setTimeout(() => {
-            document.querySelectorAll('#measurementPhotos .animate-on-scroll').forEach(el => {
-                el.classList.add('animated');
-            });
-        }, 100);
     }
     
     /**
@@ -1241,38 +1319,21 @@ updateProgressPhotos(measurement) {
                 animation: {
                     duration: 1000,
                     easing: 'easeOutQuart',
-                    onComplete: function() {
-                        chartCanvas.style.opacity = 1;
-                    }
+                    onComplete: function () { chartCanvas.style.opacity = 1; }
                 },
-                interaction: {
-                    mode: 'index',
-                    intersect: false,
-                },
-                hover: {
-                    mode: 'nearest',
-                    intersect: true
-                },
+                interaction: { mode: 'index', intersect: false },
+                hover: { mode: 'nearest', intersect: true },
                 scales: {
                     x: {
                         display: true,
                         title: {
                             display: true,
                             text: 'Date',
-                            font: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            padding: {top: 10, bottom: 0}
+                            font: { size: 14, weight: 'bold' },
+                            padding: { top: 10, bottom: 0 }
                         },
-                        ticks: {
-                            maxRotation: 45,
-                            minRotation: 45
-                        },
-                        grid: {
-                            display: true,
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
+                        ticks: { maxRotation: 45, minRotation: 45 },
+                        grid: { display: true, color: 'rgba(0, 0, 0, 0.05)' }
                     },
                     y: {
                         type: 'linear',
@@ -1281,15 +1342,10 @@ updateProgressPhotos(measurement) {
                         title: {
                             display: true,
                             text: 'Weight (kg)',
-                            font: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            padding: {top: 0, bottom: 10}
+                            font: { size: 14, weight: 'bold' },
+                            padding: { top: 0, bottom: 10 }
                         },
-                        grid: {
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        }
+                        grid: { color: 'rgba(0, 0, 0, 0.05)' }
                     },
                     y1: {
                         type: 'linear',
@@ -1298,41 +1354,24 @@ updateProgressPhotos(measurement) {
                         title: {
                             display: true,
                             text: 'Body Fat (%)',
-                            font: {
-                                size: 14,
-                                weight: 'bold'
-                            },
-                            padding: {top: 0, bottom: 10}
+                            font: { size: 14, weight: 'bold' },
+                            padding: { top: 0, bottom: 10 }
                         },
-                        grid: {
-                            drawOnChartArea: false,
-                            color: 'rgba(0, 0, 0, 0.05)'
-                        },
+                        grid: { drawOnChartArea: false, color: 'rgba(0, 0, 0, 0.05)' }
                     }
                 },
                 plugins: {
                     legend: {
                         display: true,
                         position: 'top',
-                        labels: {
-                            usePointStyle: true,
-                            padding: 20,
-                            font: {
-                                size: 12
-                            }
-                        }
+                        labels: { usePointStyle: true, padding: 20, font: { size: 12 } }
                     },
                     tooltip: {
                         backgroundColor: 'rgba(255, 255, 255, 0.9)',
                         titleColor: '#333',
                         bodyColor: '#666',
-                        titleFont: {
-                            size: 14,
-                            weight: 'bold'
-                        },
-                        bodyFont: {
-                            size: 13
-                        },
+                        titleFont: { size: 14, weight: 'bold' },
+                        bodyFont: { size: 13 },
                         padding: 12,
                         borderColor: 'rgba(0, 0, 0, 0.1)',
                         borderWidth: 1,
@@ -1352,6 +1391,17 @@ updateProgressPhotos(measurement) {
     
     
     // Utility methods
+    renderStars(value) {
+        const v = parseInt(value, 10) || 0;
+        if (v <= 0) return '-';
+        const max = 5;
+        let html = `<span class="rating-stars" style="color:#f5c518;letter-spacing:1px;" aria-label="${v} out of 5">`;
+        for (let i = 1; i <= max; i++) {
+            html += (i <= v) ? '★' : '☆';
+        }
+        html += '</span>';
+        return html;
+    }
     formatActivityLevel(level) {
         const levels = {
             'sedentary': 'Sedentary',
@@ -1605,36 +1655,50 @@ updateProgressPhotos(measurement) {
         });
         console.log(`Chat buttons initialized: ${buttons.length}`);
     }
-    
-    /**
-     * Opens a chat conversation with the selected client
-     * Uses the messaging system to start or continue a conversation
-     */
+
+    // Open chat with current client (fallback-safe)
     async openClientChat(event) {
         try {
-            // Get client ID either from the current client object or from event target dataset
             let clientId = null;
             let clientName = 'Client';
-            
-            if (event && event.currentTarget && event.currentTarget.dataset) {
+
+            if (event && event.currentTarget && event.currentTarget.dataset && event.currentTarget.dataset.clientId) {
                 clientId = event.currentTarget.dataset.clientId;
                 clientName = event.currentTarget.dataset.clientName || 'Client';
-            } else if (this.currentClient) {
+            }
+            if (!clientId && this.currentClient) {
                 clientId = this.currentClient.id;
                 clientName = this.currentClient.full_name || this.currentClient.username || 'Client';
             }
-            
+
+            // Try to include subscription context if available
+            let subscriptionId = null;
+            const ratingsFilter = document.getElementById('ratingsSubscriptionFilter');
+            if (ratingsFilter && ratingsFilter.value) {
+                subscriptionId = ratingsFilter.value;
+            } else {
+                // Fallback: try to read it from Customize Plan single button link
+                const singleBtn = document.getElementById('customizePlanBtn');
+                if (singleBtn && singleBtn.href) {
+                    try {
+                        const u = new URL(singleBtn.href, window.location.origin);
+                        subscriptionId = u.searchParams.get('subscription_id') || null;
+                    } catch (e) { /* ignore */ }
+                }
+            }
+
             if (!clientId) {
                 this.showError('No client selected for chat');
                 return;
             }
-            
-            // Call the messaging system to open a chat with this client
+
             if (window.messagingSystem && typeof window.messagingSystem.openChat === 'function') {
-                window.messagingSystem.openChat(clientId, clientName);
+                // If your messagingSystem supports subscription context, pass it here
+                window.messagingSystem.openChat(clientId, clientName, { plan_subscription_id: subscriptionId });
             } else {
-                // Fallback to redirect to messaging page
-                window.location.href = `/messaging/chat/?participant_id=${encodeURIComponent(clientId)}`;
+                let url = `/messaging/chat/?participant_id=${encodeURIComponent(clientId)}`;
+                if (subscriptionId) url += `&plan_subscription_id=${encodeURIComponent(subscriptionId)}`;
+                window.location.href = url;
             }
         } catch (error) {
             console.error('Error opening chat:', error);
