@@ -745,70 +745,9 @@ def coach_meal_templates_view(request):
 
 
 @login_required
-def coach_client_plan_detail_view(request, subscription_id):
-    """
-    Detailed view for a specific client's plan
-    """
-    try:
-        coach_profile = request.user.coach_profile
-    except CoachProfile.DoesNotExist:
-        return render(request, 'errors/403.html', {
-            'error_message': 'Access denied. Coach profile required.'
-        })
-    
-    # Get subscription with security check
-    subscription = get_object_or_404(PlanSubscription, id=subscription_id)
-    
-    # Verify coach has access to this subscription
-    if subscription.product_plan.coach != coach_profile:
-        return HttpResponseForbidden("You don't have permission to view this plan")
-    
-    # Get plan days with related data (plural relations)
-    plan_days = PlanDay.objects.filter(
-        subscription=subscription
-    ).prefetch_related(
-        'nutrition_plans__meals__ingredients',
-        'workout_plans__exercise_blocks__exercises'
-    ).order_by('day_number')
-    
-    # Calculate plan progress
-    total_days = plan_days.count()
-    completed_days = plan_days.filter(completion_status='completed').count()
-    progress_percentage = (completed_days / total_days * 100) if total_days > 0 else 0
-    
-    # Get client data
-    client = subscription.client
-    
-    # Get client measurements if available
-    from apps.profiles.client_profile.models import ClientMeasurement
-    try:
-        client_profile = client.client_profile
-        measurements = ClientMeasurement.objects.filter(
-            client=client_profile
-        ).order_by('-date')[:5]
-    except:
-        measurements = []
-    
-    context = {
-        'coach_profile': coach_profile,
-        'subscription': subscription,
-        'plan_days': plan_days,
-        'client': client,
-        'measurements': measurements,
-        'progress': {
-            'total_days': total_days,
-            'completed_days': completed_days,
-            'progress_percentage': progress_percentage
-        },
-        'page_title': f'Plan for {client.get_full_name()}',
-        'breadcrumbs': [
-            {'name': 'Dashboard', 'url': '/coach/dashboard/'},
-            {'name': 'Plan Management', 'url': '/plan-management/'},
-            {'name': f'Plan for {client.get_full_name()}', 'url': None}
-        ]
-    }
-    
-    return render(request, 'plan_management/coach_client_plan_detail.html', context)
+def coach_client_plan_detail_view(*args, **kwargs):
+    """Deprecated: Replaced by coach_client_measurements_view with subscription deep-linking."""
+    return redirect('plan_management:coach_client_measurements')
 
 
 @api_view(['GET'])
