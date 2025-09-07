@@ -14,6 +14,13 @@ function capitalizeFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
 }
 
+// Normalize renewal period to API-allowed values
+function normalizeRenewal(v) {
+    const allowed = ['weekly', 'monthly'];
+    v = String(v || '').toLowerCase();
+    return allowed.includes(v) ? v : 'monthly';
+}
+
 /**
  * Render review summary and simple plan days preview
  */
@@ -74,48 +81,59 @@ function renderReviewSummary() {
  * @param {number} duration - How long the toast should display (ms)
  */
 function showToast(type, message, duration = 5000) {
-    // Get or create toast container
-    let container = document.getElementById('toastContainer');
-    if (!container) {
-        container = createToastContainer();
-    }
-    
-    const toastId = 'toast-' + Date.now();
-    
-    // Create toast element
-    const toast = document.createElement('div');
-    toast.className = `toast align-items-center text-white bg-${type} border-0`;
-    toast.setAttribute('role', 'alert');
-    toast.setAttribute('aria-live', 'assertive');
-    toast.setAttribute('aria-atomic', 'true');
-    toast.id = toastId;
-    
-    // Create toast content
-    toast.innerHTML = `
-        <div class="d-flex">
-            <div class="toast-body">
-                ${message}
+    try {
+        // Get or create toast container
+        let container = document.getElementById('toastContainer');
+        if (!container) {
+            container = createToastContainer();
+        }
+        
+        const toastId = 'toast-' + Date.now();
+        
+        // Create toast element
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-white bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.setAttribute('aria-live', 'assertive');
+        toast.setAttribute('aria-atomic', 'true');
+        toast.id = toastId;
+        
+        // Create toast content
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">
+                    ${message}
+                </div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
             </div>
-            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-        </div>
-    `;
-    
-    // Add toast to container
-    container.appendChild(toast);
-    
-    // Initialize and show toast
-    const bsToast = new bootstrap.Toast(toast, {
-        animation: true,
-        autohide: true,
-        delay: duration
-    });
-    
-    bsToast.show();
-    
-    // Remove toast element after it's hidden
-    toast.addEventListener('hidden.bs.toast', function () {
-        toast.remove();
-    });
+        `;
+        
+        // Add toast to container
+        container.appendChild(toast);
+        
+        if (window.bootstrap && window.bootstrap.Toast) {
+            // Initialize and show toast
+            const bsToast = new bootstrap.Toast(toast, {
+                animation: true,
+                autohide: true,
+                delay: duration
+            });
+            bsToast.show();
+            // Remove toast element after it's hidden
+            toast.addEventListener('hidden.bs.toast', function () {
+                toast.remove();
+            });
+        } else {
+            // Fallback if Bootstrap JS isn't available
+            console.warn('Bootstrap Toast not available; using alert fallback');
+            alert(message);
+            // Remove element
+            toast.remove();
+        }
+    } catch (e) {
+        console.error('showToast failed, falling back to alert', e);
+        alert(message);
+    }
 }
 
 /**
@@ -151,11 +169,6 @@ function savePlanStateToSession() {
         duration: document.getElementById('planDuration')?.value,
         workout_days_per_week: document.getElementById('workoutDaysPerWeek')?.value
     };
-    const normalizeRenewal = (v) => {
-        const allowed = ['weekly', 'monthly'];
-        return allowed.includes(String(v)) ? String(v) : 'monthly';
-    };
-    
     sessionStorage.setItem('planCreationFormData', JSON.stringify(formData));
 }
 
@@ -288,8 +301,9 @@ function initializePlanCreationListeners() {
     // Publish Plan Button
     const publishPlanBtn = document.getElementById('publishPlanBtn');
     if (publishPlanBtn) {
-        publishPlanBtn.addEventListener('click', function() {
-            publishPlan();
+        publishPlanBtn.addEventListener('click', function(e) {
+            console.log('Publish button clicked (direct handler)');
+            try { publishPlan(); } catch (err) { console.error('publishPlan threw', err); showToast('error', err?.message || 'Publish failed'); }
         });
     }
 }
@@ -426,6 +440,7 @@ function initPopovers() {
 
 // Event Handlers
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[PlanCreation] DOMContentLoaded - initializing');
     // Initialize event listeners
     initializePlanCreationListeners();
     
@@ -441,6 +456,19 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPlanId = sessionStorage.getItem('currentPlanId');
     console.log('Initialized with plan ID from sessionStorage:', currentPlanId);
     
+    // Delegated click handler as fallback (in case button is re-rendered or listeners lost)
+    document.addEventListener('click', function(e) {
+        const pubBtn = e.target.closest('#publishPlanBtn');
+        if (pubBtn) {
+            console.log('Publish button clicked (delegated handler)');
+            e.preventDefault();
+            try { publishPlan(); } catch (err) { console.error('publishPlan threw (delegated)', err); showToast('error', err?.message || 'Publish failed'); }
+        }
+    });
+
     // Initialize tooltips
     initTooltips();
 });
+
+// Expose for debugging
+window.publishPlan = publishPlan;
