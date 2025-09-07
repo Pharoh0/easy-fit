@@ -92,7 +92,6 @@ urlpatterns = [
     
     # New coach plan management views
     path('coach/plan-management/', views_coach_templates.coach_plan_management_view, name='coach_plan_management'),
-    path('coach/client-plan/<int:subscription_id>/', views_coach_templates.coach_client_plan_detail_view, name='coach_client_plan_detail'),
     path('coach/plan-customization/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization'),
     path('coach/plan-customization/<int:plan_id>/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization_with_id'),
     path('coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),
