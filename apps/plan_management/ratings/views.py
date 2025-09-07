@@ -26,6 +26,9 @@ class PlanRatingViewSet(viewsets.ModelViewSet):
             try:
                 if self.request and self.request.query_params.get('public_only') == 'true':
                     return PlanRatingSerializer
+                # Allow forcing full serializer via ?full=true
+                if self.request and self.request.query_params.get('full') == 'true':
+                    return PlanRatingSerializer
             except Exception:
                 pass
             return RatingListSerializer
@@ -76,6 +79,16 @@ class PlanRatingViewSet(viewsets.ModelViewSet):
         plan_id = request.query_params.get('plan_id') or request.query_params.get('plan')
         if plan_id:
             queryset = queryset.filter(subscription__product_plan_id=plan_id)
+
+        # Filter by specific subscription
+        subscription_id = request.query_params.get('subscription_id') or request.query_params.get('subscription')
+        if subscription_id:
+            queryset = queryset.filter(subscription_id=subscription_id)
+
+        # Filter by specific client
+        client_id = request.query_params.get('client_id') or request.query_params.get('client')
+        if client_id:
+            queryset = queryset.filter(client_id=client_id)
 
         # Filter public ratings only (for non-public list paths that still request it)
         if not public_only and request.query_params.get('public_only') == 'true':
