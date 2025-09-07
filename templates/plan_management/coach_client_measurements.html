@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
 <link rel="stylesheet" href="{% static 'css/plan_management.css' %}">
 <link rel="stylesheet" href="{% static 'css/coach_measurements.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/datatables/dataTables.bootstrap5.min.css' %}">
 
 {% endblock %}
 
@@ -148,11 +149,6 @@
                         <div id="measurementPhotos" class="measurement-photos">
                             <!-- Dynamic content -->
                         </div>
-                        <div class="text-center mt-3">
-                            <button id="viewAllPhotosBtn" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-images me-1"></i> View All Photos
-                            </button>
-                        </div>
                     </div>
                 </div>
             </div>
@@ -197,6 +193,219 @@
         </div>
     </div>
 
+    <!-- Client Subscriptions (for this coach) -->
+    <div id="clientSubscriptionsSection" class="measurement-card slide-up" style="display:none;">
+        <div class="card-header-custom d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Client Subscriptions</h5>
+        </div>
+        <div class="card-body-custom">
+            <div class="table-responsive">
+                <table id="clientSubscriptionsTable" class="table table-striped align-middle" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Subscribed</th>
+                            <th>Plan</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Client Reviews & Ratings -->
+    <div id="clientRatingsSection" class="measurement-card slide-up" style="display:none;">
+        <div class="card-header-custom d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-star me-2"></i>Client Reviews & Ratings</h5>
+            <div class="d-flex align-items-center gap-2">
+                <label for="ratingsSubscriptionFilter" class="form-label mb-0">Filter by Subscription</label>
+                <select id="ratingsSubscriptionFilter" class="form-select form-select-sm" style="min-width:260px;">
+                    <option value="">All subscriptions</option>
+                </select>
+                <label for="ratingsMinStars" class="form-label mb-0">Min Stars</label>
+                <select id="ratingsMinStars" class="form-select form-select-sm" style="width:90px;">
+                    <option value="">Any</option>
+                    <option value="1">1+</option>
+                    <option value="2">2+</option>
+                    <option value="3">3+</option>
+                    <option value="4">4+</option>
+                    <option value="5">5</option>
+                </select>
+                <div class="form-check form-switch">
+                    <input class="form-check-input" type="checkbox" id="ratingsVerifiedOnly">
+                    <label class="form-check-label" for="ratingsVerifiedOnly">Verified</label>
+                </div>
+            </div>
+        </div>
+        <div class="card-body-custom">
+            <div class="table-responsive">
+                <table id="clientRatingsTable" class="table table-striped align-middle" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Plan</th>
+                            <th>Rating</th>
+                            <th>Title</th>
+                            <th>Review</th>
+                            <th>Public</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Per-Day Feedback (visible when a subscription is selected) -->
+    <div id="perDayFeedbackSection" class="measurement-card slide-up" style="display:none;">
+        <div class="card-header-custom d-flex flex-wrap gap-2 justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-clipboard-check me-2"></i>Per-Day Feedback</h5>
+            <small class="text-muted">Select a subscription above to view daily ratings and feedback</small>
+        </div>
+        <div class="card-body-custom">
+            <!-- Filters -->
+            <div class="row g-2 align-items-end mb-3" id="perDayFilters">
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterDayFrom">Day from</label>
+                    <input type="number" class="form-control form-control-sm" id="filterDayFrom" min="1" placeholder="1">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterDayTo">Day to</label>
+                    <input type="number" class="form-control form-control-sm" id="filterDayTo" min="1" placeholder="">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterDateFrom">Date from</label>
+                    <input type="date" class="form-control form-control-sm" id="filterDateFrom">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterDateTo">Date to</label>
+                    <input type="date" class="form-control form-control-sm" id="filterDateTo">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterMinStars">Min stars</label>
+                    <select class="form-select form-select-sm" id="filterMinStars">
+                        <option value="">Any</option>
+                        <option value="1">1+</option>
+                        <option value="2">2+</option>
+                        <option value="3">3+</option>
+                        <option value="4">4+</option>
+                        <option value="5">5</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterMinEffort">Min effort</label>
+                    <input type="number" class="form-control form-control-sm" id="filterMinEffort" min="1" max="10" placeholder="1-10">
+                </div>
+                <div class="col-6 col-md-2">
+                    <label class="form-label small" for="filterMinDifficulty">Min difficulty</label>
+                    <input type="number" class="form-control form-control-sm" id="filterMinDifficulty" min="1" max="10" placeholder="1-10">
+                </div>
+                <div class="col-12 col-md">
+                    <label class="form-label small" for="filterText">Text search</label>
+                    <input type="text" class="form-control form-control-sm" id="filterText" placeholder="Search feedback, notes, names...">
+                </div>
+                <div class="col-auto">
+                    <button class="btn btn-sm btn-outline-secondary w-100" id="filterResetBtn">Reset</button>
+                </div>
+            </div>
+            <!-- Tabs -->
+            <ul class="nav nav-tabs" id="feedbackTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="day-tab" data-bs-toggle="tab" data-bs-target="#day-pane" type="button" role="tab" aria-controls="day-pane" aria-selected="true">
+                        Plan Days
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="workout-tab" data-bs-toggle="tab" data-bs-target="#workout-pane" type="button" role="tab" aria-controls="workout-pane" aria-selected="false">
+                        Workouts
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="meal-tab" data-bs-toggle="tab" data-bs-target="#meal-pane" type="button" role="tab" aria-controls="meal-pane" aria-selected="false">
+                        Meals
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="exercise-tab" data-bs-toggle="tab" data-bs-target="#exercise-pane" type="button" role="tab" aria-controls="exercise-pane" aria-selected="false">
+                        Exercises
+                    </button>
+                </li>
+            </ul>
+            <div class="tab-content border border-top-0 p-3" id="feedbackTabsContent">
+                <!-- Day Reviews -->
+                <div class="tab-pane fade show active" id="day-pane" role="tabpanel" aria-labelledby="day-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table id="dayReviewsTable" class="table table-striped align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Date</th>
+                                    <th>Rating</th>
+                                    <th>Feedback</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Workout Reviews -->
+                <div class="tab-pane fade" id="workout-pane" role="tabpanel" aria-labelledby="workout-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table id="workoutReviewsTable" class="table table-striped align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Session</th>
+                                    <th>Workout</th>
+                                    <th>Effort (1-10)</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Meal Reviews -->
+                <div class="tab-pane fade" id="meal-pane" role="tabpanel" aria-labelledby="meal-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table id="mealReviewsTable" class="table table-striped align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Plan</th>
+                                    <th>Meal</th>
+                                    <th>Rating</th>
+                                    <th>Notes</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Exercise Reviews -->
+                <div class="tab-pane fade" id="exercise-pane" role="tabpanel" aria-labelledby="exercise-tab" tabindex="0">
+                    <div class="table-responsive">
+                        <table id="exerciseReviewsTable" class="table table-striped align-middle" style="width:100%">
+                            <thead>
+                                <tr>
+                                    <th>Day</th>
+                                    <th>Session</th>
+                                    <th>Workout</th>
+                                    <th>Block</th>
+                                    <th>Exercise</th>
+                                    <th>Difficulty (1-10)</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- No Data Message -->
     <div id="noDataMessage" class="no-data-container fade-in" style="display: none;">
         <i class="fas fa-chart-line no-data-icon"></i>
@@ -221,10 +430,6 @@
             </div>
         </div>
     </div>
-    
-    <!-- Include photo lightbox component -->
-    {% include 'components/photo_lightbox.html' %}
-
 </div>
 
 {% endblock %}
@@ -233,7 +438,7 @@
 {% if include_charts %}
     <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 {% endif %}
-<!-- Add the lightbox script -->
-<script src="{% static 'js/coach/lightbox.js' %}"></script>
+<script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
+<script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
 <script src="{% static 'js/coach_measurements.js' %}"></script>
 {% endblock %}
