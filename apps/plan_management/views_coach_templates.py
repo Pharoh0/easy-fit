@@ -66,7 +66,12 @@ def _plan_type_values(param: str):
         return ['diet']
     if p == 'workout':
         return ['workout']
-    if p in ('hybrid', 'all'):
+    if p == 'hybrid':
+        # UI term maps to backend 'combined'
+        return ['combined']
+    if p == 'combined':
+        return ['combined']
+    if p in ('all',):
         return None
     # If backend already sends 'diet' we support it as well
     if p in ('diet',):
