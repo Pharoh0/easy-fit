@@ -67,6 +67,10 @@ urlpatterns = [
     path('api/v1/coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics_api'),
     path('api/v1/coach/measurement-insights/', views_coach_templates.coach_measurement_insights, name='coach_measurement_insights_api'),
     path('api/v1/coach/client-stats/', views_coach_templates.coach_client_quick_stats, name='coach_client_stats_api_v1'),
+    path('api/v1/coach/revenue-metrics/', views_coach_templates.coach_revenue_metrics, name='coach_revenue_metrics_api_v1'),
+    path('api/v1/coach/subscription-stats/', views_coach_templates.coach_subscription_stats, name='coach_subscription_stats_api_v1'),
+    path('api/v1/coach/ratings-summary/', views_coach_templates.coach_ratings_summary, name='coach_ratings_summary_api_v1'),
+    path('api/v1/coach/clients/', views_coach_templates.coach_clients, name='coach_clients_api_v1'),
     
     # Coach plan customization API endpoints
     path('api/v1/coach-plan-customization/<int:subscription_id>/subscription_details/', views_coach_api.get_subscription_details, name='subscription_details_api'),
