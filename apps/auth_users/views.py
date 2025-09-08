@@ -64,8 +64,38 @@ class UserRegistrationView(FormView):
         return JsonResponse({'status': 'error', 'errors': form.errors})
 
 
-class DashboardView(LoginRequiredMixin, TemplateView):
-    template_name = '../templates/dashboard.html'  # Ensure this is correct
+class DashboardView(LoginRequiredMixin, RedirectView):
+    """Role-aware dashboard redirect.
+    Coaches land on coach dashboard, clients on client dashboard,
+    staff/superusers on staff dashboard. Fallback to generic dashboard template
+    if none match.
+    """
+
+    def get_redirect_url(self, *args, **kwargs):
+        user = self.request.user
+        # Coach priority
+        try:
+            if getattr(user, 'is_coach', False) or hasattr(user, 'coach_profile'):
+                return reverse_lazy('plan_management:coach_dashboard')
+        except Exception:
+            pass
+
+        # Client
+        try:
+            if getattr(user, 'is_client', False) or hasattr(user, 'client_profile'):
+                return reverse_lazy('plan_management:client_dashboard')
+        except Exception:
+            pass
+
+        # Staff / Admin
+        if getattr(user, 'user_type', '') == 'staff' or user.is_superuser:
+            try:
+                return reverse_lazy('staff:dashboard')
+            except Exception:
+                pass
+
+        # Fallback – send to root (landing). This avoids self-redirect loops.
+        return '/'
 
 
 class UserLogoutView(RedirectView):
