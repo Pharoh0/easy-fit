@@ -189,8 +189,10 @@ class DashboardInteractions {
             filterPanel.classList.add('filter-panel-collapsed');
         }
         
-        // Make filter panel sticky when scrolling
-        this.initStickyFilterPanel(filterPanel);
+        // Make filter panel sticky when scrolling only if explicitly enabled
+        if (window.ENABLE_STICKY_FILTERS) {
+            this.initStickyFilterPanel(filterPanel);
+        }
     }
     
     /**
@@ -228,7 +230,8 @@ class DashboardInteractions {
         
         const navbar = document.querySelector('nav.navbar'); // Select the main navbar
         const navbarHeight = navbar ? navbar.offsetHeight : 0;
-        let filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
+        // Cache the initial offset once to avoid oscillation when the panel becomes fixed
+        const initialOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
         let filterPanelWidth = filterPanel.offsetWidth;
         let ticking = false;
         
@@ -236,7 +239,7 @@ class DashboardInteractions {
         const calculateDimensions = () => {
             const navbar = document.querySelector('nav.navbar');
             const navbarHeight = navbar ? navbar.offsetHeight : 0;
-            filterPanelOffset = filterPanel.getBoundingClientRect().top + window.scrollY;
+            // Only update width when not sticky; keep the original offset baseline
             if (!filterPanel.classList.contains('sticky-filter-panel')) {
                 filterPanelWidth = filterPanel.offsetWidth;
             }
@@ -247,7 +250,7 @@ class DashboardInteractions {
         const updateStickyState = () => {
             const scrollPos = window.scrollY;
             const { navbarHeight, filterPanelWidth } = calculateDimensions();
-            const shouldStick = scrollPos > filterPanelOffset - navbarHeight;
+            const shouldStick = scrollPos > (initialOffset - navbarHeight);
             
             if (shouldStick) {
                 if (!filterPanel.classList.contains('sticky-filter-panel')) {

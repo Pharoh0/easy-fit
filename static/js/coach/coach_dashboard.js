@@ -4,15 +4,28 @@
  */
 (function () {
     let measurementFrequencyChart = null;
+    let clientDistributionChart = null;
+    let planPerformanceChart = null;
     let topClientsTable = null;
+    let revenueTrendChart = null;
     let lastAppliedState = null;
     // Server-driven pagination for Top Clients
     let topClientsLimit = 5;
     let topClientsOffset = 0;
     let topClientsTotal = 0;
+    // Cache of plans for dropdown label rendering
+    let plansCache = [];
+    // Cache of clients for dropdown label rendering
+    let clientsCache = [];
 
     $(document).ready(function () {
         setupFiltersUI();
+        // Load coach plans for the Plan dropdown before applying UI
+        loadCoachPlans().then(() => {
+            // no-op; dropdown will be filled
+        }).catch(() => {});
+        // Preload coach clients (first page) for the Client dropdown
+        loadCoachClients('').catch(() => {});
         const initialState = parseFiltersFromURL();
         applyStateToUI(initialState);
         lastAppliedState = initialState;
@@ -33,9 +46,148 @@
             console.warn('Invalid options format, resetting to empty object');
             options = {};
         }
+
+    async function loadCoachClients(searchTerm = '') {
+        try {
+            // Build query using current UI state (plan/category filters should scope the clients)
+            const state = collectStateFromUI();
+            const params = buildQueryOptionsFromState(state);
+            if (searchTerm) params.q = searchTerm;
+            const usp = new URLSearchParams(params);
+            if (!usp.get('limit')) usp.set('limit', '20');
+            const url = `/plan-management/api/v1/coach/clients/?${usp.toString()}`;
+            const res = await APIBase.request(url);
+            const results = (res && res.success && Array.isArray(res.results)) ? res.results : [];
+            clientsCache = results;
+            const menu = document.querySelector('.clients-menu');
+            if (menu) {
+                // Keep the first item (All clients)
+                const first = menu.querySelector('li');
+                menu.innerHTML = '';
+                if (first) menu.appendChild(first);
+                results.forEach(c => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a class="dropdown-item" href="#" data-value="${c.id}">${c.name || ('Client #' + c.id)}</a>`;
+                    menu.appendChild(li);
+                });
+                if (results.length === 0) {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<div class="dropdown-item text-muted">No clients</div>`;
+                    menu.appendChild(li);
+                }
+            }
+        } catch (e) {
+            console.warn('Failed to load coach clients', e);
+        }
+    }
+
+    async function loadCoachPlans() {
+        try {
+            // Pull coach plans (scoped by backend to current coach), page_size large enough for dropdown
+            const url = '/plan-management/api/v1/product-plans/?page_size=100';
+            const res = await APIBase.request(url);
+            const data = (res && res.success) ? res.data : null;
+            const results = data && (Array.isArray(data) ? data : data.results);
+            plansCache = Array.isArray(results) ? results : [];
+            // Fill dropdown
+            const menu = document.querySelector('.plans-menu');
+            if (menu) {
+                // Preserve the first "All plans" item
+                const keepFirst = menu.querySelector('li');
+                menu.innerHTML = '';
+                if (keepFirst) menu.appendChild(keepFirst);
+                plansCache.forEach(p => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `<a class="dropdown-item" href="#" data-value="${p.id}">${p.name || ('Plan #' + p.id)}</a>`;
+                    menu.appendChild(li);
+                });
+            }
+        } catch (e) {
+            console.warn('Failed to load coach plans for dropdown', e);
+        }
+    }
+
+    async function loadRevenueMetrics(options = {}) {
+        try {
+            const queryOptions = buildQueryOptionsFromState(options);
+            console.debug('Loading revenue metrics with options:', queryOptions);
+
+            // Fetch
+            const res = await CoachAnalyticsAPI.getRevenueMetrics(queryOptions);
+            if (!(res && res.success && res.revenue)) {
+                console.warn('No revenue data available', res);
+                const el = document.getElementById('revenueTrendChart');
+                if (el) {
+                    const card = el.closest('.card');
+                    const target = (card && card.querySelector('.card-body')) || (card || el);
+                    target.innerHTML = '<div class="text-center text-muted p-4">No data</div>';
+                }
+                return;
+            }
+            const rev = res.revenue;
+            const total = Number(rev.total_revenue || 0);
+            const currency = rev.currency || 'USD';
+            const statEl = document.getElementById('statRevenue');
+            if (statEl) statEl.textContent = CoachAnalyticsAPI.formatCurrency(total, currency);
+
+            // Prepare trend data
+            const labels = (rev.monthly_trend || []).map(x => x.month);
+            const values = (rev.monthly_trend || []).map(x => x.revenue);
+
+            const ctx = document.getElementById('revenueTrendChart');
+            if (!ctx) return;
+            if (revenueTrendChart) {
+                try { revenueTrendChart.destroy(); } catch (e) {}
+            }
+            revenueTrendChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels,
+                    datasets: [{
+                        label: 'Revenue',
+                        data: values,
+                        backgroundColor: 'rgba(99, 102, 241, 0.7)',
+                        borderColor: 'rgba(99, 102, 241, 1)',
+                        borderWidth: 1,
+                        borderRadius: 6,
+                        maxBarThickness: 36,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: { color: 'rgba(0,0,0,0.06)' },
+                            ticks: {
+                                callback: function(value) { return CoachAnalyticsAPI.formatCurrency(value, currency); }
+                            }
+                        },
+                        x: {
+                            grid: { display: false }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const v = context.parsed.y;
+                                    return CoachAnalyticsAPI.formatCurrency(v, currency);
+                                }
+                            }
+                        },
+                        legend: { display: false }
+                    }
+                }
+            });
+        } catch (e) {
+            console.error('Error loading revenue metrics', e);
+        }
+    }
         
-        // Show loading state for all containers
-        ['quickStatsContainer', 'analyticsContainer', 'insightsSummaryContainer', 'topClientsTableContainer'].forEach(id => {
+        // Show loading state (avoid replacing quick stats DOM which we will update in-place)
+        ['analyticsContainer', 'insightsSummaryContainer', 'topClientsTableContainer'].forEach(id => {
             const container = document.getElementById(id);
             if (container) APIBase.showLoading(id);
         });
@@ -44,7 +196,8 @@
         await Promise.allSettled([
             loadQuickStats(options),
             loadAnalytics(options),
-            loadMeasurementInsights(options)
+            loadMeasurementInsights(options),
+            loadRevenueMetrics(options),
         ]);
         
         console.debug('Dashboard initialization completed');
@@ -85,12 +238,62 @@
                 $('#statActiveSubs').text(s.active_subscriptions ?? 0);
                 $('#statRecentMeasurements').text(s.recent_measurements ?? 0);
                 $('#statEngagementRate').text(((s.engagement_rate ?? 0)).toString() + '%');
+                if (typeof s.new_subscriptions !== 'undefined') {
+                    const el = document.getElementById('statNewSubs');
+                    if (el) el.textContent = s.new_subscriptions;
+                }
+                // Render client distribution donut
+                try {
+                    const canvas = document.getElementById('clientDistributionChart');
+                    if (canvas) {
+                        const total = Number(s.total_clients || 0);
+                        const active = Number(s.active_clients || 0);
+                        const inactive = Math.max(0, total - active);
+                        const engaged = Number(s.active_subscriptions || 0); // proxy
+                        if (clientDistributionChart) { try { clientDistributionChart.destroy(); } catch (e) {} }
+                        clientDistributionChart = new Chart(canvas, {
+                            type: 'doughnut',
+                            data: {
+                                labels: ['Active', 'Engaged', 'Inactive'],
+                                datasets: [{
+                                    data: [active, engaged, inactive],
+                                    backgroundColor: ['#3b82f6','#22c55e','#8b5cf6'],
+                                    borderWidth: 0,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio: false,
+                                cutout: '70%',
+                                plugins: {
+                                    legend: { display: false },
+                                    tooltip: {
+                                        callbacks: {
+                                            label: function(ctx) {
+                                                const val = ctx.parsed;
+                                                const tot = (active + engaged + inactive) || 1;
+                                                const pct = Math.round((val / tot) * 100);
+                                                return `${ctx.label}: ${val} (${pct}%)`;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        });
+                        const centerVal = document.getElementById('distributionCenterValue');
+                        if (centerVal) centerVal.textContent = String(total);
+                    }
+                } catch (e) { /* ignore */ }
+
+                // Ensure plan performance donut in its own container
+                await loadPlanPerformanceChart(options);
+
                 console.debug('Quick stats loaded successfully');
             } else {
                 console.warn('Failed to load quick stats', res);
                 // Show user feedback for empty data
                 if (!res || !res.stats) {
-                    APIBase.showEmptyState('quickStatsContainer', 'No stats available for the selected filters');
+                    APIBase.showEmptyState('quickStatsContainer', 'No data');
                 }
             }
         } catch (e) {
@@ -116,10 +319,60 @@
             
             await CoachAnalyticsAPI.loadAnalyticsIntoElement('analyticsContainer', queryOptions);
             console.debug('Analytics loaded successfully');
+
+            // Update top KPI cards for plan analytics
+            try {
+                const [pa, rs] = await Promise.all([
+                    CoachAnalyticsAPI.getPlanAnalytics(queryOptions),
+                    CoachAnalyticsAPI.getRatingsSummary(queryOptions),
+                ]);
+                const avgRating = (rs && rs.success && rs.ratings) ? (rs.ratings.avg_rating || 0) : 0;
+                const completionPct = (pa && pa.success && pa.analytics && pa.analytics.completion_rates) ? (pa.analytics.completion_rates.completed || 0) : 0;
+                const avgEl = document.getElementById('statPlanAvgRating');
+                const compEl = document.getElementById('statPlanCompletion');
+                if (avgEl) avgEl.textContent = String(avgRating);
+                if (compEl) compEl.textContent = String(completionPct) + '%';
+            } catch (e) { /* ignore kpi errors */ }
         } catch (e) {
             console.error('Error loading analytics', e);
             APIBase.showError('analyticsContainer', 'Failed to load analytics');
         }
+    }
+
+    async function loadPlanPerformanceChart(options = {}) {
+        try {
+            const queryOptions = buildQueryOptionsFromState(options);
+            const res = await CoachAnalyticsAPI.getPlanAnalytics(queryOptions);
+            if (!(res && res.success && res.analytics)) return;
+            const data = res.analytics;
+            const canvas = document.getElementById('planCompletionChart');
+            if (!canvas) return;
+            if (planPerformanceChart) {
+                try { planPerformanceChart.destroy(); } catch (e) {}
+            }
+            const labels = Object.keys(data.completion_stats || {});
+            const values = labels.map(k => (data.completion_stats[k] || 0));
+            planPerformanceChart = new Chart(canvas, {
+                type: 'doughnut',
+                data: {
+                    labels: labels.map(l => l.replace('_', ' ')),
+                    datasets: [{
+                        label: 'Days',
+                        data: values,
+                        backgroundColor: ['#22c55e','#0ea5e9','#6b7280','#f59e0b','#ef4444'],
+                        borderWidth: 0,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '65%',
+                    plugins: {
+                        legend: { position: 'bottom' }
+                    }
+                }
+            });
+        } catch (e) { console.warn('Plan performance chart error', e); }
     }
 
     async function loadMeasurementInsights(options = {}) {
@@ -133,14 +386,43 @@
             
             // Show loading indicators for the insights containers
             APIBase.showLoading('insightsSummaryContainer');
-            APIBase.showLoading('topClientsTableContainer');
+            // For Top Clients, show a spinner but preserve table markup by injecting it if missing later
+            const topContainer = document.getElementById('topClientsTableContainer');
+            if (topContainer) {
+                topContainer.innerHTML = `
+                    <div class="table-responsive">
+                        <table class="table modern-table table-hover align-middle mb-0" id="topClientsTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th scope="col" width="40">#</th>
+                                    <th scope="col">Client</th>
+                                    <th scope="col">Plan Type</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Measurements</th>
+                                    <th scope="col">Last Activity</th>
+                                    <th scope="col">Progress</th>
+                                    <th scope="col" class="text-end">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td colspan="8" class="text-center py-4">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>`;
+            }
             
             const resp = await CoachAnalyticsAPI.getMeasurementInsights(query);
             if (!(resp && resp.success && resp.insights)) {
                 console.warn('Failed to load measurement insights', resp);
                 // Show empty states instead of leaving blank areas
-                APIBase.showEmptyState('insightsSummaryContainer', 'No insights available for the selected filters');
-                APIBase.showEmptyState('topClientsTableContainer', 'No client data available for the selected filters');
+                APIBase.showEmptyState('insightsSummaryContainer', 'No data');
+                APIBase.showEmptyState('topClientsTableContainer', 'No data');
                 updateTopClientsPagerUI(); // Still update UI with zero results
                 return;
             }
@@ -168,7 +450,7 @@
                     const card = chartContainer.closest('.card');
                     const cardBody = card ? card.querySelector('.card-body') : null;
                     const target = cardBody || card || chartContainer;
-                    target.innerHTML = '<div class="text-center text-muted p-4">No measurement frequency data available for the selected filters</div>';
+                    target.innerHTML = '<div class="text-center text-muted p-4">No data</div>';
                 }
             }
             
@@ -195,6 +477,15 @@
             try { measurementFrequencyChart.destroy(); } catch (e) {}
         }
 
+        // Create gradient fill
+        let gradient = null;
+        try {
+            const c2d = ctx.getContext('2d');
+            gradient = c2d.createLinearGradient(0, 0, 0, ctx.height || 260);
+            gradient.addColorStop(0, 'rgba(13, 110, 253, 0.35)');
+            gradient.addColorStop(1, 'rgba(13, 110, 253, 0.05)');
+        } catch (_) {}
+
         measurementFrequencyChart = new Chart(ctx, {
             type: 'line',
             data: {
@@ -203,20 +494,30 @@
                     label: 'Measurements',
                     data: values,
                     borderColor: 'rgb(13, 110, 253)',
-                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    backgroundColor: gradient || 'rgba(13, 110, 253, 0.2)',
                     tension: 0.3,
                     fill: true,
-                    pointRadius: 3
+                    pointRadius: 3,
+                    pointHoverRadius: 4
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: true }
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
                 },
                 scales: {
-                    y: { beginAtZero: true, ticks: { precision: 0 } }
+                    y: {
+                        beginAtZero: true,
+                        ticks: { precision: 0 },
+                        grid: { color: 'rgba(0,0,0,0.06)' }
+                    },
+                    x: { grid: { display: false } }
                 }
             }
         });
@@ -235,12 +536,13 @@
             const viewUrl = `/plan-management/coach/client-measurements/?client_id=${clientId}`;
             const createPlanUrl = `/plan-management/coach/plan-creation/?client_id=${clientId}`;
             
-            // Plan type - extract or use default
-            const planType = tc['plan_type'] || 'Not Assigned';
-            const planTypeClass = planType.toLowerCase().includes('workout') ? 'text-success' : 
-                                  planType.toLowerCase().includes('nutrition') ? 'text-info' : 
-                                  planType.toLowerCase().includes('hybrid') ? 'text-primary' : 'text-secondary';
-            const planTypeHtml = `<span class="badge bg-light ${planTypeClass}">${planType}</span>`;
+            // Plan type - normalize display and classes (map 'diet' -> 'Nutrition')
+            const planTypeCode = (tc['plan_type'] || '').toLowerCase();
+            const planTypeLabel = planTypeCode ? CoachAnalyticsAPI.formatPlanTypeLabel(planTypeCode) : 'Not Assigned';
+            const planTypeClass = planTypeCode.includes('workout') ? 'text-success' : 
+                                  (planTypeCode.includes('nutrition') || planTypeCode.includes('diet')) ? 'text-info' : 
+                                  planTypeCode.includes('hybrid') ? 'text-primary' : 'text-secondary';
+            const planTypeHtml = `<span class="badge bg-light ${planTypeClass}">${planTypeLabel}</span>`;
             
             // Status - extract from data or provide default
             const status = tc['status'] || (count > 10 ? 'Active' : 'New');
@@ -299,33 +601,59 @@
         });
 
         const tableSelector = '#topClientsTable';
-        if ($.fn.DataTable.isDataTable(tableSelector)) {
-            topClientsTable = $(tableSelector).DataTable();
-            topClientsTable.clear();
-            if (rows.length) topClientsTable.rows.add(rows);
-            topClientsTable.draw();
+        const hasDataTables = !!(window.jQuery && $.fn && typeof $.fn.DataTable === 'function');
+        if (hasDataTables) {
+            if ($.fn.DataTable.isDataTable(tableSelector)) {
+                topClientsTable = $(tableSelector).DataTable();
+                topClientsTable.clear();
+                if (rows.length) topClientsTable.rows.add(rows);
+                topClientsTable.draw();
+            } else {
+                topClientsTable = $(tableSelector).DataTable({
+                    data: rows,
+                    columns: [
+                        { title: '#', width: '40px' },
+                        { title: 'Client', width: '20%' },
+                        { title: 'Plan Type', width: '10%' },
+                        { title: 'Status', width: '10%' },
+                        { title: 'Measurements', width: '10%' },
+                        { title: 'Last Activity', width: '15%' },
+                        { title: 'Progress', width: '15%' },
+                        { title: 'Actions', width: '15%', orderable: false, searchable: false, className: 'text-end' }
+                    ],
+                    paging: false,
+                    info: false,
+                    searching: false,
+                    lengthChange: false,
+                    order: [[4, 'desc']], // Order by measurements count
+                    language: {
+                        emptyTable: 'No data'
+                    }
+                });
+            }
         } else {
-            topClientsTable = $(tableSelector).DataTable({
-                data: rows,
-                columns: [
-                    { title: '#', width: '40px' },
-                    { title: 'Client', width: '20%' },
-                    { title: 'Plan Type', width: '10%' },
-                    { title: 'Status', width: '10%' },
-                    { title: 'Measurements', width: '10%' },
-                    { title: 'Last Activity', width: '15%' },
-                    { title: 'Progress', width: '15%' },
-                    { title: 'Actions', width: '15%', orderable: false, searchable: false, className: 'text-end' }
-                ],
-                paging: false,
-                info: false,
-                searching: false,
-                lengthChange: false,
-                order: [[4, 'desc']], // Order by measurements count
-                language: {
-                    emptyTable: 'No top clients found'
+            // Fallback: render plain rows without DataTables
+            try {
+                const tbody = document.querySelector('#topClientsTable tbody');
+                if (tbody) {
+                    const html = rows.map(cols => {
+                        return `
+                            <tr>
+                                <td>${cols[0] ?? ''}</td>
+                                <td>${cols[1] ?? ''}</td>
+                                <td>${cols[2] ?? ''}</td>
+                                <td>${cols[3] ?? ''}</td>
+                                <td>${cols[4] ?? ''}</td>
+                                <td>${cols[5] ?? ''}</td>
+                                <td>${cols[6] ?? ''}</td>
+                                <td class="text-end">${cols[7] ?? ''}</td>
+                            </tr>`;
+                    }).join('');
+                    tbody.innerHTML = html || '<tr><td colspan="8" class="text-center py-3 text-muted">No data</td></tr>';
                 }
-            });
+            } catch (e) {
+                console.warn('Failed to render plain table rows:', e);
+            }
         }
     }
 
@@ -338,6 +666,24 @@
         const avgPerClient = summary.avg_measurements_per_client ?? 0;
         const clientsWithProgress = summary.clients_with_progress ?? 0;
         const activeDays = (insights.measurement_frequency || []).length;
+
+        // Update top insight counters if present
+        try {
+            const consEl = document.getElementById('insightConsistencyValue');
+            if (consEl) {
+                const pct = Math.round((activeDays / 30) * 100);
+                consEl.textContent = `${isNaN(pct) ? 0 : pct}%`;
+            }
+            const progEl = document.getElementById('insightProgressValue');
+            if (progEl) {
+                progEl.textContent = `${clientsWithProgress}`;
+            }
+            const milesEl = document.getElementById('insightMilestonesValue');
+            if (milesEl) {
+                // Use count of days with measurements as a proxy milestone metric
+                milesEl.textContent = `${activeDays}`;
+            }
+        } catch (e) { /* ignore */ }
 
         // Most improved (largest negative weight change)
         let mostImproved = null;
@@ -434,6 +780,8 @@
             start_date: '',
             end_date: '',
             plan_type: 'all',
+            plan_id: '',
+            client_id: '',
             segment: 'all',
             q: ''
         };
@@ -474,6 +822,8 @@
             state.start_date = p.get('start_date') || state.start_date;
             state.end_date = p.get('end_date') || state.end_date;
             state.plan_type = p.get('plan_type') || state.plan_type;
+            state.plan_id = p.get('plan_id') || state.plan_id;
+            state.client_id = p.get('client_id') || state.client_id;
             state.segment = p.get('segment') || state.segment;
             state.q = p.get('q') || state.q;
 
@@ -536,6 +886,32 @@
             $planBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selected === 'all' ? 'All' : labelText}</span>`);
         }
 
+        // Plan dropdown
+        const $plansBtn = $('#plansDropdown');
+        if ($plansBtn.length) {
+            const selectedPlan = (state.plan_id || '').toString();
+            $plansBtn.data('selected', selectedPlan);
+            let labelText = 'All plans';
+            if (selectedPlan) {
+                const plan = (plansCache || []).find(p => String(p.id) === selectedPlan);
+                if (plan) labelText = plan.name || (`Plan #${plan.id}`);
+            }
+            $plansBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selectedPlan ? labelText : 'All'}</span>`);
+        }
+
+        // Client dropdown
+        const $clientsBtn = $('#clientsDropdown');
+        if ($clientsBtn.length) {
+            const selectedClient = (state.client_id || '').toString();
+            $clientsBtn.data('selected', selectedClient);
+            let labelText = 'All clients';
+            if (selectedClient) {
+                const c = (clientsCache || []).find(x => String(x.id) === selectedClient);
+                if (c) labelText = c.name || (`Client #${c.id}`);
+            }
+            $clientsBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selectedClient ? labelText : 'All'}</span>`);
+        }
+
         // Segment dropdown
         const $segBtn = $('#segmentsDropdown');
         if ($segBtn.length) {
@@ -564,6 +940,8 @@
             state.end_date = end_date;
         }
         state.plan_type = ($('#planTypesDropdown').data('selected') || 'all');
+        state.plan_id = ($('#plansDropdown').data('selected') || '');
+        state.client_id = ($('#clientsDropdown').data('selected') || '');
         state.segment = ($('#segmentsDropdown').data('selected') || 'all');
         state.q = ($('#searchClients').val() || '').trim();
         return state;
@@ -577,6 +955,8 @@
         if (state.start_date) opts.start_date = state.start_date;
         if (state.end_date) opts.end_date = state.end_date;
         if (state.plan_type && state.plan_type !== 'all') opts.plan_type = state.plan_type;
+        if (state.plan_id) opts.plan_id = state.plan_id;
+        if (state.client_id) opts.client_id = state.client_id;
         if (state.segment && state.segment !== 'all') opts.segment = state.segment;
         if (state.q) opts.q = state.q;
         
@@ -593,6 +973,8 @@
             if (state.start_date) params.set('start_date', state.start_date); else params.delete('start_date');
             if (state.end_date) params.set('end_date', state.end_date); else params.delete('end_date');
             if (state.plan_type && state.plan_type !== 'all') params.set('plan_type', state.plan_type); else params.delete('plan_type');
+            if (state.plan_id) params.set('plan_id', state.plan_id); else params.delete('plan_id');
+            if (state.client_id) params.set('client_id', state.client_id); else params.delete('client_id');
             if (state.segment && state.segment !== 'all') params.set('segment', state.segment); else params.delete('segment');
             if (state.q) params.set('q', state.q); else params.delete('q');
             // Persist Top Clients pagination
@@ -626,6 +1008,37 @@
             if ($btn.length) {
                 $btn.data('selected', value);
                 const badgeText = (value === 'all') ? 'All' : label;
+                $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
+                try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
+            }
+        });
+
+        // Plans dropdown (specific plan)
+        $(document).on('click', '.plans-menu .dropdown-item', function (e) {
+            e.preventDefault();
+            const value = String($(this).data('value') || '');
+            const label = $(this).text().trim();
+            const $btn = $('#plansDropdown');
+            if ($btn.length) {
+                $btn.data('selected', value);
+                const badgeText = (value === '') ? 'All' : label;
+                $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
+                try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
+            }
+        });
+
+        // Clients dropdown behavior: populate on open and handle selection
+        $(document).on('show.bs.dropdown', '#clientsDropdown', async function () {
+            try { await loadCoachClients($('#searchClients').val() || ''); } catch (_) {}
+        });
+        $(document).on('click', '.clients-menu .dropdown-item', function (e) {
+            e.preventDefault();
+            const value = String($(this).data('value') || '');
+            const label = $(this).text().trim();
+            const $btn = $('#clientsDropdown');
+            if ($btn.length) {
+                $btn.data('selected', value);
+                const badgeText = (value === '') ? 'All' : label;
                 $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
                 try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
             }
