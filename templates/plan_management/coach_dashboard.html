@@ -39,13 +39,24 @@
         <div class="card-header bg-white py-2" id="filterToggleHeader">
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Dashboard Filters</h5>
-                <div>
+                <div class="d-flex align-items-center">
                     <button class="btn btn-primary btn-sm me-2" id="btnApplyFilters">
                         <i class="bi bi-check2-circle me-1"></i> Apply Filters
                     </button>
                     <button class="btn btn-outline-secondary btn-sm me-2" id="btnResetFilters">
                         <i class="bi bi-arrow-counterclockwise me-1"></i> Reset
                     </button>
+                    <div class="btn-group me-2" id="presetsGroup">
+                        <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="bi bi-save me-1"></i> Presets
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end presets-menu">
+                            <li><h6 class="dropdown-header">Saved Presets</h6></li>
+                            <li class="px-3 py-2 text-muted small no-presets">No presets</li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="btnSavePreset"><i class="bi bi-plus-circle me-1"></i> Save current</a></li>
+                        </ul>
+                    </div>
                     <button class="btn btn-sm btn-outline-secondary" id="btnToggleFilters">
                         <i class="bi bi-chevron-up" id="filterCollapseIcon"></i>
                     </button>
@@ -144,6 +155,9 @@
                             All clients<span class="badge bg-primary rounded-pill ms-2 filter-count">All</span>
                         </button>
                         <ul class="dropdown-menu w-100 clients-menu" aria-labelledby="clientsDropdown">
+                            <li class="px-3 py-2">
+                                <input type="text" id="clientSearchInput" class="form-control form-control-sm" placeholder="Search clients...">
+                            </li>
                             <li><a class="dropdown-item" href="#" data-value="">All clients</a></li>
                             <!-- Dynamically filled via JS with coach clients -->
                         </ul>
@@ -345,7 +359,7 @@
                         <h5 class="card-title mb-0">Measurement Frequency</h5>
                         <div class="d-flex align-items-center gap-2">
                             <span class="badge bg-light text-dark">Last 30 days</span>
-                            <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" title="Download as CSV">
+                            <button class="btn btn-sm btn-outline-secondary" id="btnExportMeasurementCSV" data-bs-toggle="tooltip" title="Download as CSV">
                                 <i class="bi bi-download"></i>
                             </button>
                         </div>
@@ -470,6 +484,9 @@
                             <option value="20">20</option>
                         </select>
                     </div>
+                    <button class="btn btn-sm btn-outline-secondary" id="btnExportTopClientsCSV" data-bs-toggle="tooltip" title="Download as CSV">
+                        <i class="bi bi-download"></i>
+                    </button>
                     <nav aria-label="Top clients pagination">
                         <ul class="pagination pagination-sm mb-0">
                             <li class="page-item">

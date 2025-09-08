@@ -685,6 +685,157 @@ def coach_measurement_insights(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
+def coach_top_clients(request):
+    """Server-side Top Clients by Activity for DataTables.
+    Accepts DataTables params: draw, start, length, order[0][column], order[0][dir], search[value]
+    Applies usual filters (plan_type, plan_id, client_id, segment, q, preset/dates).
+    Returns fields: index, client_html, plan_type, status, measurement_count, last_activity_date, progress_percent, actions_html.
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    from apps.profiles.client_profile.models import ClientMeasurement
+
+    filters = _extract_filters(request)
+
+    # DataTables params
+    draw = int(request.GET.get('draw', 1) or 1)
+    try:
+        start = int(request.GET.get('start', 0) or 0)
+    except (TypeError, ValueError):
+        start = 0
+    try:
+        length = int(request.GET.get('length', 10) or 10)
+    except (TypeError, ValueError):
+        length = 10
+    length = max(1, min(100, length))
+    order_col = request.GET.get('order[0][column]')
+    order_dir = (request.GET.get('order[0][dir]') or 'desc').lower()
+    dt_search = (request.GET.get('search[value]') or '').strip()
+
+    # Window
+    end = filters.get('end_date') or timezone.now().date()
+    start_90 = filters.get('start_date') or (end - timedelta(days=90))
+
+    # Scope clients
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    # Base queryset: counts per client in window
+    base_qs = (
+        ClientMeasurement.objects.filter(
+            client__user_id__in=client_ids_qs,
+            date__gte=start_90,
+            date__lte=end,
+        )
+        .values('client__user__first_name', 'client__user__last_name', 'client__user_id')
+        .annotate(measurement_count=Count('id'), last_activity_date=Max('date'))
+    )
+
+    total_count = base_qs.count()
+
+    # Apply search across client fields if provided either via dt_search or filters['q']
+    search_text = dt_search or (filters.get('q') or '')
+    if search_text:
+        users_q = User.objects.filter(
+            Q(first_name__icontains=search_text) | Q(last_name__icontains=search_text) | Q(username__icontains=search_text) | Q(id__icontains=search_text)
+        ).values_list('id', flat=True)
+        base_qs = base_qs.filter(client__user_id__in=users_q)
+
+    filtered_count = base_qs.count()
+
+    # Sorting map (fallback to measurement_count desc)
+    order_fields = {
+        '1': ['client__user__first_name', 'client__user__last_name'], # Client
+        '4': ['-measurement_count'],  # Measurements
+        '5': ['-last_activity_date'], # Last Activity
+    }
+    if order_col in order_fields:
+        fields = order_fields[order_col]
+        if order_dir == 'asc':
+            fields = [f.lstrip('-') for f in fields]
+        base_qs = base_qs.order_by(*fields)
+    else:
+        base_qs = base_qs.order_by('-measurement_count')
+
+    # Slice
+    page_qs = list(base_qs[start:start + length])
+
+    # Enrich
+    data_rows = []
+    index = start + 1
+    for item in page_qs:
+        cid = item['client__user_id']
+        fname = item.get('client__user__first_name') or ''
+        lname = item.get('client__user__last_name') or ''
+        name = (f"{fname} {lname}").strip() or f"Client #{cid}"
+
+        subs_qs = PlanSubscription.objects.filter(product_plan__coach=coach_profile, client_id=cid)
+        if filters.get('plan_type_values'):
+            subs_qs = subs_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+        if filters.get('plan_id'):
+            subs_qs = subs_qs.filter(product_plan_id=filters['plan_id'])
+
+        plan_types = list(subs_qs.values_list('product_plan__plan_type', flat=True).distinct())
+        if len(plan_types) > 1:
+            plan_type = 'hybrid'
+        elif len(plan_types) == 1:
+            plan_type = plan_types[0]
+        else:
+            plan_type = None
+
+        status = 'Inactive'
+        if subs_qs.filter(status='active').exists():
+            status = 'Active'
+        elif subs_qs.filter(status='pending').exists():
+            status = 'Pending'
+        elif subs_qs.filter(status='completed').exists():
+            status = 'Completed'
+
+        days_qs = PlanDay.objects.filter(subscription__product_plan__coach=coach_profile, subscription__client_id=cid)
+        if filters.get('plan_id'):
+            days_qs = days_qs.filter(subscription__product_plan_id=filters['plan_id'])
+        if filters.get('start_date') and filters.get('end_date'):
+            days_qs = days_qs.filter(scheduled_date__range=(filters['start_date'], filters['end_date']))
+        comp_counts = days_qs.values('completion_status').annotate(c=Count('id'))
+        counts_map = {x['completion_status']: x['c'] for x in comp_counts}
+        denom = (counts_map.get('completed', 0) + counts_map.get('in_progress', 0) + counts_map.get('not_started', 0))
+        progress_percent = int(round((counts_map.get('completed', 0) / denom) * 100)) if denom else 0
+
+        # Presentation helpers (keep formatting at frontend but include raw types)
+        view_url = f"/plan-management/coach/client-measurements/?client_id={cid}"
+        plan_url = f"/plan-management/coach/plan-creation/?client_id={cid}"
+        client_html = f"<div class='d-flex align-items-center'><img class='client-avatar avatar-img rounded-circle me-2' src='' alt='{name}' data-username='{name}' width='32' height='32' loading='lazy' /><div><div class='fw-medium'>{name}</div><div class='small text-muted'>#{cid}</div></div></div>"
+        actions_html = (
+            f"<div class='btn-group' role='group'>"
+            f"<a class='btn btn-sm btn-outline-primary' href='{view_url}' data-clientid='{cid}'><i class='bi bi-eye'></i> View</a>"
+            f"<a class='btn btn-sm btn-primary' href='{plan_url}' data-clientid='{cid}'><i class='bi bi-plus-circle'></i> Plan</a>"
+            f"</div>"
+        )
+
+        data_rows.append({
+            'index': index,
+            'client': client_html,
+            'plan_type': plan_type or '',
+            'status': status,
+            'measurement_count': item.get('measurement_count') or 0,
+            'last_activity_date': (item.get('last_activity_date').strftime('%Y-%m-%d') if item.get('last_activity_date') else ''),
+            'progress_percent': progress_percent,
+            'actions': actions_html,
+        })
+        index += 1
+
+    payload = {
+        'draw': draw,
+        'recordsTotal': total_count,
+        'recordsFiltered': filtered_count,
+        'data': data_rows,
+    }
+    return Response(payload)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def coach_revenue_metrics(request):
     """Compute revenue metrics for the coach based on plan subscriptions.
     - Respects plan_type, date window, segment/search filters via client ids

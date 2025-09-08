@@ -70,6 +70,7 @@ urlpatterns = [
     path('api/v1/coach/revenue-metrics/', views_coach_templates.coach_revenue_metrics, name='coach_revenue_metrics_api_v1'),
     path('api/v1/coach/subscription-stats/', views_coach_templates.coach_subscription_stats, name='coach_subscription_stats_api_v1'),
     path('api/v1/coach/ratings-summary/', views_coach_templates.coach_ratings_summary, name='coach_ratings_summary_api_v1'),
+    path('api/v1/coach/top-clients/', views_coach_templates.coach_top_clients, name='coach_top_clients_api_v1'),
     path('api/v1/coach/clients/', views_coach_templates.coach_clients, name='coach_clients_api_v1'),
     
     # Coach plan customization API endpoints
