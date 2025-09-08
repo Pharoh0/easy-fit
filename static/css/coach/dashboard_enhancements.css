@@ -28,9 +28,10 @@
 .modern-card .card-header {
     background-color: rgba(255, 255, 255, 0.8);
     backdrop-filter: blur(5px);
-    position: sticky;
-    top: 0;
-    z-index: 5;
+    /* Avoid sticky headers inside cards to prevent scroll/layout issues */
+    position: relative;
+    top: auto;
+    z-index: 1;
 }
 
 /* Welcome banner with subtle particle background */
@@ -254,8 +255,8 @@
     border-radius: 10px;
     box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
     padding: 20px;
-    height: 100%;
-    position: relative;
+    /* Do NOT force full height; let base CSS control height and provide a safe minimum */
+    min-height: 260px;
     transition: transform 0.2s, box-shadow 0.2s;
 }
 
@@ -303,12 +304,14 @@
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    height: 100%;
+    /* Let container auto-size; avoid forcing 100% height */
+    min-height: 240px;
 }
 
 .donut-chart-container {
     position: relative;
-    max-width: 220px;
+    max-width: 260px;
+    height: 220px; /* explicit height to stabilize donut */
     margin: 0 auto 20px auto;
 }
 
