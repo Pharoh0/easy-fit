@@ -130,115 +130,120 @@ Legend:
 
 ### UC-004 – Administrative User & Role Management
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 4 – (UC-004) Administrative User & Role Management</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-003</span><span class="req-badge">REQ-052</span><span class="req-badge">REQ-053</span><span class="req-badge">REQ-085</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Administrator</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Actor's Goal</td><td colspan="2">Manage users, roles, and verification data securely</td></tr>
-	<tr><td class="heading-cell">Participating Actors</td><td colspan="2">Audit Logger; Storage Service</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Preconditions</td><td colspan="2">- Admin authenticated<br>- Proper permissions loaded</td></tr>
-	<tr><td class="heading-cell">Post Conditions</td><td colspan="2">- User accounts/roles updated<br>- All actions audit logged</td></tr>
-	<tr class="alt-row"><td class="heading-cell" colspan="3"><strong>Flow of Events – Main Success Scenario</strong></td></tr>
+	<tr><th colspan="2">Use Case 4 – (UC-004) Administrative User & Role Management</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-003</span><span class="req-badge">REQ-052</span><span class="req-badge">REQ-053</span><span class="req-badge">REQ-085</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Administrator</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Manage users, roles, and verification data securely</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>Audit Logger; Storage Service</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Admin authenticated<br>- Proper permissions loaded</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- User accounts/roles updated<br>- All actions audit logged</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
 	<tr>
 		<td class="flow-arrows">→<br>→<br>→<br>→<br>←</td>
-		<td colspan="2">1. Admin opens user management.<br>2. Applies filters/search.<br>3. Selects a user or bulk set.<br>4. Updates roles / verifies coach certs.<br>5. System saves changes & records audit.</td>
+		<td>1. Admin opens user management.<br>2. Applies filters/search.<br>3. Selects a user or bulk set.<br>4. Updates roles / verifies coach certs.<br>5. System saves changes & records audit.</td>
 	</tr>
-	<tr class="alt-row"><td class="heading-cell" colspan="3"><strong>Flow of Events – Extensions</strong></td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
 	<tr>
 		<td class="flow-arrows">→<br>←</td>
-		<td colspan="2">E1: Invalid role combination → System rejects with message.<br>E2: Expired certification detected → System flags and notifies coach.</td>
+		<td>E1: Invalid role combination → System rejects with message.<br>E2: Expired certification detected → System flags and notifies coach.</td>
 	</tr>
-	<tr class="alt-row"><td class="heading-cell">Priority</td><td colspan="2">5</td></tr>
+	<tr><td><strong>Priority</strong></td><td>5</td></tr>
 </table>
 
 ### UC-005 – Coach Profile & Certification Management
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 5 – (UC-005) Coach Profile & Certification Management</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-002</span><span class="req-badge">REQ-053</span><span class="req-badge">REQ-005</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Coach</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Actor's Goal</td><td colspan="2">Maintain professional profile & submit certifications</td></tr>
-	<tr><td class="heading-cell">Participating Actors</td><td colspan="2">Admin (verification)</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Preconditions</td><td colspan="2">- Coach account active</td></tr>
-	<tr><td class="heading-cell">Post Conditions</td><td colspan="2">- Profile updated; certification status refreshed</td></tr>
-	<tr class="alt-row"><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr><td class="flow-arrows">→<br>→<br>→<br>←</td><td colspan="2">1. Coach opens profile.<br>2. Edits specializations/bio.<br>3. Uploads certification file(s).<br>4. System stores, marks pending verification.</td></tr>
-	<tr class="alt-row"><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr><td class="flow-arrows">→<br>←</td><td colspan="2">E1: File invalid → System rejects.<br>E2: Certification expired → System auto notifies & flags.</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Priority</td><td colspan="2">5</td></tr>
+	<tr><th colspan="2">Use Case 5 – (UC-005) Coach Profile & Certification Management</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-002</span><span class="req-badge">REQ-053</span><span class="req-badge">REQ-005</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Coach</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Maintain professional profile & submit certifications</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>Admin (verification)</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Coach account active</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- Profile updated; certification status refreshed</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>→<br>←</td><td>1. Coach opens profile.<br>2. Edits specializations/bio.<br>3. Uploads certification file(s).<br>4. System stores, marks pending verification.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>←</td><td>E1: File invalid → System rejects.<br>E2: Certification expired → System auto notifies & flags.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>5</td></tr>
 </table>
 
 ### UC-006 – Create / Structure Plan Template
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 6 – (UC-006) Create Plan Template</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-005</span><span class="req-badge">REQ-022</span><span class="req-badge">REQ-031</span><span class="req-badge">REQ-061</span><span class="req-badge">REQ-040</span><span class="req-badge">REQ-066</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Coach</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Goal</td><td colspan="2">Build reusable structured fitness/nutrition template</td></tr>
-	<tr><td class="heading-cell">Preconditions</td><td colspan="2">- Coach verified</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Post Conditions</td><td colspan="2">- Template stored & available in library</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>→<br>→<br>→<br>←<br>←</td><td colspan="2">1. Select "Create Template".<br>2. Enter metadata (goal category).<br>3. Add workouts & meals (components).<br>4. Organize hierarchy (days/phases).<br>5. Save draft.<br>6. Publish template.</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>←</td><td colspan="2">E1: Missing fields → Prompt completion.<br>E2: Clone existing template → Prefill data.</td></tr>
-	<tr><td class="heading-cell">Priority</td><td colspan="2">5</td></tr>
+	<tr><th colspan="2">Use Case 6 – (UC-006) Create Plan Template</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-005</span><span class="req-badge">REQ-022</span><span class="req-badge">REQ-031</span><span class="req-badge">REQ-061</span><span class="req-badge">REQ-040</span><span class="req-badge">REQ-066</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Coach</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Build reusable structured fitness/nutrition template</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>—</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Coach verified</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- Template stored & available in library</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>→<br>→<br>←<br>←</td><td>1. Select "Create Template".<br>2. Enter metadata (goal category).<br>3. Add workouts & meals (components).<br>4. Organize hierarchy (days/phases).<br>5. Save draft.<br>6. Publish template.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>←</td><td>E1: Missing fields → Prompt completion.<br>E2: Clone existing template → Prefill data.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>5</td></tr>
 </table>
 
 ### UC-007 – Assign Plan (Single / Bulk)
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 7 – (UC-007) Assign Plan to Clients</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-006</span><span class="req-badge">REQ-032</span><span class="req-badge">REQ-063</span><span class="req-badge">REQ-062</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Coach</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Goal</td><td colspan="2">Assign personalized plan(s) to one or many clients</td></tr>
-	<tr><td class="heading-cell">Preconditions</td><td colspan="2">- Published template exists<br>- Clients available</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Post Conditions</td><td colspan="2">- PlanSubscription records created</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>→<br>→<br>←<br>←</td><td colspan="2">1. Coach selects template.<br>2. Selects clients (single/bulk).<br>3. Customizes parameters.<br>4. Confirms assignment.<br>5. System creates subscriptions.</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>←</td><td colspan="2">E1: Client has conflicting active plan → Prompt pause.<br>E2: Partial bulk failure → Show report.</td></tr>
-	<tr><td class="heading-cell">Priority</td><td colspan="2">5</td></tr>
+	<tr><th colspan="2">Use Case 7 – (UC-007) Assign Plan to Clients</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-006</span><span class="req-badge">REQ-032</span><span class="req-badge">REQ-063</span><span class="req-badge">REQ-062</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Coach</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Assign personalized plan(s) to one or many clients</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>—</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Published template exists<br>- Clients available</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- PlanSubscription records created</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>→<br>←<br>←</td><td>1. Coach selects template.<br>2. Selects clients (single/bulk).<br>3. Customizes parameters.<br>4. Confirms assignment.<br>5. System creates subscriptions.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>←</td><td>E1: Client has conflicting active plan → Prompt pause.<br>E2: Partial bulk failure → Show report.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>5</td></tr>
 </table>
 
 ### UC-008 – Manage Active Plan Subscription
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 8 – (UC-008) Manage Active Plan Subscription</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-007</span><span class="req-badge">REQ-033</span><span class="req-badge">REQ-062</span><span class="req-badge">REQ-064</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Client</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Goal</td><td colspan="2">Follow, pause, resume plan; track completion</td></tr>
-	<tr><td class="heading-cell">Preconditions</td><td colspan="2">- Active subscription exists</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Post Conditions</td><td colspan="2">- Updated state & progress metrics</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>→<br>←<br>←<br>←</td><td colspan="2">1. Client opens plan dashboard.<br>2. Marks items completed.<br>3. System recalculates metrics.<br>4. Client pauses plan (optional).<br>5. Client resumes later.</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>←</td><td colspan="2">E1: Plan ended → System archives & prompts rating.<br>E2: Pause request → System stores snapshot state.</td></tr>
-	<tr><td class="heading-cell">Priority</td><td colspan="2">5</td></tr>
+	<tr><th colspan="2">Use Case 8 – (UC-008) Manage Active Plan Subscription</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-007</span><span class="req-badge">REQ-033</span><span class="req-badge">REQ-062</span><span class="req-badge">REQ-064</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Client</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Follow, pause, resume plan; track completion</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>System</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Active subscription exists</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- Updated state & progress metrics</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>←<br>←<br>←</td><td>1. Client opens plan dashboard.<br>2. Marks items completed.<br>3. System recalculates metrics.<br>4. Client pauses plan (optional).<br>5. Client resumes later.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>←</td><td>E1: Plan ended → System archives & prompts rating.<br>E2: Pause request → System stores snapshot state.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>5</td></tr>
 </table>
 
 ### UC-009 – Daily Meal / Workout / Wellness Logging
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 9 – (UC-009) Log Daily Progress</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-008</span><span class="req-badge">REQ-035</span><span class="req-badge">REQ-039</span><span class="req-badge">REQ-055</span><span class="req-badge">REQ-056</span><span class="req-badge">REQ-057</span><span class="req-badge">REQ-049</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Client</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Goal</td><td colspan="2">Capture daily activity and wellness data</td></tr>
-	<tr><td class="heading-cell">Preconditions</td><td colspan="2">- Active subscription day</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Post Conditions</td><td colspan="2">- DailyProgressLog persisted; metrics queued</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>→<br>→<br>←<br>←<br>←</td><td colspan="2">1. Add meals with nutritional data.<br>2. Log workouts.<br>3. Record water, sleep, mood, stress, energy.<br>4. Attach photos / notes.<br>5. System validates & saves.<br>6. System updates log model.</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>←</td><td colspan="2">E1: Missing nutrition info → Prompt search.<br>E2: Invalid range → Reject field.</td></tr>
-	<tr><td class="heading-cell">Priority</td><td colspan="2">4</td></tr>
+	<tr><th colspan="2">Use Case 9 – (UC-009) Log Daily Progress</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-008</span><span class="req-badge">REQ-035</span><span class="req-badge">REQ-039</span><span class="req-badge">REQ-055</span><span class="req-badge">REQ-056</span><span class="req-badge">REQ-057</span><span class="req-badge">REQ-049</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Client</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Capture daily activity and wellness data</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>System</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Active subscription day</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- DailyProgressLog persisted; metrics queued</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>→<br>←<br>←<br>←</td><td>1. Add meals with nutritional data.<br>2. Log workouts.<br>3. Record water, sleep, mood, stress, energy.<br>4. Attach photos / notes.<br>5. System validates & saves.<br>6. System updates log model.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>←</td><td>E1: Missing nutrition info → Prompt search.<br>E2: Invalid range → Reject field.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>4</td></tr>
 </table>
 
 ### UC-010 – View Progress & Dashboards
 <table class="usecase-table">
-	<tr><th colspan="3">Use Case 10 – (UC-010) View Progress & Dashboards</th></tr>
-	<tr class="alt-row"><td class="heading-cell">Related Requirements</td><td colspan="2"><span class="req-badge">REQ-009</span><span class="req-badge">REQ-013</span><span class="req-badge">REQ-014</span><span class="req-badge">REQ-079</span></td></tr>
-	<tr><td class="heading-cell">Initiating Actor</td><td colspan="2">Client / Coach</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Goal</td><td colspan="2">Visualize performance and adherence</td></tr>
-	<tr><td class="heading-cell">Preconditions</td><td colspan="2">- Progress data exists</td></tr>
-	<tr class="alt-row"><td class="heading-cell">Post Conditions</td><td colspan="2">- Insights displayed</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Main Flow</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→<br>→<br>←<br>←</td><td colspan="2">1. System aggregates metrics.<br>2. Renders charts and trends.<br>3. Coach views multi-client aggregate.<br>4. Client applies filters.</td></tr>
-	<tr><td class="heading-cell" colspan="3"><strong>Extensions</strong></td></tr>
-	<tr class="alt-row"><td class="flow-arrows">→</td><td colspan="2">E1: No data → Show onboarding tips.</td></tr>
-	<tr><td class="heading-cell">Priority</td><td colspan="2">4</td></tr>
+	<tr><th colspan="2">Use Case 10 – (UC-010) View Progress & Dashboards</th></tr>
+	<tr><td><strong>Related Requirements</strong></td><td><span class="req-badge">REQ-009</span><span class="req-badge">REQ-013</span><span class="req-badge">REQ-014</span><span class="req-badge">REQ-079</span></td></tr>
+	<tr><td><strong>Initiating Actor</strong></td><td>Client / Coach</td></tr>
+	<tr><td><strong>Actor’s Goal</strong></td><td>Visualize performance and adherence</td></tr>
+	<tr><td><strong>Participating Actors</strong></td><td>Analytics Service</td></tr>
+	<tr><td><strong>Preconditions</strong></td><td>- Progress data exists</td></tr>
+	<tr><td><strong>Post conditions</strong></td><td>- Insights displayed</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for main success scenario:</strong></td></tr>
+	<tr><td class="flow-arrows">→<br>→<br>←<br>←</td><td>1. System aggregates metrics.<br>2. Renders charts and trends.<br>3. Coach views multi-client aggregate.<br>4. Client applies filters.</td></tr>
+	<tr><td colspan="2"><strong>Flow of Events for Extensions (Alternate scenarios):</strong></td></tr>
+	<tr><td class="flow-arrows">→</td><td>E1: No data → Show onboarding tips.</td></tr>
+	<tr><td><strong>Priority</strong></td><td>4</td></tr>
 </table>
 
 ### UC-011 – Submit Ratings & Feedback
