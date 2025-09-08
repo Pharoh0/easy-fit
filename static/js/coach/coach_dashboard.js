@@ -17,6 +17,8 @@
     let plansCache = [];
     // Cache of clients for dropdown label rendering
     let clientsCache = [];
+    // Cache latest measurement frequency for export
+    let lastMeasurementFrequency = [];
 
     $(document).ready(function () {
         setupFiltersUI();
@@ -35,6 +37,15 @@
         updateUrlWithState(initialState);
         initCoachDashboard(initialState);
     });
+
+    // ===== Utilities =====
+    function debounce(fn, wait) {
+        let t = null;
+        return function(...args) {
+            clearTimeout(t);
+            t = setTimeout(() => fn.apply(this, args), wait);
+        };
+    }
 
     async function initCoachDashboard(options = {}) {
         console.debug('Initializing coach dashboard with options:', options);
@@ -442,6 +453,7 @@
             
             // Render each section with data validation
             if (Array.isArray(insights.measurement_frequency) && insights.measurement_frequency.length > 0) {
+                lastMeasurementFrequency = insights.measurement_frequency.slice();
                 renderMeasurementFrequency(insights.measurement_frequency);
             } else {
                 console.debug('No measurement frequency data available');
@@ -455,7 +467,8 @@
             }
             
             renderInsightsSummary(insights);
-            renderTopClientsTable(insights.top_clients || [], (options && options.q) ? options.q : '');
+            // Initialize or reload server-side DataTable for Top Clients
+            ensureTopClientsDataTableInitialized(options);
         } catch (e) {
             console.error('Error loading measurement insights', e);
             // Show error states
@@ -929,7 +942,7 @@
     function collectStateFromUI() {
         const state = defaultFilterState();
         const checkedId = ($('input[name="timePeriod"]:checked').attr('id') || '').toLowerCase();
-        const idToPreset = { 'alltime': 'all', '7days': '7d', '30days': '30d', '90days': '90d', 'thisyear': 'ytd', 'customrange': 'custom' };
+        const idToPreset = { alltime: 'all', '7days': '7d', '30days': '30d', '90days': '90d', thisyear: 'ytd', customrange: 'custom' };
         state.preset = idToPreset[checkedId] || '30d';
         if (state.preset === 'custom') {
             state.start_date = ($('#filterStart').val() || '').trim();
@@ -1031,6 +1044,11 @@
         $(document).on('show.bs.dropdown', '#clientsDropdown', async function () {
             try { await loadCoachClients($('#searchClients').val() || ''); } catch (_) {}
         });
+        // Typeahead inside client dropdown
+        $(document).on('input', '#clientSearchInput', debounce(function () {
+            const term = ($('#clientSearchInput').val() || '').trim();
+            loadCoachClients(term).catch(() => {});
+        }, 300));
         $(document).on('click', '.clients-menu .dropdown-item', function (e) {
             e.preventDefault();
             const value = String($(this).data('value') || '');
@@ -1084,6 +1102,10 @@
             try {
                 // Ensure we pass the state object directly, not a string version
                 await initCoachDashboard(state);
+                // If DataTable exists, reset to first page and reload
+                if (topClientsTable && topClientsTable.ajax) {
+                    topClientsTable.page('first').draw('page');
+                }
                 console.debug('Dashboard refreshed with new filters');
             } catch (err) {
                 console.error('Error refreshing dashboard with filters:', err);
@@ -1105,6 +1127,9 @@
             lastAppliedState = state;
             updateUrlWithState(state);
             await initCoachDashboard(state);
+            if (topClientsTable && topClientsTable.ajax) {
+                topClientsTable.page('first').draw('page');
+            }
         });
 
         // Search input and button
@@ -1118,29 +1143,239 @@
             $('#btnApplyFilters').trigger('click');
         });
 
-        // Pager controls for Top Clients
-        $(document).on('click', '#btnTopPrev', async function () {
-            if (topClientsOffset <= 0) return;
-            topClientsOffset = Math.max(0, topClientsOffset - topClientsLimit);
-            updateUrlWithState(lastAppliedState || parseFiltersFromURL());
-            await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+        // Pager controls for Top Clients (prefer DataTables if present)
+        $(document).on('click', '#btnTopPrev', function () {
+            if (topClientsTable && topClientsTable.page) {
+                topClientsTable.page('previous').draw('page');
+            } else {
+                if (topClientsOffset <= 0) return;
+                topClientsOffset = Math.max(0, topClientsOffset - topClientsLimit);
+                updateUrlWithState(lastAppliedState || parseFiltersFromURL());
+                loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+            }
         });
-        $(document).on('click', '#btnTopNext', async function () {
-            if (topClientsOffset + topClientsLimit >= topClientsTotal) return;
-            topClientsOffset = topClientsOffset + topClientsLimit;
-            updateUrlWithState(lastAppliedState || parseFiltersFromURL());
-            await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+        $(document).on('click', '#btnTopNext', function () {
+            if (topClientsTable && topClientsTable.page) {
+                topClientsTable.page('next').draw('page');
+            } else {
+                if (topClientsOffset + topClientsLimit >= topClientsTotal) return;
+                topClientsOffset = topClientsOffset + topClientsLimit;
+                updateUrlWithState(lastAppliedState || parseFiltersFromURL());
+                loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+            }
         });
 
         // Page size change for Top Clients
-        $(document).on('change', '#topClientsPageSize', async function () {
-            const newLimit = parseInt($(this).val());
-            if (!isNaN(newLimit) && newLimit > 0 && newLimit <= 50) {
+        $(document).on('change', '#topClientsPageSize', function () {
+            const newLimit = parseInt($(this).val(), 10) || 5;
+            if (topClientsTable && topClientsTable.page) {
+                topClientsTable.page.len(newLimit).draw('page');
+            } else {
                 topClientsLimit = newLimit;
-                topClientsOffset = 0; // reset to first page
-                updateUrlWithState(lastAppliedState || parseFiltersFromURL());
-                await loadMeasurementInsights(lastAppliedState || parseFiltersFromURL());
+                topClientsOffset = 0;
+                const state = lastAppliedState || collectStateFromUI();
+                updateUrlWithState(state);
+                loadMeasurementInsights(state);
             }
         });
+    }
+
+    function ensureTopClientsDataTableInitialized(options = {}) {
+        const tableSelector = '#topClientsTable';
+        const hasDataTables = !!(window.jQuery && $.fn && typeof $.fn.DataTable === 'function');
+        if (!hasDataTables) return; // rely on fallback spinner/empty state
+
+        const buildAjaxParams = (dtData) => {
+            const state = lastAppliedState || collectStateFromUI();
+            const filters = buildQueryOptionsFromState(state);
+            // Append DataTables params
+            const params = new URLSearchParams();
+            Object.entries(filters).forEach(([k, v]) => { if (v !== undefined && v !== null && String(v) !== '') params.append(k, v); });
+            params.append('draw', dtData.draw);
+            params.append('start', dtData.start);
+            params.append('length', dtData.length);
+            if (dtData.order && dtData.order.length) {
+                params.append('order[0][column]', String(dtData.order[0].column));
+                params.append('order[0][dir]', dtData.order[0].dir);
+            }
+            if (dtData.search && dtData.search.value) {
+                params.append('search[value]', dtData.search.value);
+            }
+            return params.toString();
+        };
+
+        if ($.fn.DataTable.isDataTable(tableSelector)) {
+            topClientsTable = $(tableSelector).DataTable();
+            topClientsTable.ajax.reload(null, true);
+            return;
+        }
+
+        topClientsTable = $(tableSelector).DataTable({
+            serverSide: true,
+            processing: true,
+            searching: false,
+            lengthChange: false,
+            pageLength: Number(document.getElementById('topClientsPageSize')?.value || 5),
+            order: [[4, 'desc']], // Order by measurements count
+            ajax: function (dtData, callback) {
+                const qs = buildAjaxParams(dtData);
+                const url = `/plan-management/api/v1/coach/top-clients/?${qs}`;
+                APIBase.request(url).then(res => {
+                    if (!res || res.error) {
+                        callback({ draw: dtData.draw, data: [], recordsTotal: 0, recordsFiltered: 0 });
+                        return;
+                    }
+                    const payload = (res && res.data) ? res.data : res; // APIBase wraps payload under data
+                    const rows = (payload.data || []).map((r, idx) => {
+                        // Convert API object row into array columns expected by our table
+                        const planTypeLabel = CoachAnalyticsAPI.formatPlanTypeLabel(r.plan_type);
+                        const planTypeHtml = `<span class="badge bg-light">${planTypeLabel || ''}</span>`;
+                        const status = r.status || 'Inactive';
+                        const statusClass = status === 'Active' ? 'success' : status === 'Pending' ? 'info' : status === 'Completed' ? 'primary' : 'secondary';
+                        const statusHtml = `<span class="badge bg-${statusClass}-subtle text-${statusClass}">${status}</span>`;
+                        const progress = Number(r.progress_percent || 0);
+                        const progressClass = progress >= 75 ? 'bg-success' : progress >= 50 ? 'bg-info' : progress >= 25 ? 'bg-warning' : 'bg-secondary';
+                        const progressHtml = `<div class="progress" style="height:8px"><div class="progress-bar ${progressClass}" style="width:${progress}%"></div></div><div class="small text-muted mt-1">${progress}%</div>`;
+                        const last = r.last_activity_date || '';
+                        return [r.index, r.client, planTypeHtml, statusHtml, r.measurement_count || 0, last, progressHtml, r.actions];
+                    });
+                    // Update pager UI and URL
+                    try {
+                        const info = topClientsTable.page && topClientsTable.page.info ? topClientsTable.page.info() : { start: dtData.start, length: dtData.length, recordsDisplay: payload.recordsFiltered };
+                        topClientsTotal = payload.recordsFiltered || 0;
+                        topClientsLimit = dtData.length;
+                        topClientsOffset = dtData.start;
+                        updateTopClientsPagerUI();
+                        // Persist to URL
+                        const state = lastAppliedState || collectStateFromUI();
+                        updateUrlWithState(state);
+                    } catch (e) {}
+                    callback({ draw: payload.draw || dtData.draw, data: rows, recordsTotal: payload.recordsTotal || rows.length, recordsFiltered: payload.recordsFiltered || rows.length });
+                }).catch(() => {
+                    callback({ draw: dtData.draw, data: [], recordsTotal: 0, recordsFiltered: 0 });
+                });
+            },
+            columnDefs: [
+                { targets: 0, title: '#', width: '40px' },
+                { targets: 1, title: 'Client', width: '20%', orderable: true },
+                { targets: 2, title: 'Plan Type', width: '10%', orderable: false },
+                { targets: 3, title: 'Status', width: '10%', orderable: false },
+                { targets: 4, title: 'Measurements', width: '10%', orderable: true },
+                { targets: 5, title: 'Last Activity', width: '15%', orderable: true },
+                { targets: 6, title: 'Progress', width: '15%', orderable: false },
+                { targets: 7, title: 'Actions', width: '15%', orderable: false, searchable: false, className: 'text-end' },
+            ],
+            language: { emptyTable: 'No data' }
+        });
+
+        // Update external pager UI after draw
+        $(tableSelector).on('draw.dt', function () {
+            try {
+                const info = topClientsTable.page.info();
+                topClientsTotal = info.recordsDisplay;
+                topClientsLimit = info.length;
+                topClientsOffset = info.start;
+                updateTopClientsPagerUI();
+                const state = lastAppliedState || collectStateFromUI();
+                updateUrlWithState(state);
+            } catch (e) {}
+        });
+    }
+
+    /* duplicate renderInsightsSummary was removed; using primary definition above */
+
+    // ===== CSV Export =====
+    function exportMeasurementCSV() {
+        const rows = lastMeasurementFrequency || [];
+        if (!rows.length) { utils?.showToast?.('No data', 'warning'); return; }
+        const lines = ['Day,Count'];
+        rows.forEach(r => {
+            const d = r.day || r.date || r.Day || '';
+            const c = r.count || r.Count || 0;
+            lines.push(`${d},${c}`);
+        });
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'measurement_frequency.csv';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    async function exportTopClientsCSV() {
+        // Fetch all filtered top clients in pages of 100
+        const state = lastAppliedState || collectStateFromUI();
+        const filters = buildQueryOptionsFromState(state);
+        let start = 0; const length = 100; let total = null; const rows = [];
+        for (let i = 0; i < 50; i++) { // hard cap to avoid infinite
+            const usp = new URLSearchParams({ ...filters, start: String(start), length: String(length), draw: '1' });
+            const url = `/plan-management/api/v1/coach/top-clients/?${usp.toString()}`;
+            const res = await APIBase.request(url);
+            const payload = (res && res.data) ? res.data : res;
+            if (!payload || !Array.isArray(payload.data)) break;
+            const pageRows = payload.data;
+            rows.push(...pageRows);
+            total = payload.recordsFiltered ?? payload.recordsTotal ?? (rows.length);
+            start += length;
+            if (start >= total) break;
+        }
+        if (!rows.length) { utils?.showToast?.('No data', 'warning'); return; }
+        const lines = ['#,Client,Plan Type,Status,Measurements,Last Activity,Progress%'];
+        rows.forEach((r, idx) => {
+            const name = (r.client || '').replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim();
+            const plan = CoachAnalyticsAPI.formatPlanTypeLabel(r.plan_type || '');
+            const last = r.last_activity_date || '';
+            lines.push(`${idx + 1},"${name}",${plan},${r.status || ''},${r.measurement_count || 0},${last},${r.progress_percent || 0}`);
+        });
+        const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'top_clients.csv';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+
+    // ===== Presets (localStorage) =====
+    const PRESETS_KEY = 'coach_dashboard_presets_v1';
+    function getPresetsMap() {
+        try { return JSON.parse(localStorage.getItem(PRESETS_KEY) || '{}') || {}; } catch (_) { return {}; }
+    }
+    function setPresetsMap(map) { try { localStorage.setItem(PRESETS_KEY, JSON.stringify(map || {})); } catch (_) {} }
+    function populatePresetsMenu() {
+        const menu = document.querySelector('.presets-menu');
+        if (!menu) return;
+        // Remove previous items except the header/divider and save button
+        menu.querySelectorAll('.preset-item, .preset-actions').forEach(n => n.remove());
+        const map = getPresetsMap();
+        const entries = Object.keys(map);
+        const empty = menu.querySelector('.no-presets');
+        if (entries.length === 0) {
+            if (empty) empty.style.display = '';
+        } else {
+            if (empty) empty.style.display = 'none';
+            const frag = document.createDocumentFragment();
+            entries.forEach(name => {
+                const li = document.createElement('li');
+                li.className = 'preset-item';
+                li.innerHTML = `<a class="dropdown-item preset-apply" href="#" data-name="${name}"><i class="bi bi-funnel"></i> ${name}</a>`;
+                const li2 = document.createElement('li');
+                li2.className = 'preset-actions';
+                li2.innerHTML = `<a class="dropdown-item text-danger preset-delete" href="#" data-name="${name}"><i class="bi bi-trash"></i> Delete "${name}"</a>`;
+                frag.appendChild(li);
+                frag.appendChild(li2);
+            });
+            // Insert before divider (3rd child) if exists
+            const divider = menu.querySelector('.dropdown-divider');
+            if (divider) menu.insertBefore(frag, divider);
+            else menu.appendChild(frag);
+        }
+    }
+    function saveCurrentPreset() {
+        const name = (window.prompt && window.prompt('Preset name')) || '';
+        if (!name.trim()) return;
+        const map = getPresetsMap();
+        map[name.trim()] = collectStateFromUI();
+        setPresetsMap(map);
+        utils?.showToast?.('Preset saved');
     }
 })();
