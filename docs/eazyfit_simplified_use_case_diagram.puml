@@ -1,0 +1,160 @@
+@startuml EazyFit_Use_Case_Diagram
+
+!theme plain
+skinparam backgroundColor #FFFFFF
+skinparam actorBorderColor #2C3E50
+skinparam usecaseBorderColor #3498DB
+skinparam packageBorderColor #8E44AD
+skinparam rectangleBorderColor #E74C3C
+skinparam usecaseFontSize 11
+skinparam packageFontSize 12
+skinparam actorFontSize 12
+skinparam titleFontSize 14
+skinparam padding 5
+skinparam minClassWidth 120
+skinparam wrapWidth 200
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor #F8F9FA
+  BorderColor #3498DB
+}
+
+title EazyFit Platform - Use Case Diagram
+
+' Define Main Actors positioned around the system
+actor "Client" as Client #E8F5E8
+actor "Coach" as Coach #E8F0FF
+actor "Administrator" as Admin #FFE8E8
+
+' System boundary
+rectangle "EazyFit System" {
+  left to right direction
+
+  
+  package "User Management" {
+    usecase "Register/Login" as UC1
+    usecase "Manage Profile" as UC2
+    usecase "Reset Password" as UC3
+    usecase "Update Personal Info" as UC27
+    usecase "Manage Privacy Settings" as UC28
+  }
+
+  package "Client Services" {
+    usecase "Browse Plans" as UC4
+    usecase "Request Plan" as UC5
+    usecase "Subscribe to Plan" as UC6
+    usecase "Track Progress" as UC7
+    usecase "Record Measurements" as UC8
+    usecase "Rate & Review" as UC9
+    usecase "Search Coaches" as UC10
+    usecase "View Plan History" as UC29
+    usecase "Cancel Subscription" as UC30
+    usecase "Request Refund" as UC31
+  }
+
+  package "Coach Services" {
+    usecase "Create Plans" as UC11
+    usecase "Manage Templates" as UC12
+    usecase "Customize Plans" as UC13
+    usecase "Approve Requests" as UC14
+    usecase "Monitor Progress" as UC15
+    usecase "Manage Certifications" as UC16
+    usecase "Set Availability" as UC17
+    usecase "Create Workout Templates" as UC32
+    usecase "Create Meal Templates" as UC33
+    usecase "Manage Client List" as UC34
+    usecase "Set Pricing" as UC35
+  }
+
+  package "Communication" {
+    usecase "Send/Receive Messages" as UC18
+    usecase "Video Consultations" as UC19
+    usecase "Share Files" as UC20
+    usecase "Manage Conversations" as UC21
+    usecase "Schedule Appointments" as UC36
+    usecase "Send Notifications" as UC37
+  }
+
+  package "Administration" {
+    usecase "Manage Users" as UC22
+    usecase "Approve Coaches" as UC23
+    usecase "Monitor Platform" as UC24
+    usecase "Generate Reports" as UC25
+    usecase "Handle Support" as UC26
+    usecase "Manage Content" as UC38
+    usecase "System Backup" as UC39
+    usecase "Manage Payments" as UC40
+    usecase "Review Complaints" as UC41
+  }
+}
+
+' Actor interactions - clean connections without labels
+' Client connections
+Client --> UC1
+Client --> UC2
+Client --> UC3
+Client --> UC4
+Client --> UC5
+Client --> UC6
+Client --> UC7
+Client --> UC8
+Client --> UC9
+Client --> UC10
+Client --> UC18
+Client --> UC19
+Client --> UC20
+Client --> UC21
+Client --> UC27
+Client --> UC29
+Client --> UC30
+Client --> UC31
+Client --> UC36
+
+' Coach connections
+Coach --> UC1
+Coach --> UC2
+Coach --> UC3
+Coach --> UC11
+Coach --> UC12
+Coach --> UC13
+Coach --> UC14
+Coach --> UC15
+Coach --> UC16
+Coach --> UC17
+Coach --> UC18
+Coach --> UC19
+Coach --> UC20
+Coach --> UC21
+Coach --> UC32
+Coach --> UC33
+Coach --> UC34
+Coach --> UC35
+Coach --> UC36
+Coach --> UC37
+
+' Admin connections
+Admin --> UC1
+Admin --> UC2
+Admin --> UC22
+Admin --> UC23
+Admin --> UC24
+Admin --> UC25
+Admin --> UC26
+Admin --> UC28
+Admin --> UC38
+Admin --> UC39
+Admin --> UC40
+Admin --> UC41
+
+' Key system relationships
+UC5 ..> UC6 : <<extends>>
+UC14 ..> UC13 : <<extends>>
+UC12 ..> UC13 : <<includes>>
+UC18 ..> UC19 : <<extends>>
+UC23 ..> UC22 : <<includes>>
+UC32 ..> UC11 : <<includes>>
+UC33 ..> UC11 : <<includes>>
+UC30 ..> UC6 : <<extends>>
+UC31 ..> UC30 : <<extends>>
+
+@enduml
