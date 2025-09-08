@@ -2,8 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
-from django.db.models import Count, Sum, Avg, F, Q, Case, When, Value, IntegerField
-from django.db.models.functions import TruncDate
+from django.db.models import Count, Sum, Avg, F, Q, Case, When, Value, IntegerField, Max
+from django.db.models.functions import TruncDate, TruncMonth
 from django.utils import timezone
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -90,7 +90,32 @@ def _extract_filters(request):
     plan_type_vals = _plan_type_values(plan_type_param)
 
     segment = (request.GET.get('segment') or '').lower()
+    # Normalize UI segments to backend tokens
+    if segment in ('at-risk', 'at_risk'):
+        segment = 'high_risk'
     q = (request.GET.get('q') or '').strip()
+
+    # Optional: filter to a specific plan id for coach reports
+    plan_id = None
+    plan_id_param = request.GET.get('plan_id')
+    if plan_id_param:
+        try:
+            plan_id_int = int(plan_id_param)
+            if plan_id_int > 0:
+                plan_id = plan_id_int
+        except (TypeError, ValueError):
+            plan_id = None
+
+    # Optional: filter to a specific client id
+    client_id = None
+    client_id_param = request.GET.get('client_id')
+    if client_id_param:
+        try:
+            cid_int = int(client_id_param)
+            if cid_int > 0:
+                client_id = cid_int
+        except (TypeError, ValueError):
+            client_id = None
 
     return {
         'preset': preset,
@@ -99,6 +124,8 @@ def _extract_filters(request):
         'plan_type_values': plan_type_vals,  # None or ['workout'] / ['diet']
         'segment': segment,
         'q': q,
+        'plan_id': plan_id,
+        'client_id': client_id,
     }
 
 
@@ -131,10 +158,18 @@ def _filtered_client_ids_for_coach(coach_profile: CoachProfile, filters: dict):
     if segment == 'new':
         win_start = start or (end - timedelta(days=30))
         base = base.filter(subscribed_at__date__gte=win_start)
-    elif segment in ('high_risk', 'top_10'):
+    elif segment in ('high_risk', 'inactive', 'active', 'top_10'):
         # Measurement-based segments
         from apps.profiles.client_profile.models import ClientMeasurement
+        # Windows by segment if not provided explicitly
         if segment == 'high_risk':
+            # At-risk: no activity > 14 days
+            win_start = start or (end - timedelta(days=14))
+        elif segment == 'inactive':
+            # Inactive: no activity > 30 days
+            win_start = start or (end - timedelta(days=30))
+        elif segment == 'active':
+            # Active: some activity in last 30 days
             win_start = start or (end - timedelta(days=30))
         else:  # top_10
             win_start = start or (end - timedelta(days=90))
@@ -146,10 +181,14 @@ def _filtered_client_ids_for_coach(coach_profile: CoachProfile, filters: dict):
             date__gte=win_start,
             date__lte=end,
         )
-        if segment == 'high_risk':
+        if segment in ('high_risk', 'inactive'):
             # Clients with zero measurements in window
             active_ids = meas_qs.values_list('client__user_id', flat=True).distinct()
             base = base.exclude(client_id__in=active_ids)
+        elif segment == 'active':
+            # Clients with at least one measurement in window
+            active_ids = meas_qs.values_list('client__user_id', flat=True).distinct()
+            base = base.filter(client_id__in=active_ids)
         else:  # top_10
             top_ids = (
                 meas_qs.values('client__user_id')
@@ -162,11 +201,65 @@ def _filtered_client_ids_for_coach(coach_profile: CoachProfile, filters: dict):
     return base.values_list('client_id', flat=True).distinct()
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_clients(request):
+    """Lightweight search for coach's clients (scoped by filters).
+    Supports query param q and limit (default 20). Respects plan_type/plan_id/date window.
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    filters = _extract_filters(request)
+
+    # Base subscriptions scoped to coach (and optional filters)
+    subs = PlanSubscription.objects.filter(product_plan__coach=coach_profile)
+    if filters.get('plan_id'):
+        subs = subs.filter(product_plan_id=filters['plan_id'])
+    if filters.get('plan_type_values'):
+        subs = subs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('start_date') and filters.get('end_date'):
+        subs = subs.filter(
+            subscribed_at__date__gte=filters['start_date'],
+            subscribed_at__date__lte=filters['end_date'],
+        )
+
+    client_ids = subs.values_list('client_id', flat=True).distinct()
+
+    q = (request.GET.get('q') or '').strip()
+    users = User.objects.filter(id__in=client_ids).values('id', 'first_name', 'last_name', 'username')
+    if q:
+        users = users.filter(
+            Q(first_name__icontains=q) | Q(last_name__icontains=q) | Q(username__icontains=q) | Q(id__icontains=q)
+        )
+
+    try:
+        limit = int(request.GET.get('limit', 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(100, limit))
+
+    users = list(users.order_by('first_name', 'last_name')[:limit])
+    results = [
+        {
+            'id': u['id'],
+            'name': (f"{u['first_name']} {u['last_name']}").strip() or (u['username'] or f"Client #{u['id']}")
+        }
+        for u in users
+    ]
+
+    return Response({'success': True, 'results': results})
+
+
 def _apply_plan_day_filters(plan_days_qs, coach_profile: CoachProfile, filters: dict):
     """Apply coach scoping plus filters to a PlanDay queryset."""
     qs = plan_days_qs.filter(subscription__product_plan__coach=coach_profile)
     if filters.get('plan_type_values'):
         qs = qs.filter(subscription__product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        qs = qs.filter(subscription__product_plan_id=filters['plan_id'])
     if filters.get('start_date') and filters.get('end_date'):
         qs = qs.filter(scheduled_date__range=(filters['start_date'], filters['end_date']))
 
@@ -331,6 +424,8 @@ def coach_client_quick_stats(request):
     )
     if filters.get('plan_type_values'):
         active_qs = active_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        active_qs = active_qs.filter(product_plan_id=filters['plan_id'])
     if filters.get('start_date') and filters.get('end_date'):
         active_qs = active_qs.filter(plan_days__scheduled_date__range=(filters['start_date'], filters['end_date']))
     active_subscriptions = active_qs.distinct().count()
@@ -348,12 +443,26 @@ def coach_client_quick_stats(request):
     recent_measurements = recent_meas_qs.count()
     active_clients = recent_meas_qs.values('client').distinct().count()
 
+    # New subscriptions in window (based on subscribed_at)
+    new_subs_qs = PlanSubscription.objects.filter(
+        product_plan__coach=coach_profile,
+        client_id__in=client_ids_qs,
+        subscribed_at__date__gte=m_start,
+        subscribed_at__date__lte=m_end,
+    )
+    if filters.get('plan_type_values'):
+        new_subs_qs = new_subs_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        new_subs_qs = new_subs_qs.filter(product_plan_id=filters['plan_id'])
+    new_subscriptions = new_subs_qs.count()
+
     stats = {
         'total_clients': total_clients,
         'active_subscriptions': active_subscriptions,
         'recent_measurements': recent_measurements,
         'active_clients': active_clients,
-        'engagement_rate': round((active_clients / total_clients * 100) if total_clients > 0 else 0, 1)
+        'engagement_rate': round((active_clients / total_clients * 100) if total_clients > 0 else 0, 1),
+        'new_subscriptions': new_subscriptions,
     }
 
     return Response({'success': True, 'stats': stats})
@@ -469,11 +578,72 @@ def coach_measurement_insights(request):
             'client__user__last_name',
             'client__user_id'
         )
-        .annotate(measurement_count=Count('id'))
+        .annotate(
+            measurement_count=Count('id'),
+            last_activity_date=Max('date'),
+        )
         .order_by('-measurement_count')
     )
     top_total = base_top_qs.count()
-    top_clients = base_top_qs[top_offset: top_offset + top_limit]
+    raw_top = list(base_top_qs[top_offset: top_offset + top_limit])
+
+    # Enrich top clients with plan type, status, and progress percentage
+    enriched_top = []
+    for item in raw_top:
+        cid = item['client__user_id']
+        # Subscriptions for this client under this coach (respect plan_type filter and date window)
+        subs_qs = PlanSubscription.objects.filter(
+            product_plan__coach=coach_profile,
+            client_id=cid,
+        )
+        if filters.get('plan_type_values'):
+            subs_qs = subs_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+        if filters.get('plan_id'):
+            subs_qs = subs_qs.filter(product_plan_id=filters['plan_id'])
+        # Choose predominant plan type
+        plan_types = list(subs_qs.values_list('product_plan__plan_type', flat=True).distinct())
+        if len(plan_types) > 1:
+            plan_type = 'hybrid'
+        elif len(plan_types) == 1:
+            plan_type = plan_types[0]
+        else:
+            plan_type = None
+        # Determine status preference Active > Pending > Inactive
+        status = 'Inactive'
+        if subs_qs.filter(status='active').exists():
+            status = 'Active'
+        elif subs_qs.filter(status='pending').exists():
+            status = 'Pending'
+        elif subs_qs.filter(status='completed').exists():
+            status = 'Completed'
+
+        # Progress percent from PlanDay completion within window
+        days_qs = PlanDay.objects.filter(
+            subscription__product_plan__coach=coach_profile,
+            subscription__client_id=cid,
+        )
+        if filters.get('plan_id'):
+            days_qs = days_qs.filter(subscription__product_plan_id=filters['plan_id'])
+        if filters.get('start_date') and filters.get('end_date'):
+            days_qs = days_qs.filter(scheduled_date__range=(filters['start_date'], filters['end_date']))
+        # Count statuses
+        comp_counts = days_qs.values('completion_status').annotate(c=Count('id'))
+        counts_map = {x['completion_status']: x['c'] for x in comp_counts}
+        denom = (
+            counts_map.get('completed', 0)
+            + counts_map.get('in_progress', 0)
+            + counts_map.get('not_started', 0)
+        )
+        progress_percent = 0
+        if denom > 0:
+            progress_percent = int(round((counts_map.get('completed', 0) / denom) * 100))
+
+        # Compose enriched record
+        enriched = dict(item)
+        enriched['plan_type'] = plan_type
+        enriched['status'] = status
+        enriched['progress_percent'] = progress_percent
+        enriched_top.append(enriched)
 
     total_meas_window = ClientMeasurement.objects.filter(
         client__user_id__in=client_ids,
@@ -490,7 +660,7 @@ def coach_measurement_insights(request):
     insights = {
         'client_progress': progress_data,
         'measurement_frequency': list(measurement_frequency),
-        'top_clients': list(top_clients),
+        'top_clients': enriched_top,
         'top_clients_meta': {
             'total': top_total,
             'limit': top_limit,
@@ -506,6 +676,220 @@ def coach_measurement_insights(request):
     # Cache insights briefly (e.g., 60 seconds) to improve responsiveness
     cache.set(cache_key, insights, 60)
     return Response({'success': True, 'insights': insights})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_revenue_metrics(request):
+    """Compute revenue metrics for the coach based on plan subscriptions.
+    - Respects plan_type, date window, segment/search filters via client ids
+    - Revenue is computed as sum of ProductPlan.price for subscriptions with
+      status in ['active', 'completed'] within window (by subscribed_at)
+    - Returns totals and a monthly trend.
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    filters = _extract_filters(request)
+
+    # Client scope based on filters
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    # Base subscriptions: only revenue-bearing statuses
+    base = PlanSubscription.objects.filter(
+        product_plan__coach=coach_profile
+    )
+    # Specific plan filter
+    if filters.get('plan_id'):
+        base = base.filter(product_plan_id=filters['plan_id'])
+    # Specific client filter
+    if filters.get('client_id'):
+        base = base.filter(client_id=filters['client_id'])
+    # Status filter
+    base = base.filter(
+        status__in=['active', 'completed'],
+        client_id__in=client_ids_qs,
+    )
+    if filters.get('plan_type_values'):
+        base = base.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        base = base.filter(product_plan_id=filters['plan_id'])
+    # Date window by subscription time when provided
+    if filters.get('start_date') and filters.get('end_date'):
+        base = base.filter(
+            subscribed_at__date__gte=filters['start_date'],
+            subscribed_at__date__lte=filters['end_date'],
+        )
+
+    # Totals
+    totals = base.aggregate(
+        revenue=Sum('product_plan__price'),
+        subs=Count('id'),
+    )
+
+    # Monthly trend
+    trend_qs = (
+        base
+        .annotate(month=TruncMonth('subscribed_at'))
+        .values('month')
+        .annotate(revenue=Sum('product_plan__price'), subs=Count('id'))
+        .order_by('month')
+    )
+    monthly = [
+        {
+            'month': (item['month'].strftime('%Y-%m') if item['month'] else None),
+            'revenue': float(item['revenue'] or 0),
+            'subscription_count': item['subs'] or 0,
+        }
+        for item in trend_qs
+    ]
+
+    # Breakdown by plan type
+    by_type_qs = (
+        base
+        .values('product_plan__plan_type')
+        .annotate(revenue=Sum('product_plan__price'), subs=Count('id'))
+        .order_by('product_plan__plan_type')
+    )
+    by_type = [
+        {
+            'plan_type': item['product_plan__plan_type'],
+            'revenue': float(item['revenue'] or 0),
+            'subscription_count': item['subs'] or 0,
+        }
+        for item in by_type_qs
+    ]
+
+    data = {
+        'currency': 'USD',
+        'total_revenue': float(totals['revenue'] or 0),
+        'subscription_count': totals['subs'] or 0,
+        'monthly_trend': monthly,
+        'by_plan_type': by_type,
+    }
+
+    return Response({'success': True, 'revenue': data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_subscription_stats(request):
+    """Aggregated subscription stats for the coach.
+    Applies the same filters (plan_type, date window, search/segment) used by the dashboard.
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    filters = _extract_filters(request)
+
+    # Scope clients first for consistency with other endpoints
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    base = PlanSubscription.objects.filter(
+        product_plan__coach=coach_profile,
+        client_id__in=client_ids_qs,
+    )
+    if filters.get('plan_type_values'):
+        base = base.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        base = base.filter(product_plan_id=filters['plan_id'])
+    # Date window by subscription time when provided
+    if filters.get('start_date') and filters.get('end_date'):
+        base = base.filter(
+            subscribed_at__date__gte=filters['start_date'],
+            subscribed_at__date__lte=filters['end_date'],
+        )
+
+    agg = base.aggregate(
+        total=Count('id'),
+        active=Count('id', filter=Q(status='active')),
+        pending=Count('id', filter=Q(status='pending')),
+        completed=Count('id', filter=Q(status='completed')),
+        cancelled=Count('id', filter=Q(status='cancelled')),
+        revenue=Sum('product_plan__price'),
+        avg_price=Avg('product_plan__price'),
+    )
+
+    # Distinct plans involved in the filtered base
+    total_plans = base.values('product_plan_id').distinct().count()
+
+    # Churn: cancelled over (active + completed + cancelled) within the window
+    denom = (agg['active'] or 0) + (agg['completed'] or 0) + (agg['cancelled'] or 0)
+    churn_rate = round(((agg['cancelled'] or 0) / denom * 100) if denom > 0 else 0, 1)
+
+    data = {
+        'clients_count': client_ids_qs.count(),
+        'total_plans': total_plans,
+        'total_subscriptions': agg['total'] or 0,
+        'active_subscriptions': agg['active'] or 0,
+        'pending_subscriptions': agg['pending'] or 0,
+        'completed_subscriptions': agg['completed'] or 0,
+        'cancelled_subscriptions': agg['cancelled'] or 0,
+        'total_revenue': float(agg['revenue'] or 0),
+        'avg_price': float(agg['avg_price'] or 0),
+        'churn_rate': churn_rate,
+    }
+
+    return Response({'success': True, 'subscriptions': data})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_ratings_summary(request):
+    """Ratings distribution and recent ratings across plan days for this coach.
+    Respects plan_type/date/segment/search filters via PlanDay scoping.
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    filters = _extract_filters(request)
+    # Filter plan days first
+    base_days = _apply_plan_day_filters(PlanDay.objects.all(), coach_profile, filters)
+    rated_days = base_days.exclude(client_rating__isnull=True)
+
+    # Distribution by star value (assuming 1..5)
+    dist_qs = (
+        rated_days
+        .values('client_rating')
+        .annotate(c=Count('id'))
+        .order_by('client_rating')
+    )
+    distribution = {str(item['client_rating']): item['c'] for item in dist_qs}
+
+    total_ratings = sum(distribution.values()) if distribution else 0
+    avg_rating = rated_days.aggregate(a=Avg('client_rating'))['a'] or 0
+
+    # Recent ratings list (last 10)
+    recent_qs = (
+        rated_days
+        .select_related('subscription__client')
+        .only('id', 'day_number', 'scheduled_date', 'client_rating', 'subscription__client__first_name', 'subscription__client__last_name')
+        .order_by('-scheduled_date')[:10]
+    )
+    recent = []
+    for d in recent_qs:
+        recent.append({
+            'day_id': d.id,
+            'day_number': d.day_number,
+            'date': d.scheduled_date,
+            'rating': d.client_rating,
+            'client_name': f"{getattr(d.subscription.client, 'first_name', '')} {getattr(d.subscription.client, 'last_name', '')}".strip(),
+        })
+
+    data = {
+        'avg_rating': round(float(avg_rating), 2),
+        'total_ratings': total_ratings,
+        'distribution': distribution,
+        'recent': recent,
+    }
+
+    return Response({'success': True, 'ratings': data})
 
 
 @login_required
