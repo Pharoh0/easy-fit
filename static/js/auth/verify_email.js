@@ -6,6 +6,16 @@
 
   function qs(sel){ return document.querySelector(sel); }
 
+  function setStatus(type, message) {
+    const box = qs('#verify-status');
+    if (!box) return;
+    try {
+      box.className = `alert alert-${type}`;
+      box.textContent = message;
+      box.style.display = '';
+    } catch (e) {}
+  }
+
   function getInitialState() {
     const emailInput = qs('#verify-email');
     const uid = (qs('#verify-container')?.dataset?.uid) || '';
@@ -42,6 +52,7 @@
     if (!res.success) {
       const msg = (res.errorJSON && (res.errorJSON.detail || res.errorJSON.message)) || res.error || 'Verification failed';
       utils.showToast(msg, 'danger');
+      setStatus('danger', msg);
       return;
     }
 
@@ -53,11 +64,16 @@
       sessionStorage.removeItem('pending_verification_email');
     } catch (e) {}
 
-    utils.showToast('Email verified successfully. Redirecting...', 'success');
-    window.location.href = data.redirect_url || '/auth-users/dashboard/';
+    utils.showToast('Email verified successfully. Logging you in...', 'success');
+    setStatus('success', 'Email verified successfully. Logging you in...');
+    try { qs('#verify-email').disabled = true; qs('#verify-code').disabled = true; } catch (e) {}
+    setTimeout(() => {
+      window.location.href = data.redirect_url || '/auth-users/dashboard/';
+    }, 1200);
   }
 
   async function verifyWithLink(uid, token) {
+    setStatus('info', 'Verifying link...');
     setLoading(true);
     const res = await APIBase.request(apiVerify, {
       method: 'POST',
@@ -70,6 +86,7 @@
     if (!res.success) {
       const msg = (res.errorJSON && (res.errorJSON.detail || res.errorJSON.message)) || res.error || 'Verification link invalid or expired';
       utils.showToast(msg, 'danger');
+      setStatus('danger', msg);
       return;
     }
 
@@ -80,8 +97,12 @@
       sessionStorage.removeItem('pending_verification_email');
     } catch (e) {}
 
-    utils.showToast('Email verified successfully. Redirecting...', 'success');
-    window.location.href = data.redirect_url || '/auth-users/dashboard/';
+    utils.showToast('Email verified successfully. Logging you in...', 'success');
+    setStatus('success', 'Email verified successfully. Logging you in...');
+    try { qs('#verify-email').disabled = true; qs('#verify-code').disabled = true; } catch (e) {}
+    setTimeout(() => {
+      window.location.href = data.redirect_url || '/auth-users/dashboard/'
+    }, 1200);
   }
 
   async function resendCode(email) {
