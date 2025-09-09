@@ -131,7 +131,30 @@
             }
         })
         .then(data => {
-            if (data.tokens) {
+            // New flow: if verification is required, redirect to verify page
+            if (data && data.status === 'verification_sent' && data.redirect_url) {
+                // Optionally store email for convenience
+                if (data.email) {
+                    try { sessionStorage.setItem('pending_verification_email', data.email); } catch (e) {}
+                }
+                // Clear any existing auth tokens/sessions from the browser and server to avoid conflicts
+                try {
+                    if (window.APIBase && typeof APIBase.clearAllTokens === 'function') APIBase.clearAllTokens();
+                } catch (e) {}
+                // Clear server-side session (fire-and-forget)
+                try {
+                    fetch('/auth-users/api/v1/django-session-logout/', {
+                        method: 'POST',
+                        headers: { 'X-CSRFToken': csrfToken, 'Accept': 'application/json' },
+                        credentials: 'same-origin'
+                    }).catch(() => {});
+                } catch (e) {}
+                window.location.href = data.redirect_url;
+                return;
+            }
+
+            // Legacy flow: immediate login (e.g., staff)
+            if (data && data.tokens) {
                 localStorage.setItem('access_token', data.tokens.access);
                 localStorage.setItem('refresh_token', data.tokens.refresh);
                 window.location.href = data.redirect_url;  // Redirect on success

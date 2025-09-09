@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Group
 from datetime import timedelta
 import datetime
+import random
 from django.contrib.auth import logout
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenRefreshView
@@ -44,6 +46,47 @@ from django.urls import reverse_lazy
 
 
 User = get_user_model()
+
+# Verification code expiry in minutes
+VERIFICATION_CODE_EXPIRY_MINUTES = 15
+
+def _generate_verification_code(length: int = 6) -> str:
+    return ''.join(random.choices('0123456789', k=length))
+
+def _build_verification_link(request, user: User) -> str:
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    verify_path = reverse('auth_users:verify-email')
+    # Append as query params; the verify page JS will call the API
+    return request.build_absolute_uri(f"{verify_path}?uid={uid}&token={token}")
+
+def _send_verification_email(request, user: User, code: str) -> None:
+    subject = 'Verify your Eazy Fit account'
+    link = _build_verification_link(request, user)
+    # Always print the code and link to the server console for easy copying during development
+    # Remove or guard with settings.DEBUG in production environments.
+    try:
+        print("\n=== EMAIL VERIFICATION (DEV) ===")
+        print(f"To      : {user.email} ({user.username})")
+        print(f"Code    : {code}")
+        print(f"Link    : {link}")
+        print("=== END EMAIL VERIFICATION ===\n")
+    except Exception:
+        pass
+    message = (
+        f"Hello {user.first_name or user.username},\n\n"
+        f"Welcome to Eazy Fit! To complete your signup, please verify your email.\n\n"
+        f"Your verification code: {code}\n\n"
+        f"Or verify instantly by clicking this link:\n{link}\n\n"
+        f"This code/link will expire in {VERIFICATION_CODE_EXPIRY_MINUTES} minutes.\n\n"
+        "If you didn't request this, you can ignore this email."
+    )
+    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@eazyfit.local')
+    try:
+        send_mail(subject, message, from_email, [user.email], fail_silently=True)
+    except Exception as e:
+        # Avoid breaking the flow in development; log instead
+        print('Failed to send verification email:', e)
 
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):
@@ -114,10 +157,29 @@ class UserLoginAPIView(APIView):
             error_detail = e.detail
             
             # Format the response to match what the frontend expects
-            return Response(
-                {"status": "error", "errors": error_detail},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+            # If this looks like an unverified email case, include redirect info to verification page
+            try:
+                username = (request.data or {}).get('username')
+                candidate = None
+                if username:
+                    try:
+                        candidate = User.objects.get(username=username)
+                    except User.DoesNotExist:
+                        candidate = None
+                if candidate and getattr(candidate, 'user_type', None) in ('client', 'coach') and not getattr(candidate, 'email_verified', False):
+                    verify_url = str(reverse_lazy('auth_users:verify-email'))
+                    payload = {
+                        "status": "error",
+                        "errors": error_detail,
+                        "requires_email_verification": True,
+                        "email": candidate.email,
+                        "redirect_url": f"{verify_url}?email={candidate.email}"
+                    }
+                    return Response(payload, status=status.HTTP_403_FORBIDDEN)
+            except Exception:
+                pass
+
+            return Response({"status": "error", "errors": error_detail}, status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(f"Login error: {str(e)}")
             # Return a more detailed error response
@@ -248,6 +310,8 @@ class UserLogoutAPIView(APIView):
 
 
 class DjangoSessionLogoutView(APIView):
+    permission_classes = (AllowAny,)
+
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_200_OK)
@@ -275,18 +339,128 @@ class UserRegistrationAPIView(GenericAPIView):
                 return Response({"message": str(e)}, status=status.HTTP_404_NOT_FOUND)
             user.groups.add(group_obj)
 
-        # Log the user in
-        login(request, user)
+        # If the new user is a client or coach, require email verification first
+        if getattr(user, 'user_type', None) in ('client', 'coach'):
+            # Generate and persist a 6-digit code
+            code = _generate_verification_code()
+            user.email_verification_code = code
+            user.email_verified = False
+            user.email_verification_sent_at = timezone.now()
+            user.save(update_fields=['email_verification_code', 'email_verified', 'email_verification_sent_at'])
 
+            # Send email with code and verification link
+            _send_verification_email(request, user, code)
+
+            verify_url = reverse_lazy('auth_users:verify-email')
+            # Provide helpful response for frontend to redirect
+            return Response({
+                "status": "verification_sent",
+                "email": user.email,
+                "redirect_url": f"{verify_url}?email={user.email}",
+            }, status=status.HTTP_201_CREATED)
+
+        # Otherwise (e.g. staff), log in immediately
+        login(request, user)
         token = RefreshToken.for_user(user)
         data = serializer.data
         data["tokens"] = {
             "refresh": str(token),
             "access": str(token.access_token)
         }
-
-        # Include the redirect URL in the response
         data["redirect_url"] = reverse_lazy('auth_users:dashboard')
-
         return Response(data, status=status.HTTP_201_CREATED)
+
+
+class VerifyEmailAPIView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        """Verify email using either a code or uid/token pair.
+        Body may contain:
+          - { email, code }
+          - { uid, token }
+        """
+        email = request.data.get('email')
+        code = request.data.get('code')
+        uid = request.data.get('uid')
+        token = request.data.get('token')
+
+        user = None
+        if email and code:
+            try:
+                user = User.objects.get(email=email)
+            except User.DoesNotExist:
+                return Response({"detail": "Invalid email or code."}, status=status.HTTP_400_BAD_REQUEST)
+
+            # Validate code expiry
+            sent_at = getattr(user, 'email_verification_sent_at', None)
+            if not user.email_verification_code or not sent_at:
+                return Response({"detail": "No verification code found. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+            if (timezone.now() - sent_at) > timedelta(minutes=VERIFICATION_CODE_EXPIRY_MINUTES):
+                return Response({"detail": "Verification code expired. Please request a new code."}, status=status.HTTP_400_BAD_REQUEST)
+            if str(code) != str(user.email_verification_code):
+                return Response({"detail": "Invalid verification code."}, status=status.HTTP_400_BAD_REQUEST)
+
+        elif uid and token:
+            try:
+                uid_int = int(urlsafe_base64_decode(uid))
+                user = User.objects.get(pk=uid_int)
+            except Exception:
+                return Response({"detail": "Invalid verification link."}, status=status.HTTP_400_BAD_REQUEST)
+            if not default_token_generator.check_token(user, token):
+                return Response({"detail": "Verification link is invalid or expired."}, status=status.HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"detail": "Invalid payload. Provide either email+code or uid+token."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Mark verified
+        user.email_verified = True
+        user.email_verification_code = None
+        user.email_verification_sent_at = None
+        user.save(update_fields=['email_verified', 'email_verification_code', 'email_verification_sent_at'])
+
+        # Auto-login: issue tokens to streamline UX
+        token_obj = RefreshToken.for_user(user)
+        access_token = token_obj.access_token
+        # Preserve claims similar to login flow
+        access_token['user_type'] = user.user_type
+        access_token['staff_role'] = getattr(user, 'staff_role', None)
+        access_token['is_staff_member'] = (user.user_type == 'staff')
+        access_token['staff_permission_level'] = getattr(user, 'staff_permission_level', 0)
+
+        return Response({
+            "status": "verified",
+            "user": CustomUserSerializer(user).data,
+            "tokens": {
+                "access": str(access_token),
+                "refresh": str(token_obj)
+            },
+            "redirect_url": reverse_lazy('auth_users:dashboard')
+        }, status=status.HTTP_200_OK)
+
+
+class ResendVerificationAPIView(APIView):
+    permission_classes = (AllowAny,)
+
+    def post(self, request, *args, **kwargs):
+        email = request.data.get('email')
+        if not email:
+            return Response({"detail": "Email is required."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"detail": "If an account exists with this email, a code has been sent."}, status=status.HTTP_200_OK)
+
+        if user.email_verified:
+            return Response({"detail": "Email is already verified."}, status=status.HTTP_200_OK)
+
+        # Simple rate-limit: allow resend after 60 seconds
+        if user.email_verification_sent_at and (timezone.now() - user.email_verification_sent_at) < timedelta(seconds=60):
+            return Response({"detail": "Please wait before requesting a new code."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
+        code = _generate_verification_code()
+        user.email_verification_code = code
+        user.email_verification_sent_at = timezone.now()
+        user.save(update_fields=['email_verification_code', 'email_verification_sent_at'])
+        _send_verification_email(request, user, code)
+        return Response({"status": "sent"}, status=status.HTTP_200_OK)
 

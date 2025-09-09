@@ -119,3 +119,22 @@ class BlockedView(TemplateView):
             context['user'] = user
         
         return context
+
+
+class VerifyEmailView(TemplateView):
+    template_name = 'auth_users/verify.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        # If someone reaches the verify page while logged in (e.g., as a coach),
+        # log out the current session to avoid role-based redirects and confusion.
+        if request.user.is_authenticated:
+            logout(request)
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        request = self.request
+        context['email'] = request.GET.get('email', '')
+        context['uid'] = request.GET.get('uid', '')
+        context['token'] = request.GET.get('token', '')
+        return context

@@ -122,71 +122,50 @@
         })
         .then(response => {
             console.log('Login response status:', response.status);
-            
-            // Get raw response text first for debugging
+            // Get raw response text first for robust handling
             return response.text().then(rawText => {
-                try {
-                    // Try to parse as JSON
-                    const data = JSON.parse(rawText);
-                    console.log('Successfully parsed JSON data:', data);
-                    window.lastLoginResponse = data; // Store for debugging
-                    
-                    // If response was OK, return the successful data
-                    if (response.ok) {
-                        return data;
+                let data = null;
+                try { data = JSON.parse(rawText); } catch (e) { data = null; }
+                window.lastLoginResponse = data;
+
+                // If unverified, redirect to verification page
+                if (!response.ok && data && data.requires_email_verification && data.redirect_url) {
+                    try { sessionStorage.setItem('pending_verification_email', data.email || ''); } catch (e) {}
+                    try { if (window.APIBase && typeof APIBase.clearAllTokens === 'function') APIBase.clearAllTokens(); } catch (e) {}
+                    window.location.href = data.redirect_url;
+                    return new Promise(() => {}); // stop chain
+                }
+
+                if (response.ok && data) {
+                    return data; // success path
+                }
+
+                // Handle error formats and extract a message
+                if (data && data.status === 'error' && data.errors) {
+                    if (data.errors.__all__ && Array.isArray(data.errors.__all__)) {
+                        const msg = data.errors.__all__[0];
+                        document.getElementById('raw-error-data').textContent = msg;
+                        throw new Error(msg);
                     }
-                    
-                    // Handle error format: {status: "error", errors: {__all__: ["message"]}}
-                    if (data.status === "error" && data.errors) {
-                        console.log('Found error format with status:"error" structure');
-                        if (data.errors.__all__ && Array.isArray(data.errors.__all__)) {
-                            const errorMessage = data.errors.__all__[0];
-                            console.log('Extracted error from __all__ array:', errorMessage);
-                            // Store the error message directly in the DOM for debugging
-                            document.getElementById('raw-error-data').textContent = errorMessage;
-                            throw new Error(errorMessage);
-                        }
-                    }
-                    
-                    // Handle other error formats (fallback handling)
-                    let errorMessage = '';
-                    
+                }
+
+                let errorMessage = '';
+                if (data) {
                     if (data.__all__ && Array.isArray(data.__all__)) {
                         errorMessage = data.__all__[0];
                     } else if (data.errors && typeof data.errors === 'object') {
-                        // Try to find the first useful error message in the errors object
                         const firstKey = Object.keys(data.errors)[0];
                         if (firstKey && data.errors[firstKey]) {
-                            if (Array.isArray(data.errors[firstKey])) {
-                                errorMessage = data.errors[firstKey][0];
-                            } else {
-                                errorMessage = data.errors[firstKey];
-                            }
+                            errorMessage = Array.isArray(data.errors[firstKey]) ? data.errors[firstKey][0] : data.errors[firstKey];
                         }
                     } else if (data.detail) {
                         errorMessage = data.detail;
                     } else if (data.non_field_errors && Array.isArray(data.non_field_errors)) {
                         errorMessage = data.non_field_errors[0];
-                    } else {
-                        // If we can't extract a specific error, use a generic message
-                        errorMessage = 'Login failed. Please check your credentials.';
-                    }
-                    
-                    console.log('Final extracted error message:', errorMessage);
-                    throw new Error(errorMessage);
-                    
-                } catch (e) {
-                    // If JSON parsing fails or any other error occurs during processing
-                    console.log('Error processing response:', e);
-                    window.lastLoginError = e; // Store for debugging
-                    
-                    // If we have raw text from the server that's not parseable JSON
-                    if (typeof rawText === 'string' && rawText.length > 0) {
-                        throw new Error(rawText);
-                    } else {
-                        throw new Error('Login failed. Server response could not be processed.');
                     }
                 }
+                if (!errorMessage) errorMessage = (typeof rawText === 'string' && rawText.trim()) ? rawText : 'Login failed. Please check your credentials.';
+                throw new Error(errorMessage);
             });
         })
         .then(data => {
@@ -276,10 +255,17 @@
             console.log('Is blocked user message:', isBlocked);
             console.log('Final displayed error message:', errorMsg);
             
+            // Render error and optionally a verification link if needed
+            const requiresVerify = errorMsg.toLowerCase().includes('verify your email');
+            const verifyHtml = requiresVerify ? `
+                <div class="mt-2">
+                    <a class="btn btn-outline-primary btn-sm" href="/auth-users/verify/">Go to verification page</a>
+                </div>` : '';
             errorMessagesDiv.innerHTML = `
                 <div class="alert ${isBlocked ? 'alert-warning' : 'alert-danger'}" role="alert">
                     <i class="bi ${isBlocked ? 'bi-shield-exclamation' : 'bi-exclamation-triangle-fill'} me-2"></i>
                     ${errorMsg}
+                    ${verifyHtml}
                 </div>`;
             
             // Reset button state

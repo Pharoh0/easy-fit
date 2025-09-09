@@ -56,6 +56,10 @@ class CustomUser(AbstractUser):
     is_online = models.BooleanField(default=False)
     last_activity = models.DateTimeField(null=True, blank=True)
     request_ip = models.CharField(max_length=50, blank=True, null=True)
+    # Email verification fields
+    email_verified = models.BooleanField(default=False, db_index=True)
+    email_verification_code = models.CharField(max_length=6, blank=True, null=True)
+    email_verification_sent_at = models.DateTimeField(null=True, blank=True)
     
     # New fields for improved staff control
     block_reason = models.TextField(blank=True, null=True)
