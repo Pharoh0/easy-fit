@@ -543,4 +543,999 @@ Postconditions: Subscription record created/updated.
 Main Success Scenario:
  1. Coach assigns plan -> System creates subscription (Active).
  2. System tracks start/end dates.
- 3.
+ 3. Progress updates adjust state (Completed/Expired).
+ 4. Pause/resume transitions allowed.
+ 5. Audit log updated.
+Alternate Flows:
+ a. Duplicate active -> System enforces rule or parallel flag.
+ b. Invalid state change -> Rejected with reason.
+ c. Auto-expire -> Status set to Expired at end date.
+================================================================
+Use Case UC-033 – Implement PlanEntry Model (REQ-033)
+Initiating Actor: System / Coach
+Goal: Store granular daily activities for plans.
+Participating Actors: System
+Preconditions: Templates exist.
+Postconditions: PlanEntry records created for schedule.
+Main Success Scenario:
+ 1. Coach defines plan days.
+ 2. System generates daily entries.
+ 3. Client views entries & completes items.
+ 4. System updates completion flags.
+ 5. Aggregates metrics into progress.
+Alternate Flows:
+ a. Plan modification -> New entries versioned.
+ b. Skipped day -> System records zero completion.
+ c. Entry deletion attempt -> Block if historical data linked.
+================================================================
+Use Case UC-034 – Implement PlanProgress Model (REQ-034)
+Initiating Actor: System
+Goal: Track cumulative progress metrics automatically.
+Participating Actors: System, Database
+Preconditions: PlanSubscription Active; entries exist.
+Postconditions: Progress record updated after events.
+Main Success Scenario:
+ 1. Client logs activity.
+ 2. System recalculates completion % & streaks.
+ 3. Updates adherence & improvement scores.
+ 4. Stores snapshot metrics.
+ 5. Dashboard reflects updated values.
+Alternate Flows:
+ a. Calculation error -> System retries & logs.
+ b. Missing data -> Uses last known baseline.
+ c. High load -> Defers calculation to queue.
+================================================================
+Use Case UC-035 – DailyProgressLog Model (REQ-035)
+Initiating Actor: System / Client
+Goal: Persist detailed daily log entries.
+Participating Actors: System
+Preconditions: Client active; date within plan range.
+Postconditions: Daily log stored; validations passed.
+Main Success Scenario:
+ 1. Client opens daily log form.
+ 2. Inputs metrics & submits.
+ 3. System validates uniqueness per day.
+ 4. Saves record & triggers progress update.
+ 5. Confirms success to client.
+Alternate Flows:
+ a. Duplicate log -> Offer edit existing.
+ b. Invalid metric range -> Reject field.
+ c. Late submission -> Mark as Late.
+================================================================
+Use Case UC-036 – Calculate Completion Percentages (REQ-036)
+Initiating Actor: System
+Goal: Compute weighted completion for plan/day.
+Participating Actors: System
+Preconditions: Entries & weights configured.
+Postconditions: Percentages persisted in progress.
+Main Success Scenario:
+ 1. Trigger (log update) fires calculation.
+ 2. System fetches weighted components.
+  3. Computes completion ratio.
+ 4. Stores value & updates cache.
+ 5. Notifies dashboards to refresh.
+Alternate Flows:
+ a. Weight misconfiguration -> Default equal weighting used.
+ b. Division by zero -> System sets 0% and logs warning.
+ c. High frequency updates -> Debounced batch processing.
+================================================================
+Use Case UC-037 – Track Streaks with Rewards (REQ-037)
+Initiating Actor: System
+Goal: Maintain current & longest streak metrics.
+Participating Actors: System, Client
+Preconditions: Daily log events occur.
+Postconditions: Streak values updated; rewards triggered.
+Main Success Scenario:
+ 1. Client submits daily completion above threshold.
+ 2. System checks previous day success.
+ 3. Increments current streak or resets.
+ 4. Updates longest if surpassed.
+ 5. Issues reward notification if milestone achieved.
+Alternate Flows:
+ a. Missed day -> Current streak resets to 0.
+ b. Manual adjustment -> Admin logs override with reason.
+ c. Retroactive entry -> System recalculates affected days.
+================================================================
+Use Case UC-038 – Monitor Adherence & Improvement (REQ-038)
+Initiating Actor: System
+Goal: Compute adherence metrics & improvement score.
+Participating Actors: System, Coach
+Preconditions: Historical logs available.
+Postconditions: Scores stored & viewable in dashboards.
+Main Success Scenario:
+ 1. Scheduler runs adherence job.
+ 2. System aggregates completion & consistency indicators.
+ 3. Applies predictive model for improvement.
+ 4. Stores updated scores.
+ 5. Coaches see updated analytics.
+Alternate Flows:
+ a. Data gap -> System interpolates or flags partial.
+ b. Model error -> Falls back to baseline formula.
+ c. High load -> Job rescheduled / throttled.
+================================================================
+Use Case UC-039 – Multiple Meal Types with Nutritional Analysis (REQ-039)
+Initiating Actor: Client
+Goal: Log meals categorized (breakfast, lunch, dinner, snacks) with nutrition.
+Participating Actors: System
+Preconditions: Nutrition module active.
+Postconditions: Meal entries saved; totals updated.
+Main Success Scenario:
+ 1. Client selects meal type.
+  2. Searches food & portion size.
+ 3. System pulls nutritional data & calculates totals.
+ 4. Client saves meal.
+ 5. Daily nutrient summary updated.
+Alternate Flows:
+ a. Food not found -> Client adds custom item.
+ b. Duplicate meal -> Prompt to edit quantity.
+ c. Exceeded target -> System warns & suggests adjustments.
+================================================================
+Use Case UC-040 – Plan Categorization by Fitness Goals (REQ-040)
+Initiating Actor: Coach
+Goal: Tag plan templates with goal categories.
+Participating Actors: System
+Preconditions: Template being created/edited.
+Postconditions: Category metadata stored & searchable.
+Main Success Scenario:
+ 1. Coach selects categories (weight loss, endurance, etc.).
+ 2. System validates at least one category.
+ 3. Saves template metadata.
+ 4. Category index updated.
+ 5. Template discoverable via filters.
+Alternate Flows:
+ a. Too many categories -> System enforces limit.
+ b. Deprecated category -> Suggests replacement.
+ c. No category -> Blocks publish.
+================================================================
+Use Case UC-041 – Plan Versioning & Tracking (REQ-041)
+Initiating Actor: Coach
+Goal: Maintain history of plan modifications.
+Participating Actors: System
+Preconditions: Existing plan version.
+Postconditions: New version stored; history accessible.
+Main Success Scenario:
+ 1. Coach edits plan.
+ 2. System duplicates current version snapshot.
+ 3. Applies edits to new version.
+ 4. Updates references & marks prior archived.
+ 5. Version history view updated.
+Alternate Flows:
+ a. Conflict editing -> System merges or blocks saving.
+ b. Rollback -> Coach selects previous version; system reinstates.
+ c. Excessive versions -> System prompts cleanup.
+================================================================
+Use Case UC-042 – Plan Rating (REQ-042)
+Initiating Actor: Client
+Goal: Provide 1-5 plan rating with criteria.
+Participating Actors: System
+Preconditions: Client used plan for minimum period.
+Postconditions: Rating stored & aggregated.
+Main Success Scenario:
+ 1. Client opens plan rating prompt.
+ 2. Selects overall & sub-scores.
+ 3. Submits; system validates.
+ 4. Stores rating & updates averages.
+ 5. Coach sees updated plan metrics.
+Alternate Flows:
+ a. Early rating attempt -> System delays until threshold.
+ b. Incomplete criteria -> Prompt completion.
+ c. Withdraw rating -> Client replaces or removes.
+================================================================
+Use Case UC-043 – Coach Rating & Feedback (REQ-043)
+Initiating Actor: Client
+Goal: Rate coach interaction & expertise.
+Participating Actors: System, Coach
+Preconditions: Active or recently concluded coaching period.
+Postconditions: Feedback recorded; coach KPIs updated.
+Main Success Scenario:
+ 1. Client opens coach profile -> Leave Feedback.
+ 2. Provides scores & optional comment.
+ 3. System validates once per evaluation window.
+ 4. Stores feedback & recalculates rating.
+ 5. Coach notified (anonymized if set).
+Alternate Flows:
+ a. Offensive content -> Auto moderation & hold.
+ b. Duplicate -> Offer to edit prior feedback.
+ c. Anonymous preference -> Name hidden.
+================================================================
+Use Case UC-044 – Feedback Analysis (REQ-044)
+Initiating Actor: System / Coach
+Goal: Aggregate and analyze textual feedback (sentiment).
+Participating Actors: System
+Preconditions: Feedback entries exist.
+Postconditions: Sentiment scores appended to feedback analytics.
+Main Success Scenario:
+ 1. Scheduler processes new feedback batch.
+ 2. Runs sentiment & keyword extraction.
+ 3. Updates analytics dataset.
+ 4. Coach dashboard displays trends.
+ 5. System flags negative trend alerts.
+Alternate Flows:
+ a. NLP service unavailable -> Retry later.
+ b. Language unsupported -> Mark as unprocessed.
+ c. Low confidence -> Flag for manual review.
+================================================================
+Use Case UC-045 – Notification System for Reminders (REQ-045)
+Initiating Actor: System
+Goal: Deliver plan, log, achievement notifications.
+Participating Actors: System, Channels (Email/Push)
+Preconditions: Events triggered; preferences allow.
+Postconditions: Notifications sent or queued.
+Main Success Scenario:
+ 1. Event occurs (log due / achievement).
+ 2. System builds notification payload.
+ 3. Selects channel per preference.
+ 4. Sends & records status.
+ 5. Updates unread notifications list.
+Alternate Flows:
+ a. Channel failure -> Switch to fallback channel.
+ b. User muted type -> Suppress send.
+ c. Duplicate event -> Debounce suppression.
+================================================================
+Use Case UC-046 – Manage Notification Preferences (REQ-046)
+Initiating Actor: User
+Goal: Customize notification channels & frequency.
+Participating Actors: System
+Preconditions: User authenticated.
+Postconditions: Preference settings saved.
+Main Success Scenario:
+ 1. User opens Notification Settings.
+ 2. Toggles types & selects channels.
+ 3. Adjusts quiet hours.
+ 4. Saves settings.
+ 5. System applies new rules.
+Alternate Flows:
+ a. Invalid quiet hour range -> Error prompt.
+ b. All critical types off -> Warning confirmation.
+ c. Reset defaults -> System restores baseline.
+================================================================
+Use Case UC-047 – Advanced Coach Search (REQ-047)
+Initiating Actor: Client
+Goal: Execute multi-filter & recommendation-based coach search.
+Participating Actors: System
+Preconditions: Coach dataset indexed.
+Postconditions: Ranked list displayed.
+Main Success Scenario:
+ 1. Client enters filters.
+ 2. System applies filters & scoring model.
+ 3. Generates ranked results.
+ 4. Displays with recommendation tags.
+ 5. Client refines or selects a coach.
+Alternate Flows:
+ a. Sparse results -> System broadens criteria suggestion.
+ b. Model failure -> Fallback to basic filter order.
+ c. Conflicting filters -> User prompted to adjust.
+================================================================
+Use Case UC-048 – Plan Discovery & Recommendations (REQ-048)
+Initiating Actor: Client
+Goal: Discover suggested plans based on profile & history.
+Participating Actors: System
+Preconditions: Recommendation engine active.
+Postconditions: Suggested plan list shown.
+Main Success Scenario:
+ 1. Client opens Plan Discovery.
+ 2. System fetches profile & past adherence data.
+ 3. Recommendation model ranks templates.
+ 4. List displayed with rationales.
+ 5. Client selects plan to request/assign.
+Alternate Flows:
+ a. Insufficient data -> Popular plans displayed.
+ b. Model timeout -> Cached suggestions shown.
+ c. Client filters -> Model re-ranks subset.
+================================================================
+Use Case UC-049 – Image Uploads with Auto Tagging (REQ-049)
+Initiating Actor: Client / Coach
+Goal: Upload images for meals/exercises auto-tagged.
+Participating Actors: System, Tagging Service
+Preconditions: Media service available.
+Postconditions: Image stored; tags appended.
+Main Success Scenario:
+ 1. User uploads image.
+ 2. System validates & stores.
+ 3. Sends to tagging service.
+ 4. Receives tags & associates.
+ 5. Displays image with tags.
+Alternate Flows:
+ a. Tagging service down -> Store without tags; retry later.
+ b. Low confidence tag -> Flag for manual edit.
+ c. Oversize image -> Compressed before store.
+================================================================
+Use Case UC-050 – Plan Document File Management (REQ-050)
+Initiating Actor: Coach
+Goal: Manage supplementary plan documents with versioning.
+Participating Actors: System
+Preconditions: Plan template exists.
+Postconditions: Document versions tracked.
+Main Success Scenario:
+ 1. Coach uploads document.
+ 2. System assigns version number.
+ 3. Coach optionally adds notes.
+ 4. System indexes content metadata.
+ 5. Clients access latest document.
+Alternate Flows:
+ a. Replace file -> New version created.
+ b. Delete attempt with active link -> Block & warn.
+ c. Unsupported format -> Reject with advice.
+================================================================
+Use Case UC-051 – Create Challenges & Leaderboards (REQ-051)
+Initiating Actor: Staff / Coach
+Goal: Launch challenge with participation metrics.
+Participating Actors: System, Participants
+Preconditions: Challenge parameters defined.
+Postconditions: Challenge active; leaderboard initialized.
+Main Success Scenario:
+ 1. Initiator defines challenge rules & metrics.
+ 2. System validates timeframe & overlaps.
+ 3. Challenge published; invites sent.
+ 4. Participants log qualifying activities.
+ 5. Leaderboard updates periodically.
+Alternate Flows:
+ a. Insufficient participants -> Auto cancel or extend signup.
+ b. Rule violation -> Participant flagged/removed.
+ c. Metric tie -> System applies tie-breaker rule.
+================================================================
+Use Case UC-052 – Admin User Management Interface (REQ-052)
+Initiating Actor: Admin
+Goal: Bulk manage users (activate/suspend).
+Participating Actors: System
+Preconditions: Admin authenticated.
+Postconditions: Selected user statuses updated.
+Main Success Scenario:
+ 1. Admin selects multiple users.
+ 2. Chooses bulk action (suspend/activate).
+ 3. System validates dependencies.
+ 4. Applies updates & logs actions.
+ 5. Summary report shown.
+Alternate Flows:
+ a. Partial failure -> Report with specifics.
+ b. Permission error -> Action aborted.
+ c. Undo request -> Reversal for last batch (if allowed).
+================================================================
+Use Case UC-053 – Coach Verification & Certification Tracking (REQ-053)
+Initiating Actor: Staff
+Goal: Review and approve coach certifications with expiry alerts.
+Participating Actors: System, Coach
+Preconditions: Coach submitted documents.
+Postconditions: Certification status updated.
+Main Success Scenario:
+ 1. Staff views pending certifications.
+ 2. Opens document & reviews.
+ 3. Approves & sets expiry date.
+ 4. System schedules renewal reminder.
+ 5. Coach notified of approval.
+Alternate Flows:
+ a. Document invalid -> Rejection reason sent.
+ b. Expiry approaching -> System sends alerts.
+ c. Renewal not submitted -> Certification lapses; coach limited.
+================================================================
+Use Case UC-054 – System Monitoring & Analytics (REQ-054)
+Initiating Actor: Staff / Admin
+Goal: Observe operational metrics & health.
+Participating Actors: System
+Preconditions: Monitoring endpoints active.
+Postconditions: Insights gathered; incidents maybe opened.
+Main Success Scenario:
+ 1. Staff opens Ops dashboard.
+ 2. System shows real-time metrics.
+ 3. Staff filters by component.
+ 4. Identifies anomalies; opens incident.
+ 5. System logs investigation steps.
+Alternate Flows:
+ a. Metric stale -> System marks outdated.
+ b. Dashboard timeout -> Staff retries; fallback minimal view.
+ c. Incident resolved -> Status closed & report archived.
+================================================================
+Use Case UC-055 – Track Energy Levels (REQ-055)
+Initiating Actor: Client
+Goal: Log daily energy (1-5) for correlation.
+Participating Actors: System
+Preconditions: Daily log open.
+Postconditions: Energy rating stored; analytics updated.
+Main Success Scenario:
+ 1. Client selects energy rating.
+ 2. System validates range.
+ 3. Saves rating.
+ 4. Recalculates correlations.
+ 5. Updates wellness visualization.
+Alternate Flows:
+ a. Missing rating -> Prompt before submission.
+ b. Out-of-range -> Reject.
+ c. Edit previous day -> Allowed within grace period.
+================================================================
+Use Case UC-056 – Mood & Stress Monitoring (REQ-056)
+Initiating Actor: Client
+Goal: Log mood and stress ratings for insights.
+Participating Actors: System
+Preconditions: Client authenticated.
+Postconditions: Ratings saved; trend lines updated.
+Main Success Scenario:
+ 1. Client enters mood & stress values.
+ 2. System validates & stores.
+ 3. Analytics update correlation with adherence.
+ 4. Alert generated if sustained low mood.
+ 5. Dashboard shows updated chart.
+Alternate Flows:
+ a. Multiple entries/day -> System averages or stores latest.
+ b. Alert dismissed -> System records dismissal.
+ c. Extreme value -> Suggests contacting coach.
+================================================================
+Use Case UC-057 – Sleep & Water Intake Tracking (REQ-057)
+Initiating Actor: Client
+Goal: Record sleep hours & water consumption.
+Participating Actors: System
+Preconditions: Daily log accessible.
+Postconditions: Metrics stored; recommendations possibly updated.
+Main Success Scenario:
+ 1. Client inputs sleep & water data.
+ 2. System validates numeric ranges.
+ 3. Compares vs goals.
+ 4. Generates recommendation message.
+ 5. Updates hydration & recovery charts.
+Alternate Flows:
+ a. Implausible value -> Rejection & tooltip.
+ b. Missing sleep data -> Reminder next morning.
+ c. Exceeds water goal -> System notes overage warning.
+================================================================
+Use Case UC-058 – Milestone Tracking & Badges (REQ-058)
+Initiating Actor: System / Client
+Goal: Award achievements on milestone completion.
+Participating Actors: System, Coach
+Preconditions: Defined milestones & tracking active.
+Postconditions: Badge awarded; milestone closed.
+Main Success Scenario:
+  1. System evaluates milestone criteria.
+ 2. Detects completion.
+ 3. Awards badge & updates profile.
+ 4. Sends notification to client (and coach).
+ 5. Logs achievement.
+Alternate Flows:
+ a. Manual verification required -> Pending state.
+ b. Premature claim -> Rejected with reason.
+ c. Duplicate detection -> Second award suppressed.
+================================================================
+Use Case UC-059 – Comprehensive Data Validation (REQ-059)
+Initiating Actor: System
+Goal: Enforce validation across inputs & data integrity.
+Participating Actors: System
+Preconditions: User submits data.
+Postconditions: Valid data persisted or user alerted.
+Main Success Scenario:
+ 1. Data received via form/API.
+ 2. Schema & business rules applied.
+ 3. Sanitization performed.
+ 4. Valid data saved.
+ 5. Audit entry recorded for critical fields.
+Alternate Flows:
+ a. Validation failure -> Errors returned.
+ b. Sanitization alters input -> User informed (if visible field).
+ c. High-risk pattern -> Entry blocked & flagged.
+================================================================
+Use Case UC-060 – Database Query Optimization & Caching (REQ-060)
+Initiating Actor: Admin / System
+Goal: Optimize slow queries using caching & indexing.
+Participating Actors: System, Database
+Preconditions: Monitoring identifies slow queries.
+Postconditions: Optimizations applied; performance logs updated.
+Main Success Scenario:
+ 1. System flags slow query pattern.
+ 2. Admin reviews performance report.
+ 3. Adds index or caching rule.
+ 4. System deploys migration/cache invalidation.
+ 5. Metrics confirm improved response time.
+Alternate Flows:
+ a. Index creation failure -> Rollback & alert.
+ b. Cache staleness -> TTL expires; refresh triggered.
+ c. Optimization regression -> Revert changes.
+================================================================
+Use Case UC-061 – Delete Plan Template with Dependency Check (REQ-061)
+Initiating Actor: Coach
+Goal: Remove unused plan template safely.
+Participating Actors: System
+Preconditions: Template exists; coach owner.
+Postconditions: Template deleted or blocked.
+Main Success Scenario:
+ 1. Coach selects template -> Delete.
+ 2. System checks active dependencies.
+ 3. No dependencies found.
+ 4. Template soft-deleted.
+ 5. Confirmation displayed.
+Alternate Flows:
+ a. Active subscriptions -> Deletion blocked; list shown.
+ b. Soft delete restore request -> Coach reactivates.
+ c. Hard purge after retention -> System permanently removes.
+================================================================
+Use Case UC-062 – Pause / Resume Active Plan (REQ-062)
+Initiating Actor: Client
+Goal: Temporarily suspend plan progress tracking.
+Participating Actors: System, Coach (notified)
+Preconditions: PlanSubscription Active.
+Postconditions: Plan status Paused or Active resumed.
+Main Success Scenario:
+ 1. Client opens plan settings.
+ 2. Clicks Pause; selects reason & duration.
+ 3. System updates status & freezes streak calculations.
+ 4. Coach notified.
+ 5. Client later selects Resume; system reinstates tracking.
+Alternate Flows:
+ a. Pause beyond max duration -> System limits & informs.
+ b. Resume before planned -> Allowed; schedule recalculated.
+ c. Auto-resume date reached -> System resumes plan.
+================================================================
+Use Case UC-063 – Bulk Plan Assignment (REQ-063)
+Initiating Actor: Coach
+Goal: Assign one template to multiple clients with minor customizations.
+Participating Actors: System, Clients
+Preconditions: Template exists; selected clients active.
+Postconditions: Multiple PlanSubscriptions created.
+Main Success Scenario:
+ 1. Coach selects clients list.
+ 2. Chooses template & shared parameters.
+ 3. Optionally applies per-client overrides.
+ 4. System validates & creates subscriptions.
+ 5. Clients notified collectively.
+Alternate Flows:
+ a. Some clients conflict -> Partial success report.
+ b. Rate limit -> Batch queued.
+ c. Override error -> Specific client skipped & logged.
+================================================================
+Use Case UC-064 – Plan Completion Certificates (REQ-064)
+Initiating Actor: System / Coach
+Goal: Generate certificate upon plan completion.
+Participating Actors: System, Client
+Preconditions: Plan status Completed; criteria met.
+Postconditions: Certificate generated & accessible.
+Main Success Scenario:
+ 1. System detects completion.
+ 2. Validates adherence threshold.
+ 3. Generates certificate PDF.
+ 4. Stores & notifies client.
+ 5. Client downloads/share link.
+Alternate Flows:
+ a. Threshold not met -> Coach may approve override.
+ b. Generation failure -> Retry queued.
+ c. Certificate revoked (error) -> Regenerate new version.
+================================================================
+Use Case UC-065 – Email Notifications for Important Events (REQ-065)
+Initiating Actor: System
+Goal: Send templated email for key events.
+Participating Actors: System, Email Service
+Preconditions: Event triggers & email opted-in.
+Postconditions: Email delivered or queued.
+Main Success Scenario:
+ 1. Event (plan assigned) fires.
+ 2. System selects appropriate template.
+ 3. Merges dynamic data.
+ 4. Sends email & records status.
+ 5. Bounce handling updates log.
+Alternate Flows:
+ a. Template missing -> Fallback generic template.
+ b. Email failure -> Retry then escalate.
+ c. User unsubscribed -> Suppress email.
+================================================================
+Use Case UC-066 – Clone & Modify Plan Template (REQ-066)
+Initiating Actor: Coach
+Goal: Create new template by cloning existing.
+Participating Actors: System
+Preconditions: Source template exists.
+Postconditions: New cloned template saved (Draft).
+Main Success Scenario:
+ 1. Coach selects template -> Clone.
+ 2. System copies structure & metadata.
+ 3. Coach edits fields.
+ 4. Saves draft then publishes.
+ 5. Template appears in library.
+Alternate Flows:
+ a. Clone name conflict -> System suggests suffix.
+ b. Partial copy failure -> Rollback & alert.
+ c. Coach cancels -> No new template created.
+================================================================
+Use Case UC-067 – Fitness Device Integration (REQ-067)
+Initiating Actor: Client
+Goal: Connect wearable device for auto-sync data.
+Participating Actors: System, External Device API
+Preconditions: Device supported; API credentials configured.
+Postconditions: OAuth token stored; sync scheduled.
+Main Success Scenario:
+ 1. Client selects "Connect Device".
+ 2. Redirects to device OAuth consent.
+ 3. Client authorizes.
+ 4. System receives token & stores securely.
+ 5. Initial sync job enqueued.
+Alternate Flows:
+ a. Authorization denied -> Connection aborted.
+ b. Token refresh failure -> System requests re-auth.
+ c. Partial data -> System retries missing ranges.
+================================================================
+Use Case UC-068 – Weekly & Monthly Progress Summaries (REQ-068)
+Initiating Actor: System / Client
+Goal: Compile periodic summaries with comparisons.
+Participating Actors: System
+Preconditions: Historical data spans period.
+Postconditions: Summary generated & viewable.
+Main Success Scenario:
+ 1. Scheduler runs summary job.
+ 2. Aggregates weekly/monthly metrics.
+ 3. Compares vs prior periods.
+ 4. Stores summary & notifies user.
+ 5. Client views report panel.
+Alternate Flows:
+ a. Data incomplete -> System notes partial.
+ b. Client opts out -> Report suppressed.
+ c. Report regeneration -> Overwrites prior.
+================================================================
+Use Case UC-069 – Secure Password Reset (REQ-069)
+Initiating Actor: User
+Goal: Reset forgotten password securely.
+Participating Actors: System, Email Service
+Preconditions: Email registered.
+Postconditions: Password updated; old tokens revoked.
+Main Success Scenario:
+ 1. User initiates password reset.
+ 2. System sends secure link (token + expiry).
+ 3. User opens link & enters new password.
+ 4. System validates complexity & saves hash.
+ 5. Logs out all sessions; confirms success.
+Alternate Flows:
+ a. Invalid/expired token -> System prompts new request.
+ b. Weak password -> Rejected with guidance.
+ c. Multiple requests -> Only latest token valid.
+================================================================
+Use Case UC-070 – Dashboard Preference Customization (REQ-070)
+Initiating Actor: User
+Goal: Configure dashboard layout & widgets.
+Participating Actors: System
+Preconditions: User authenticated.
+Postconditions: Preferences stored; layout updated.
+Main Success Scenario:
+ 1. User enters customization mode.
+ 2. Adds/removes/reorders widgets.
+ 3. Saves changes.
+ 4. System persists configuration.
+ 5. Dashboard reloads with new layout.
+Alternate Flows:
+ a. Widget load failure -> Placeholder shown.
+ b. Exceeds widget limit -> System blocks addition.
+ c. Reset to default -> Original layout restored.
+================================================================
+Use Case UC-071 – Workout Video Integration (REQ-071)
+Initiating Actor: Client
+Goal: Play workout videos with progress tracking.
+Participating Actors: System, Media Service
+Preconditions: Video linked to exercise.
+Postconditions: Playback progress saved.
+Main Success Scenario:
+ 1. Client opens exercise detail.
+ 2. Starts video playback.
+ 3. System tracks watch percentage.
+ 4. Upon completion marks exercise viewed.
+ 5. Updates learning progress.
+Alternate Flows:
+ a. Bandwidth low -> Lower resolution stream.
+ b. Mid-video exit -> Progress saved at timestamp.
+ c. DRM failure -> Retry or alternate video.
+================================================================
+Use Case UC-072 – Nutrition Database Access (REQ-072)
+Initiating Actor: Client / Coach
+Goal: Search foods & retrieve nutritional data.
+Participating Actors: System, Nutrition Data Service
+Preconditions: Database populated.
+Postconditions: Data displayed; selected item added to meal.
+Main Success Scenario:
+ 1. User searches food.
+ 2. System queries nutrition index.
+ 3. Displays matching items.
+ 4. User selects & adjusts serving.
+ 5. Item added to meal log.
+Alternate Flows:
+ a. No result -> Option to create custom food.
+ b. API rate limit -> Cached results served.
+ c. Incomplete data -> Mark partial & allow edit.
+================================================================
+Use Case UC-073 – Recipe Creation & Sharing (REQ-073)
+Initiating Actor: Client / Coach
+Goal: Build recipe with nutritional calculation.
+Participating Actors: System
+Preconditions: Ingredients available in DB.
+Postconditions: Recipe stored; nutrients computed.
+Main Success Scenario:
+ 1. User starts new recipe.
+ 2. Adds ingredients & quantities.
+ 3. System calculates total & per serving nutrition.
+ 4. User saves; sets visibility.
+ 5. Recipe available for meal logging.
+Alternate Flows:
+ a. Missing ingredient -> Add custom ingredient.
+ b. Fractional serving -> System recalculates per serving.
+ c. Privacy change -> System updates sharing access.
+================================================================
+Use Case UC-074 – Social Achievement Sharing (REQ-074)
+Initiating Actor: Client
+Goal: Share achievement to social/feed.
+Participating Actors: System, Social API (optional)
+Preconditions: Achievement earned & sharing enabled.
+Postconditions: Post created internally / externally.
+Main Success Scenario:
+ 1. Client views achievement; selects Share.
+ 2. Chooses platforms (internal feed / external).
+ 3. System formats post.
+ 4. Publishes internally & sends external API.
+ 5. Confirms success.
+Alternate Flows:
+ a. External API error -> Internal post only; notify user.
+ b. Privacy restriction -> Share blocked.
+ c. Duplicate share -> System prevents repeat spam.
+================================================================
+Use Case UC-075 – Calendar Integration (REQ-075)
+Initiating Actor: Client / Coach
+Goal: Schedule workouts/meals on calendar.
+Participating Actors: System, Calendar Service
+Preconditions: Plan exists.
+Postconditions: Events created/updated.
+Main Success Scenario:
+ 1. User opens calendar view.
+ 2. Drags workouts/meals into calendar slots.
+ 3. System creates calendar events.
+ 4. Syncs with external calendar if linked.
+ 5. Reminders scheduled.
+Alternate Flows:
+ a. Overlap conflict -> System prompts resolve.
+ b. External sync failure -> Retry queued.
+ c. Timezone change -> Events adjusted.
+================================================================
+Use Case UC-076 – Backup & Multi-Device Sync (REQ-076)
+Initiating Actor: System
+Goal: Keep user data synchronized across devices.
+Participating Actors: System
+Preconditions: User uses multiple devices.
+Postconditions: Consistent latest data on all devices.
+Main Success Scenario:
+ 1. Device submits updates.
+ 2. System merges & timestamps changes.
+ 3. Pushes delta to other devices.
+ 4. Conflicts resolved via latest-write or merge rules.
+ 5. Sync status displayed.
+Alternate Flows:
+ a. Conflict unresolved -> User prompted manual selection.
+ b. Offline device -> Sync queued until online.
+ c. Version mismatch -> Full resync triggered.
+================================================================
+Use Case UC-077 – Offline Mode Access (REQ-077)
+Initiating Actor: Client
+Goal: Use basic plan & logging without connectivity.
+Participating Actors: System (local cache)
+Preconditions: Data cached prior to offline state.
+Postconditions: Offline actions queued for sync.
+Main Success Scenario:
+ 1. Client loses network.
+ 2. System switches to offline mode.
+ 3. User views cached plan & logs activities.
+ 4. System queues logs locally.
+ 5. Upon reconnection, sync executes.
+Alternate Flows:
+ a. Cache expired -> Minimal summary only.
+ b. Sync conflict -> Merge rules applied.
+ c. Prolonged offline -> Warn about stale data.
+================================================================
+Use Case UC-078 – Comprehensive Content Search (REQ-078)
+Initiating Actor: User
+Goal: Search across coaches, plans, recipes, media.
+Participating Actors: System, Search Index
+Preconditions: Index built.
+Postconditions: Ranked results displayed.
+Main Success Scenario:
+ 1. User enters query.
+ 2. System parses & queries index.
+ 3. Faceted results returned.
+ 4. User filters/refines.
+ 5. Opens selected result.
+Alternate Flows:
+ a. No matches -> Suggestions displayed.
+ b. Query too broad -> Prompt for filters.
+ c. Index rebuilding -> Serve stale index with notice.
+================================================================
+Use Case UC-079 – Coaching Analytics (REQ-079)
+Initiating Actor: Coach
+Goal: Analyze business KPIs & client metrics.
+Participating Actors: System
+Preconditions: Sufficient client data.
+Postconditions: Insights viewed.
+Main Success Scenario:
+ 1. Coach opens Analytics.
+ 2. Selects period & KPIs.
+ 3. System aggregates metrics.
+ 4. Visualizations rendered.
+ 5. Coach exports report.
+Alternate Flows:
+ a. Sparse data -> Limited metrics shown.
+ b. Export failure -> Retry or different format.
+ c. KPI formula update -> System version labels.
+================================================================
+Use Case UC-080 – Multi-Language Interface (REQ-080)
+Initiating Actor: User
+Goal: Switch platform language.
+Participating Actors: System
+Preconditions: Locales available.
+Postconditions: UI rendered in chosen language.
+Main Success Scenario:
+ 1. User opens Language Settings.
+ 2. Selects desired locale.
+ 3. System loads translation bundle.
+ 4. Re-renders interface.
+ 5. Preference saved.
+Alternate Flows:
+ a. Missing translation -> Fallback to default.
+ b. RTL language -> Layout mirrored.
+ c. Cache stale -> Bundle refreshed.
+================================================================
+Use Case UC-081 – Role-Based Dashboard Customization (REQ-081)
+Initiating Actor: System / User
+Goal: Provide distinct default dashboards per role.
+Participating Actors: System
+Preconditions: User role known.
+Postconditions: Appropriate widgets displayed.
+Main Success Scenario:
+ 1. User logs in.
+ 2. System detects role.
+ 3. Loads role-specific layout.
+ 4. Applies user overrides.
+ 5. Dashboard shown.
+Alternate Flows:
+ a. Missing role layout -> Default layout applied.
+ b. Deprecated widget -> Replaced with fallback.
+ c. Permission change -> Dashboard recalculated.
+================================================================
+Use Case UC-082 – Public API Endpoints (REQ-082)
+Initiating Actor: External App Developer
+Goal: Access platform data via authenticated API.
+Participating Actors: System, OAuth Service
+Preconditions: API credentials issued.
+Postconditions: Data retrieved within scope limits.
+Main Success Scenario:
+ 1. Developer authenticates via OAuth.
+ 2. Receives access token.
+ 3. Calls endpoint (e.g., /plans, /progress).
+ 4. System validates scope & rate limits.
+ 5. Returns JSON response.
+Alternate Flows:
+ a. Expired token -> 401 & refresh flow.
+ b. Rate limit exceeded -> 429 response.
+ c. Unauthorized scope -> 403 denied.
+================================================================
+Use Case UC-083 – Automated Plan Suggestions (REQ-083)
+Initiating Actor: System
+Goal: Suggest new plans based on client progress.
+Participating Actors: System, Client, Coach
+Preconditions: Progress history & recommendation engine active.
+Postconditions: Suggestions queued/displayed.
+Main Success Scenario:
+ 1. Scheduler evaluates clients weekly.
+ 2. Engine analyzes adherence & goals.
+ 3. Generates list of plan suggestions.
+ 4. Client notified; can view details.
+ 5. Coach approves & assigns if desired.
+Alternate Flows:
+ a. No suitable match -> Suggest consultation.
+ b. Engine error -> No suggestions this cycle.
+ c. Client dismisses -> Feedback stored to refine model.
+================================================================
+Use Case UC-084 – Group Coaching Features (REQ-084)
+Initiating Actor: Coach
+Goal: Manage group sessions for multiple clients.
+Participating Actors: System, Clients
+Preconditions: Group feature enabled.
+Postconditions: Group session scheduled & tracked.
+Main Success Scenario:
+ 1. Coach creates group program.
+ 2. Adds clients.
+ 3. Schedules sessions.
+ 4. System notifies participants.
+ 5. Attendance & progress tracked.
+Alternate Flows:
+ a. Client declines invite -> Removed from roster.
+ b. Capacity reached -> Waitlist created.
+ c. Session canceled -> Notifications sent.
+================================================================
+Use Case UC-085 – Comprehensive Audit Logging (REQ-085)
+Initiating Actor: System
+Goal: Record security-sensitive operations.
+Participating Actors: System, Admin
+Preconditions: Logging framework active.
+Postconditions: Immutable audit records stored.
+Main Success Scenario:
+ 1. Sensitive action invoked (role change, data export).
+ 2. System captures context (user, timestamp, IP).
+ 3. Writes to append-only log.
+ 4. Integrity hash updated.
+ 5. Admin can query logs.
+Alternate Flows:
+ a. Log write failure -> Fallback buffer & alert.
+ b. Tamper detection -> Alert & lockdown.
+ c. Log rotation -> Archive & compress.
+================================================================
+Use Case UC-086 – Smart Adaptive Notifications (REQ-086)
+Initiating Actor: System
+Goal: Adjust notification timing & frequency by behavior.
+Participating Actors: System, User
+Preconditions: Notification history available.
+Postconditions: Personalized notification schedule updated.
+Main Success Scenario:
+ 1. System analyzes user response patterns.
+ 2. Updates notification cadence model.
+ 3. Schedules next reminders optimally.
+ 4. Sends notifications.
+ 5. Captures interaction feedback (open/click time).
+Alternate Flows:
+ a. No pattern -> Default schedule retained.
+ b. High opt-outs -> Reduce frequency automatically.
+ c. User manual override -> Model respects override.
+================================================================
+Use Case UC-087 – Plan Sharing Between Coaches (REQ-087)
+Initiating Actor: Coach
+Goal: Share template with another coach with permissions.
+Participating Actors: System, Other Coach
+Preconditions: Template exists; sharing allowed.
+Postconditions: Share link/permission record created.
+Main Success Scenario:
+ 1. Coach selects template -> Share.
+ 2. Chooses recipient & permission (view/clone).
+ 3. System creates sharing record.
+ 4. Recipient notified & accesses template.
+ 5. Usage logged.
+Alternate Flows:
+ a. Permission upgrade -> System updates record.
+ b. Revoke share -> Access removed.
+ c. Recipient clone -> Independent copy created.
+================================================================
+Use Case UC-088 – White-Label Customization (REQ-088)
+Initiating Actor: Admin
+Goal: Configure branding (logo, colors, domain) for business.
+Participating Actors: System
+Preconditions: White-label feature licensed.
+Postconditions: Branding applied tenant-wide.
+Main Success Scenario:
+ 1. Admin opens branding settings.
+ 2. Uploads logo & selects colors.
+ 3. System validates contrast & formats.
+ 4. Saves & purges style cache.
+ 5. Branded UI rendered.
+Alternate Flows:
+ a. Invalid logo size -> Reject & request resize.
+ b. Low contrast -> Warning; admin confirms override.
+ c. Domain mapping pending -> Temporary subdomain used.
+================================================================
+Use Case UC-089 – Error Handling & User-Friendly Messages (REQ-089)
+Initiating Actor: System
+Goal: Capture errors and present clear messages.
+Participating Actors: System, User, Logging Service
+Preconditions: Error handling middleware configured.
+Postconditions: Error logged; user receives guidance.
+Main Success Scenario:
+ 1. Exception occurs.
+ 2. Middleware captures & categorizes.
+ 3. Logs technical details (hidden from user).
+ 4. User shown friendly message & retry option.
+ 5. Alert raised if severity high.
+Alternate Flows:
+ a. Repeated error -> System throttles alerts.
+ b. Unhandled type -> Fallback generic handler.
+ c. User reports issue -> Ticket auto-created.
+================================================================
+Use Case UC-090 – Automated Testing & QA for Plan Effectiveness (REQ-090)
+Initiating Actor: QA Staff / System CI
+Goal: Run automated tests validating plan logic & metrics.
+Participating Actors: System, Test Suite
+Preconditions: Test scenarios defined.
+Postconditions: Test results stored; failures reported.
+Main Success Scenario:
+ 1. CI pipeline triggered (commit/schedule).
+ 2. Test suite runs plan scenario cases.
+ 3. System collects pass/fail & coverage.
+ 4. Generates report & notifies team.
+ 5. Failing tests block deployment.
+Alternate Flows:
+ a. Flaky test -> Mark quarantined; alert QA.
+ b. Coverage below threshold -> Build flagged.
+ c. Environment failure -> Rerun after environment reset.
+================================================================
+
+End of Use Case Catalogue.
