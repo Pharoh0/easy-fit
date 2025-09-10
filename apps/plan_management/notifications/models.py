@@ -7,7 +7,7 @@ User = get_user_model()
 
 
 class PlanNotification(models.Model):
-    """Track email notifications sent for plan events"""
+    """Track notifications (email + in-app) for plan events"""
     NOTIFICATION_TYPES = [
         ('plan_created', 'Plan Created'),
         ('plan_updated', 'Plan Updated'),
@@ -17,56 +17,91 @@ class PlanNotification(models.Model):
         ('plan_completed', 'Plan Completed'),
         ('plan_cancelled', 'Plan Cancelled'),
         ('coach_message', 'Coach Message'),
+        # Additional types used by views
+        ('plan_request_received', 'Plan Request Received'),
+        ('plan_approved', 'Plan Approved'),
+        ('plan_rejected', 'Plan Rejected'),
+        ('refund_processed', 'Refund Processed'),
     ]
-    
-    subscription = models.ForeignKey('plan_management.PlanSubscription', on_delete=models.CASCADE, related_name='notifications')
-    notification_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
-    
+
+    subscription = models.ForeignKey(
+        'plan_management.PlanSubscription',
+        on_delete=models.CASCADE,
+        related_name='notifications',
+        null=True,  # Allow notifications without a subscription
+        blank=True
+    )
+    # The user who should receive the notification (usually subscription.client)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='plan_notifications', null=True, blank=True)
+    notification_type = models.CharField(max_length=25, choices=NOTIFICATION_TYPES)
+
     # Email details
     recipient_email = models.EmailField()
     subject = models.CharField(max_length=255)
     email_content = models.TextField()
-    
-    # Tracking
+
+    # Tracking (email delivery)
     sent_at = models.DateTimeField(auto_now_add=True)
     is_sent = models.BooleanField(default=False)
-    delivery_status = models.CharField(max_length=20, choices=[
-        ('pending', 'Pending'),
-        ('sent', 'Sent'),
-        ('delivered', 'Delivered'),
-        ('failed', 'Failed'),
-        ('bounced', 'Bounced'),
-    ], default='pending')
-    
+    delivery_status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('sent', 'Sent'),
+            ('delivered', 'Delivered'),
+            ('failed', 'Failed'),
+            ('bounced', 'Bounced'),
+        ],
+        default='pending',
+    )
+
+    # In-app read tracking
+    is_read = models.BooleanField(default=False)
+    read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
     # Plan access link
     plan_access_token = models.CharField(max_length=100, unique=True)
     link_expires_at = models.DateTimeField()
-    
+
     # Additional context
     additional_data = models.JSONField(default=dict, blank=True)
-    
+
     def __str__(self):
         return f"{self.notification_type} notification to {self.recipient_email}"
-    
+
     def generate_access_token(self):
         """Generate unique access token for plan link"""
         self.plan_access_token = str(uuid.uuid4())
         self.link_expires_at = timezone.now() + timezone.timedelta(days=30)
         self.save()
         return self.plan_access_token
-    
+
+    def mark_as_read(self):
+        if not self.is_read:
+            self.is_read = True
+            self.read_at = timezone.now()
+            self.save(update_fields=['is_read', 'read_at'])
+        return self
+
     @property
     def is_link_expired(self):
         """Check if the plan access link is expired"""
         return timezone.now() > self.link_expires_at
-    
+
     class Meta:
         ordering = ['-sent_at']
+        indexes = [
+            models.Index(fields=['user', 'is_read']),
+            models.Index(fields=['notification_type']),
+            models.Index(fields=['subscription', 'sent_at']),
+            models.Index(fields=['created_at']),
+        ]
 
 
 class NotificationTemplate(models.Model):
     """Email templates for different notification types"""
-    notification_type = models.CharField(max_length=20, choices=PlanNotification.NOTIFICATION_TYPES, unique=True)
+    notification_type = models.CharField(max_length=25, choices=PlanNotification.NOTIFICATION_TYPES, unique=True)
     
     # Template content
     subject_template = models.CharField(max_length=255)

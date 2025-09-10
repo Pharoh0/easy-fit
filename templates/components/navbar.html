@@ -242,11 +242,20 @@
                 </li>
                 
                 <!-- Notifications -->
-                <li class="nav-item">
-                    <a class="nav-link position-relative" href="#" style="padding-left: 0.4rem; padding-right: 0.4rem;">
+                <li class="nav-item dropdown">
+                    <a class="nav-link position-relative dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 0.4rem; padding-right: 0.4rem;">
                         <i class="bi bi-bell nav-icon"></i>
-                        <span class="notification-badge">3</span>
+                        <span class="notification-badge" style="display:none">0</span>
                     </a>
+                    <div class="dropdown-menu dropdown-menu-end p-0" aria-labelledby="notificationsDropdown" style="min-width: 320px;">
+                        <div class="p-2 border-bottom d-flex justify-content-between align-items-center">
+                            <strong>Notifications</strong>
+                            <button class="btn btn-sm btn-link" id="markAllNotificationsRead" type="button">Mark all read</button>
+                        </div>
+                        <div id="navNotificationsMenu" style="max-height: 360px; overflow-y: auto;">
+                            <div class="p-3 text-muted">No notifications</div>
+                        </div>
+                    </div>
                 </li>
                 
                 <!-- User Profile Dropdown -->

@@ -17,15 +17,20 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         # Generate access token
         access_token = str(uuid.uuid4())
         
+        logger.info(f"Creating notification: type={notification_type}, subscription_id={subscription.id}, client_id={subscription.client.id}")
+        
         # Create notification record
         notification = PlanNotification.objects.create(
             subscription=subscription,
+            user=subscription.client,
             notification_type=notification_type,
             recipient_email=subscription.client.email,
             plan_access_token=access_token,
             link_expires_at=timezone.now() + timedelta(days=30),
             additional_data=additional_context or {}
         )
+        
+        logger.info(f"Notification created: id={notification.id}, type={notification_type}")
         
         # Build context for email template
         context = {
@@ -80,8 +85,11 @@ def send_plan_notification_email(subscription, notification_type, additional_con
     - Otherwise: log and return gracefully without raising.
     """
     try:
+        logger.info(f"send_plan_notification_email called: type={notification_type}, subscription={'present' if subscription else 'None'}")
+        
         # Normal path: use the subscription-backed notification system
         if subscription is not None:
+            logger.info(f"Using subscription-backed notification for {notification_type}")
             return send_plan_notification(subscription, notification_type, additional_context)
 
         # Handle plan request notification before a subscription exists
@@ -137,6 +145,30 @@ def send_plan_notification_email(subscription, notification_type, additional_con
             logger.info(f"Coach notification email sent for new plan request to {coach_email}")
             return None
 
+        # For plan_approved and plan_rejected without subscription, try to create one from context
+        if notification_type in ['plan_approved', 'plan_rejected'] and additional_context:
+            client = additional_context.get('client')
+            plan = additional_context.get('plan')
+            plan_request = additional_context.get('plan_request')
+            
+            if client and plan and plan_request:
+                logger.info(f"Creating in-app notification for {notification_type} without subscription")
+                # Create a notification directly for the client
+                try:
+                    notification = PlanNotification.objects.create(
+                        subscription=None,  # No subscription but we'll set the user
+                        user=client,
+                        notification_type=notification_type,
+                        recipient_email=client.email,
+                        plan_access_token=str(uuid.uuid4()),
+                        link_expires_at=timezone.now() + timedelta(days=30),
+                        additional_data=additional_context or {}
+                    )
+                    logger.info(f"Created direct notification: id={notification.id}, type={notification_type}")
+                    return notification
+                except Exception as e:
+                    logger.error(f"Failed to create direct notification: {e}")
+        
         # Unknown scenario without subscription: log and move on
         logger.warning(
             f"send_plan_notification_email called without subscription for type: {notification_type}"
@@ -158,6 +190,9 @@ def get_notification_priority(notification_type):
         'daily_reminder': 5,  # Normal priority
         'plan_completed': 3,
         'plan_cancelled': 2,
+        'plan_approved': 1,
+        'plan_rejected': 2,
+        'refund_processed': 2,
     }
     return priority_map.get(notification_type, 5)
 
@@ -226,6 +261,7 @@ def create_plan_access_link(subscription, expires_in_days=30):
         subscription=subscription,
         notification_type='plan_created',
         defaults={
+            'user': subscription.client,
             'recipient_email': subscription.client.email,
             'plan_access_token': access_token,
             'link_expires_at': timezone.now() + timedelta(days=expires_in_days),

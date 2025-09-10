@@ -24,6 +24,17 @@ const PlanCustomizationData = (() => {
         currentSubscriptionId = urlParams.get('subscription_id');
         currentPlanId = urlParams.get('plan_id');
         currentClientId = urlParams.get('client_id');
+
+        // Support plan_id passed in the URL path: /plan-management/coach/plan-customization/<plan_id>/
+        if (!currentPlanId) {
+            try {
+                const path = window.location.pathname;
+                const m = path.match(/\/coach\/plan-customization\/(\d+)/);
+                if (m && m[1]) {
+                    currentPlanId = m[1];
+                }
+            } catch (e) { /* ignore */ }
+        }
         
         console.log(`Initializing with: plan=${currentPlanId}, client=${currentClientId}, subscription=${currentSubscriptionId}`);
         
@@ -194,17 +205,24 @@ const PlanCustomizationData = (() => {
                 ? `/plan-management/api/v1/coach-plan-customization/plan_days/?subscription_id=${currentSubscriptionId}`
                 : `/plan-management/api/v1/coach-plan-customization/plan_days/?plan_id=${currentPlanId}&client_id=${currentClientId || ''}`;
 
-            const response = await APIBase.request(url, {
-                method: 'GET'
-            });
-            
-            if (response.success && response.data) {
-                planDays = response.data;
+            let response = await APIBase.request(url, { method: 'GET' });
+            if (response && response.success) {
+                planDays = Array.isArray(response.data) ? response.data : [];
+                // If no days and we have a subscription_id, attempt to generate (backward compatibility)
+                if ((!planDays || planDays.length === 0) && currentSubscriptionId) {
+                    console.log('No plan days found; attempting to generate...');
+                    const genRes = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/${currentSubscriptionId}/generate_plan_days/`, { method: 'POST' });
+                    console.log('Generate response:', genRes);
+                    // Re-fetch after generation attempt
+                    response = await APIBase.request(url, { method: 'GET' });
+                    if (response && response.success) {
+                        planDays = Array.isArray(response.data) ? response.data : [];
+                    }
+                }
                 console.log('Plan days:', planDays);
                 return planDays;
-            } else {
-                throw new Error('Failed to load plan days');
             }
+            throw new Error((response && response.error) || 'Failed to load plan days');
         } catch (error) {
             console.error('Error fetching plan days:', error);
             throw error;

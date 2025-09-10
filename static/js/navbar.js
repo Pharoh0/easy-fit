@@ -259,25 +259,164 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Handle notifications (example functionality)
     const notificationBadges = document.querySelectorAll('.notification-badge');
-    notificationBadges.forEach(badge => {
-        const parent = badge.closest('a');
-        if (parent) {
-            parent.addEventListener('click', function(e) {
-                // For demo purposes only
-                if (this.querySelector('.bi-bell')) {
-                    e.preventDefault();
-                    if (window.utils && typeof window.utils.showToast === 'function') {
-                        utils.showToast('Notifications panel will be implemented here', 'info');
-                    }
-                } else if (this.querySelector('.bi-cart')) {
-                    e.preventDefault();
-                    if (window.utils && typeof window.utils.showToast === 'function') {
-                        utils.showToast('Shopping cart will be implemented here', 'info');
-                    }
-                }
-            });
+    const notifBadge = document.querySelector('#notificationsDropdown .notification-badge');
+    const notifMenu = document.getElementById('navNotificationsMenu');
+    const notifDropdown = document.getElementById('notificationsDropdown');
+    const markAllBtn = document.getElementById('markAllNotificationsRead');
+
+    async function updateUnreadBadge() {
+        if (!window.NotificationsAPI || !notifBadge) return;
+        const res = await NotificationsAPI.unreadCount();
+        let count = 0;
+        if (res && res.success && res.data && typeof res.data.unread_count === 'number') {
+            count = res.data.unread_count;
+        } else if (res && res.unread_count != null) {
+            count = res.unread_count;
         }
-    });
+        if (count > 0) {
+            notifBadge.textContent = String(count);
+            notifBadge.style.display = '';
+        } else {
+            notifBadge.style.display = 'none';
+        }
+    }
+    
+    // Update badge when WebSocket sends unread count
+    if (window.notificationWS) {
+        window.notificationWS.addEventListener('unread_count', (data) => {
+            if (notifBadge && data && typeof data.count === 'number') {
+                if (data.count > 0) {
+                    notifBadge.textContent = String(data.count);
+                    notifBadge.style.display = '';
+                } else {
+                    notifBadge.style.display = 'none';
+                }
+            }
+        });
+        
+        // Handle real-time notifications
+        window.notificationWS.addEventListener('notification', (data) => {
+            // Refresh the notification list if dropdown is open
+            if (notifDropdown && notifDropdown.classList.contains('show')) {
+                loadNotificationsList();
+            }
+        });
+    }
+
+    function renderNotificationsList(items) {
+        if (!notifMenu) return;
+        try { notifMenu.innerHTML = ''; } catch (e) {}
+        if (!items || !items.length) {
+            notifMenu.innerHTML = '<div class="p-3 text-muted">No notifications</div>';
+            return;
+        }
+        const typeIcon = (t) => {
+            switch (t) {
+                case 'plan_created': return 'bi-clipboard-plus';
+                case 'plan_updated': return 'bi-pencil-square';
+                case 'plan_customized': return 'bi-sliders2';
+                case 'daily_reminder': return 'bi-calendar2-check';
+                case 'milestone_achieved': return 'bi-trophy';
+                case 'plan_completed': return 'bi-flag';
+                case 'plan_cancelled': return 'bi-x-circle';
+                case 'plan_approved': return 'bi-check-circle';
+                case 'plan_rejected': return 'bi-x-octagon';
+                case 'coach_message': return 'bi-chat-dots';
+                case 'refund_processed': return 'bi-cash-coin';
+                default: return 'bi-bell';
+            }
+        };
+        const formatWhen = (iso) => {
+            try {
+                const d = new Date(iso);
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+        };
+
+        const makeItem = (n) => {
+            const li = document.createElement('a');
+            li.className = 'dropdown-item d-flex align-items-start gap-2';
+            li.href = '#';
+            li.innerHTML = `
+                <i class="bi ${typeIcon(n.notification_type)} mt-1 ${n.is_read ? 'text-muted' : 'text-primary'}"></i>
+                <div class="flex-grow-1">
+                    <div class="fw-semibold small">${(n.subject || n.notification_type).replace(/_/g, ' ')}</div>
+                    <div class="small text-muted">${(n.subscription_info && n.subscription_info.plan_name) ? n.subscription_info.plan_name : ''} · ${formatWhen(n.sent_at || n.created_at)}</div>
+                </div>
+            `;
+            li.addEventListener('click', async (e) => {
+                e.preventDefault();
+                try {
+                    // Try WebSocket first if available
+                    if (window.notificationWS && window.notificationWS.connected) {
+                        window.notificationWS.markAsRead(n.id);
+                        li.querySelector('i').classList.remove('text-primary');
+                        li.querySelector('i').classList.add('text-muted');
+                        return;
+                    }
+                    
+                    // Fall back to REST API
+                    await NotificationsAPI.markRead(n.id);
+                    li.querySelector('i').classList.remove('text-primary');
+                    li.querySelector('i').classList.add('text-muted');
+                    await updateUnreadBadge();
+                } catch (err) {}
+            });
+            return li;
+        };
+
+        items.forEach(n => notifMenu.appendChild(makeItem(n)));
+    }
+
+    async function loadNotificationsList() {
+        if (!window.NotificationsAPI) return;
+        const res = await NotificationsAPI.list({});
+        let items = [];
+        if (res && res.success) {
+            const data = res.data;
+            if (data && Array.isArray(data.results)) items = data.results;
+            else if (Array.isArray(data)) items = data;
+        }
+        renderNotificationsList(items);
+    }
+
+    // Initial load of unread count
+    updateUnreadBadge();
+    
+    // Only poll if WebSocket is not available
+    if (!window.notificationWS || !window.notificationWS.connected) {
+        setInterval(updateUnreadBadge, 60000);
+    }
+
+    // Load notifications when dropdown is opened
+    if (notifDropdown) {
+        notifDropdown.addEventListener('shown.bs.dropdown', () => {
+            loadNotificationsList();
+        });
+    }
+
+    if (markAllBtn) {
+        markAllBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            // Try WebSocket first if available
+            if (window.notificationWS && window.notificationWS.connected) {
+                window.notificationWS.markAllAsRead();
+                if (window.utils) utils.showToast('All notifications marked as read', 'success');
+                return;
+            }
+            
+            // Fall back to REST API
+            const res = await NotificationsAPI.markAllRead();
+            if (res && res.success) {
+                updateUnreadBadge();
+                loadNotificationsList();
+                if (window.utils) utils.showToast('All notifications marked as read', 'success');
+            } else if (window.utils) {
+                utils.showToast('Failed to mark all as read', 'danger');
+            }
+        });
+    }
     
     // Add active class to current nav item
     const currentPath = window.location.pathname;

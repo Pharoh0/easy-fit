@@ -502,12 +502,20 @@
     <script src="{% static 'js/api/subscriptions_api.js' %}"></script>
     <script src="{% static 'js/api/plan_management_api.js' %}"></script>
     <script src="{% static 'js/api/coach_analytics_api.js' %}"></script>
+    <script src="{% static 'js/api/notifications_api.js' %}"></script>
     <!-- Legacy API support -->
     <script src="{% static 'profiles/js/api.js' %}"></script>
+    <!-- Real-time notifications -->
+    <script src="{% static 'js/notification_websocket.js' %}"></script>
     <!-- Main navbar functionality -->
     <script src="{% static 'js/navbar.js' %}"></script>
     <!-- Other scripts -->
     <script src="{% static 'js/scripts.js' %}"></script>
+    <!-- Notification testing (only loaded in development) -->
+    {% if debug %}
+    <script src="{% static 'js/notification_test.js' %}"></script>
+    <script src="{% static 'js/notification_debug.js' %}"></script>
+    {% endif %}
 
     {% block extra_js %}{% endblock %}
 </body>

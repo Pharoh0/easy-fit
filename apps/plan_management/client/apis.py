@@ -10,6 +10,9 @@ from django.db.models import Q
 from .models import PlanSubscription
 from ..coach.models import ProductPlan
 from .serializers import PlanSubscriptionSerializer
+from ..notifications.models import PlanNotification
+import logging
+import uuid
 
 
 class StandardResultsSetPagination(PageNumberPagination):
@@ -99,6 +102,27 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
                 )
                 # Immediately activate: triggers PlanDay generation and PlanProgress update inside model
                 subscription.activate()
+
+            # Notify coach (in-app + WS) about the new subscription
+            try:
+                coach_user = product_plan.coach.user
+                PlanNotification.objects.create(
+                    subscription=subscription,
+                    user=coach_user,
+                    notification_type='plan_created',
+                    recipient_email=getattr(coach_user, 'email', '') or '',
+                    subject=f"New subscription from {request.user.get_full_name() or request.user.username}",
+                    email_content=f"Client subscribed to {product_plan.name}.",
+                    plan_access_token=str(uuid.uuid4()),
+                    link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                    additional_data={
+                        'subscription_id': subscription.id,
+                        'client_id': request.user.id,
+                        'plan_id': product_plan.id,
+                    }
+                )
+            except Exception as ne:
+                logging.getLogger(__name__).warning(f"Failed to create coach in-app notification for plan_created: {ne}")
         except Exception as e:
             return Response({"detail": "Failed to create subscription", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -116,6 +140,26 @@ class PlanSubscriptionViewSet(viewsets.ModelViewSet):
             )
         with transaction.atomic():
             subscription.activate()
+        # Notify coach (in-app + WS) that subscription is activated
+        try:
+            coach_user = subscription.product_plan.coach.user
+            PlanNotification.objects.create(
+                subscription=subscription,
+                user=coach_user,
+                notification_type='plan_approved',
+                recipient_email=getattr(coach_user, 'email', '') or '',
+                subject=f"Subscription activated for {subscription.client.get_full_name() or subscription.client.username}",
+                email_content=f"Client subscription for {subscription.product_plan.name} is now active.",
+                plan_access_token=str(uuid.uuid4()),
+                link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                additional_data={
+                    'subscription_id': subscription.id,
+                    'client_id': subscription.client.id,
+                    'plan_id': subscription.product_plan.id,
+                }
+            )
+        except Exception as ne:
+            logging.getLogger(__name__).warning(f"Failed to create coach in-app notification for plan_approved: {ne}")
         serializer = self.get_serializer(subscription)
         return Response({"detail": "Subscription activated.", "subscription": serializer.data}, status=status.HTTP_200_OK)
 

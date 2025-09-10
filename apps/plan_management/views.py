@@ -14,6 +14,7 @@ from .coach.models import ProductPlan
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 import logging
+import uuid
 
 User = get_user_model()
 logger = logging.getLogger(__name__)
@@ -139,12 +140,12 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                     plan=plan
                 )
                 # Create a pending subscription so the client can see it immediately
-                PlanSubscription.objects.create(
+                pending_subscription = PlanSubscription.objects.create(
                     client=request.user,
                     product_plan=plan,
                 )
 
-            # Send notification to coach (non-blocking)
+            # Send notification to coach (non-blocking): email + in-app (WS)
             from .notifications.utils import send_plan_notification_email
             try:
                 send_plan_notification_email(
@@ -157,6 +158,27 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                         'plan': plan
                     }
                 )
+                # Also create an in-app notification for the coach so WebSocket delivers it
+                try:
+                    from .notifications.models import PlanNotification
+                    notif = PlanNotification.objects.create(
+                        subscription=pending_subscription,  # may be pending
+                        user=plan.coach.user,
+                        notification_type='plan_request_received',
+                        recipient_email=getattr(plan.coach.user, 'email', '') or '',
+                        subject=f"New Plan Request from {request.user.get_full_name() or request.user.username}",
+                        email_content=f"Client {request.user.get_full_name() or request.user.username} requested plan {plan.name}",
+                        plan_access_token=str(uuid.uuid4()),
+                        link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                        additional_data={
+                            'plan_id': plan.id,
+                            'plan_request_id': plan_request.id,
+                            'client_id': request.user.id,
+                        }
+                    )
+                    logger.info(f"Coach in-app notification created for plan request: {notif.id}")
+                except Exception as ne:
+                    logger.warning(f"Failed to create coach in-app plan_request_received notification: {ne}")
             except Exception as e:
                 # Don't fail the request if email fails
                 logger.exception("Failed to send plan request email notification", exc_info=e)
@@ -207,7 +229,8 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
         # Send notification to client
         from .notifications.utils import send_plan_notification_email
         try:
-            send_plan_notification_email(
+            logger.info(f"Sending plan_approved notification for subscription {subscription.id} to client {plan_request.client.id}")
+            notification = send_plan_notification_email(
                 subscription,
                 'plan_approved',
                 {
@@ -215,11 +238,35 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                     'client': plan_request.client,
                     'coach': request.user,
                     'plan': plan_request.plan,
-                    'customization_notes': customization_notes
+                    'customization_notes': customization_notes,
+                    'plan_request': plan_request
                 }
             )
+            logger.info(f"Plan approved notification created: {notification.id if notification else 'None'}")
+            # Also notify the coach that the client subscription is now active
+            try:
+                from .notifications.models import PlanNotification
+                coach_user = plan.coach.user
+                coach_notif = PlanNotification.objects.create(
+                    subscription=subscription,
+                    user=coach_user,
+                    notification_type='plan_approved',
+                    recipient_email=getattr(coach_user, 'email', '') or '',
+                    subject=f"Subscription approved for {plan_request.client.get_full_name() or plan_request.client.username}",
+                    email_content=f"Client subscribed to {plan.name} has been approved.",
+                    plan_access_token=str(uuid.uuid4()),
+                    link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                    additional_data={
+                        'plan_id': plan.id,
+                        'subscription_id': subscription.id,
+                        'client_id': plan_request.client.id,
+                    }
+                )
+                logger.info(f"Coach in-app notification created for plan approval: {coach_notif.id}")
+            except Exception as ne:
+                logger.warning(f"Failed to create coach in-app plan_approved notification: {ne}")
         except Exception as e:
-            pass
+            logger.error(f"Error sending plan_approved notification: {e}")
         
         serializer = self.get_serializer(plan_request)
         return Response(serializer.data)
@@ -257,8 +304,9 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
         # Send notification to client
         from .notifications.utils import send_plan_notification_email
         try:
-            send_plan_notification_email(
-                None,
+            logger.info(f"Sending plan_rejected notification to client {plan_request.client.id}")
+            notification = send_plan_notification_email(
+                pending_sub,
                 'plan_rejected',
                 {
                     'plan_request': plan_request,
@@ -268,8 +316,9 @@ class PlanRequestViewSet(viewsets.ModelViewSet):
                     'rejection_reason': rejection_reason
                 }
             )
+            logger.info(f"Plan rejected notification created: {notification.id if notification else 'None'}")
         except Exception as e:
-            pass
+            logger.error(f"Error sending plan_rejected notification: {e}")
         
         serializer = self.get_serializer(plan_request)
         return Response(serializer.data)
@@ -400,7 +449,7 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
             # Process the cancellation
             cancellation.process_cancellation()
             
-            # Send notification to coach
+            # Send notification to coach: email + in-app (WS)
             from .notifications.utils import send_plan_notification_email
             try:
                 send_plan_notification_email(
@@ -413,6 +462,27 @@ class PlanCancellationViewSet(viewsets.ModelViewSet):
                         'coach': subscription.product_plan.coach.user
                     }
                 )
+                # In-app notification for coach as well
+                try:
+                    coach_user = subscription.product_plan.coach.user
+                    notif = PlanNotification.objects.create(
+                        subscription=subscription,
+                        user=coach_user,
+                        notification_type='plan_cancelled',
+                        recipient_email=getattr(coach_user, 'email', '') or '',
+                        subject=f"Cancellation requested by {request.user.get_full_name() or request.user.username}",
+                        email_content=f"Client requested cancellation for {subscription.product_plan.name}.",
+                        plan_access_token=str(uuid.uuid4()),
+                        link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                        additional_data={
+                            'cancellation_id': cancellation.id,
+                            'subscription_id': subscription.id,
+                            'client_id': request.user.id,
+                        }
+                    )
+                    logger.info(f"Coach in-app notification created for cancellation: {notif.id}")
+                except Exception as ne:
+                    logger.warning(f"Failed to create coach in-app plan_cancelled notification: {ne}")
             except Exception as e:
                 logger.exception("Failed to send plan cancelled email notification", exc_info=e)
             

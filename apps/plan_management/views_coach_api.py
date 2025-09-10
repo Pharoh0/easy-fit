@@ -61,6 +61,7 @@ def get_plan_days(request):
     plan_id = request.GET.get('plan_id')
     client_id = request.GET.get('client_id')
     subscription_id = request.GET.get('subscription_id')
+    subscription = None
     
     # Support fetching by subscription_id to avoid needing both plan_id and client_id on the frontend
     if subscription_id:
@@ -92,6 +93,29 @@ def get_plan_days(request):
             plan_days_query = plan_days_query.filter(subscription__client_id=client_id)
             
         plan_days = plan_days_query.order_by('day_number')
+
+        # If no plan days yet, auto-generate (backward-compatible):
+        # - When subscription_id is provided, use that subscription
+        # - Otherwise, try to resolve the subscription by (plan, client)
+        if not plan_days.exists():
+            try:
+                target_sub = subscription
+                if target_sub is None and client_id:
+                    # Prefer active or pending, latest first
+                    target_sub = (
+                        PlanSubscription.objects
+                        .filter(product_plan=plan, client_id=client_id, status__in=['active', 'pending'])
+                        .order_by('-subscribed_at', '-id')
+                        .first()
+                    )
+                if target_sub is not None:
+                    with transaction.atomic():
+                        _created = target_sub.generate_plan_days(reset=False)
+                    # Re-query after generation
+                    plan_days = PlanDay.objects.filter(subscription=target_sub).order_by('day_number')
+            except Exception:
+                # If generation fails, continue and return empty list; frontend can trigger regenerate
+                pass
         
         # Format data for frontend
         days_data = []

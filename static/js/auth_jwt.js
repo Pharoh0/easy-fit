@@ -29,6 +29,11 @@ function refreshToken() {
         localStorage.setItem('access_token', data.access);
         localStorage.setItem('refresh_token', data.refresh);  // Store the new refresh token
         console.log("Access token refreshed:", data.access);
+        
+        // Refresh WebSocket connection with new token if available
+        if (window.notificationWS && typeof window.notificationWS.refreshConnection === 'function') {
+            window.notificationWS.refreshConnection();
+        }
     })
     .catch(error => {
         console.error('Error refreshing token:', error.message);

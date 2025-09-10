@@ -22,6 +22,102 @@
 </style>
 </head>
 <body>
+<style id="bw-style-overrides">
+/* Screen: two-tone professional palette; Print: enforced black & white */
+:root {
+	/* Grayscale palette for screen; print overrides below enforce pure B/W */
+	--accent: #111111;            /* Headings/borders */
+	--accent-contrast: #ffffff;   /* Text on dark backgrounds */
+	--subhead-bg: #222222;        /* Main header row background (no stroke) */
+	--meta-th-bg: #f2f2f2;        /* Meta table left column background */
+	--row-alt: #fafafa;           /* Zebra striping */
+	--border: #1a1a1a;            /* Table borders */
+}
+html, body {
+	background:#fff; color:#111; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+	font-family: "Segoe UI", Arial, Helvetica, sans-serif;
+	font-size: 12pt; line-height: 1.35;
+}
+h1, h2, h3, h4, h5, h6 { color:#111; background:transparent; }
+h2 {
+	/* Act as the unified block header for the entire use case */
+	font-size: 18pt !important;
+	margin: 0 !important;
+	padding: 10pt 12pt !important;
+	background: var(--subhead-bg);
+	color: var(--accent-contrast);
+	border: 1.5px solid var(--border) !important;
+	border-bottom: 0 !important; /* Seamlessly join with first table */
+	letter-spacing: .01em;
+}
+
+/* Use-case wrapper */
+section.use-case { page-break-inside: avoid; page-break-after: always; break-inside: avoid; break-after: page; margin: 12px 0 20px !important; }
+
+/* Tables */
+table.meta, table.flows { width:100% !important; border-collapse: collapse !important; border: 1.5px solid var(--border) !important; margin: 0 !important; table-layout: fixed; }
+table.meta th, table.meta td, table.flows th, table.flows td {
+	border: 1px solid var(--border) !important; padding: 8pt 10pt !important;
+	color:#111; background:#fff; vertical-align: top; word-wrap: break-word; font-size: 11pt;
+}
+table.meta th { width: 28%; min-width: 220px; font-weight: 600; text-align: left; white-space: nowrap; background: var(--meta-th-bg); }
+table.flows th.arrows { width: 8mm; text-align:center; font-weight: 700; background: var(--meta-th-bg); }
+table.flows td:nth-child(2) { width: 12mm; font-weight: 600; text-align: center; }
+/* Main header row of tables (no stroke, solid background for visibility) */
+table.flows .subhead { background: var(--subhead-bg) !important; color: var(--accent-contrast) !important; font-weight: 700 !important; text-transform: uppercase; letter-spacing: .03em; border: 0 !important; }
+table.flows .subhead * { border: 0 !important; }
+table.flows tr:nth-child(even) td:not(.subhead) { background: var(--row-alt); }
+
+/* Merge multiple tables to look like one */
+section.use-case > table:first-of-type { border-top: 0 !important; }
+section.use-case > table + table { border-top: 0 !important; }
+section.use-case > table + table th, section.use-case > table + table td { border-top: 0 !important; }
+section.use-case { border: 0; }
+
+/* True single-table style used after DOM unification */
+table.unified { width:100%; border-collapse: collapse; border: 1.5px solid var(--border); table-layout: fixed; margin: 0 !important; }
+table.unified th, table.unified td { border: 1px solid var(--border); padding: 8pt 10pt; vertical-align: top; font-size: 11pt; background:#fff; color:#111; }
+table.unified th.label { width: 28%; min-width: 220px; background: var(--meta-th-bg); text-align: left; font-weight: 600; white-space: nowrap; }
+table.unified th.arrows { width: 8mm; text-align: center; font-weight: 700; background: var(--meta-th-bg); }
+table.unified td.step { width: 12mm; text-align: center; font-weight: 600; }
+table.unified tr:nth-child(even) td:not(.subhead) { background: var(--row-alt); }
+table.unified td.subhead { background: var(--subhead-bg); color: var(--accent-contrast); font-weight: 700; text-transform: uppercase; letter-spacing: .03em; border: 0; }
+
+/* Prevent row splits across pages and improve copy behavior */
+table, tr, th, td { page-break-inside: avoid; break-inside: avoid; }
+
+/* Reset any prior colored accents */
+* { box-shadow: none !important; }
+
+/* Print: force pure black & white */
+@media print {
+		:root {
+			--accent: #000; --accent-contrast: #fff; --subhead-bg: #000; --meta-th-bg: #fff; --row-alt: #fff; --border: #000;
+		}
+	html, body, h1, h2, h3, h4, h5, h6 {
+		color:#000 !important; background:#fff !important; font-family: Arial, Helvetica, sans-serif !important;
+		font-size: 11pt !important; line-height: 1.4 !important;
+	}
+	/* Print header acts as title bar of the unified table */
+	section.use-case > h2 { background:#000 !important; color:#fff !important; border: 1.5px solid #000 !important; border-bottom: 0 !important; font-size: 16pt !important; padding: 9pt 11pt !important; }
+		table.meta th, table.meta td, table.flows th, table.flows td { background:#fff !important; color:#000 !important; border-color:#000 !important; }
+		/* Print: solid black header row; no stroke to avoid muddy edges */
+		table.flows .subhead { background:#000 !important; color:#fff !important; border: 0 !important; }
+		table.flows .subhead * { border: 0 !important; }
+			/* Unified table print rules */
+			table.unified { border-color:#000 !important; }
+			table.unified th, table.unified td { background:#fff !important; color:#000 !important; border-color:#000 !important; }
+			table.unified td.subhead { background:#000 !important; color:#fff !important; border: 0 !important; }
+	/* Merge tables for print too (avoid double borders) */
+	section.use-case > table { margin: 0 !important; }
+	section.use-case > table:first-of-type { border-top: 0 !important; }
+	section.use-case > table + table { border-top: 0 !important; }
+	section.use-case > table + table th, section.use-case > table + table td { border-top: 0 !important; }
+	section.use-case { break-after: page; page-break-after: always; }
+	a, a:visited { color:#000 !important; text-decoration: underline; }
+	thead { display: table-header-group; }
+}
+</style>
 <h1>Easy Fit – Use Case Catalogue</h1>
 <p>Each use case formatted in a structured table style inspired by provided reference. UC-XXX maps directly to REQ-XXX for traceability.</p>
 
@@ -835,7 +931,1715 @@
 </table>
 </section>
 
-<!-- Truncated for brevity in this response: UC-031 through UC-090 continue following the identical pattern already demonstrated, mapping each remaining requirement (REQ-031 … REQ-090) with metadata, 5 main steps, and 3 alternate flows exactly adapted from the source `use_cases.md` content. If you need the full expanded HTML inserted now, request “finish remaining UC” and I will append UC-031 .. UC-090. -->
+<!-- ================= UC-031 ================= -->
+<section class="use-case" id="uc-031">
+<h2>Use Case 31 (UC-031) – Implement PlanTemplate Model</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-031</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Developer</td></tr>
+ <tr><th>Actor's Goal</th><td>Support hierarchical plan template structure</td></tr>
+ <tr><th>Participating Actors</th><td>System, Database</td></tr>
+ <tr><th>Preconditions</th><td>Migration pending</td></tr>
+ <tr><th>Postconditions</th><td>Model deployed & usable in UI</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Define fields & relations</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Run migrations</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Create sample templates</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Validate hierarchy</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Templates visible in library</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Migration conflict -> resolve & rerun</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Missing index -> performance warning</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Invalid relation -> save blocked</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-032 ================= -->
+<section class="use-case" id="uc-032">
+<h2>Use Case 32 (UC-032) – Implement PlanSubscription Model</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-032</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Relate clients to plans with state tracking</td></tr>
+ <tr><th>Participating Actors</th><td>System, Database</td></tr>
+ <tr><th>Preconditions</th><td>Models migrated</td></tr>
+ <tr><th>Postconditions</th><td>Subscription records created/updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Coach assigns plan (Active)</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System tracks start/end</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Progress updates adjust state</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Pause/resume transitions</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Audit log updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Duplicate active -> enforce rules</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Invalid state change -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Auto-expire -> set Expired at end</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-033 ================= -->
+<section class="use-case" id="uc-033">
+<h2>Use Case 33 (UC-033) – Implement PlanEntry Model</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-033</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Store granular daily activities for plans</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Templates exist</td></tr>
+ <tr><th>Postconditions</th><td>PlanEntry records generated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Coach defines plan days</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System generates daily entries</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Client views & completes items</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>System updates completion flags</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Aggregates metrics into progress</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Plan modification -> new versioned entries</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Skipped day -> zero completion</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Deletion blocked if history linked</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-034 ================= -->
+<section class="use-case" id="uc-034">
+<h2>Use Case 34 (UC-034) – Implement PlanProgress Model</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-034</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Track cumulative progress metrics</td></tr>
+ <tr><th>Participating Actors</th><td>System, Database</td></tr>
+ <tr><th>Preconditions</th><td>Active subscription & entries</td></tr>
+ <tr><th>Postconditions</th><td>Progress updated after events</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Client logs activity</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System recalculates completion</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Updates adherence & streaks</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Stores snapshot metrics</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Dashboards refreshed</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Calculation error -> retry & log</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Missing data -> use baseline</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>High load -> queue job</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-035 ================= -->
+<section class="use-case" id="uc-035">
+<h2>Use Case 35 (UC-035) – DailyProgressLog Model</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-035</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Persist detailed daily log entries</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Client active; date within range</td></tr>
+ <tr><th>Postconditions</th><td>Daily log stored & validated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Client opens daily log</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Inputs metrics & submits</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Uniqueness per day validated</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Record saved & triggers progress update</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Client sees success confirmation</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Duplicate log -> offer edit existing</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Invalid metric range -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Late submission -> flag Late</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-036 ================= -->
+<section class="use-case" id="uc-036">
+<h2>Use Case 36 (UC-036) – Calculate Completion Percentages</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-036</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Compute weighted completion for plan/day</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Entries & weights configured</td></tr>
+ <tr><th>Postconditions</th><td>Percentages persisted</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Log update triggers calculation</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System fetches weighted components</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Computes completion ratio</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Stores value & updates cache</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Dashboards notified</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Weight misconfig -> default equal</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Divide by zero -> 0% & warning</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>High frequency -> debounce batch</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-037 ================= -->
+<section class="use-case" id="uc-037">
+<h2>Use Case 37 (UC-037) – Track Streaks with Rewards</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-037</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Maintain current & longest streak metrics</td></tr>
+ <tr><th>Participating Actors</th><td>System, Client</td></tr>
+ <tr><th>Preconditions</th><td>Daily log events occur</td></tr>
+ <tr><th>Postconditions</th><td>Streak values updated; rewards triggered</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Completion above threshold submitted</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System checks previous day</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Increment or reset current streak</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Update longest when surpassed</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Issue reward notification</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Missed day -> reset to 0</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Manual override -> admin note</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Retroactive entry -> recalc</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-038 ================= -->
+<section class="use-case" id="uc-038">
+<h2>Use Case 38 (UC-038) – Monitor Adherence & Improvement</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-038</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Compute adherence metrics & improvement score</td></tr>
+ <tr><th>Participating Actors</th><td>System, Coach</td></tr>
+ <tr><th>Preconditions</th><td>Historical logs available</td></tr>
+ <tr><th>Postconditions</th><td>Scores stored & visible</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Scheduler runs adherence job</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Aggregate completion & consistency</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Apply predictive model</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Store updated scores</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Coach dashboards updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Data gaps -> interpolate/flag</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Model error -> baseline formula</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>High load -> reschedule</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-039 ================= -->
+<section class="use-case" id="uc-039">
+<h2>Use Case 39 (UC-039) – Multiple Meal Types with Nutritional Analysis</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-039</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Log categorized meals with nutrition</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Nutrition module active</td></tr>
+ <tr><th>Postconditions</th><td>Meal entries saved; totals updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select meal type</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Search food & portion</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>System calculates nutrients</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Save meal entry</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Daily nutrient summary updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Food not found -> add custom</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Duplicate -> edit quantity</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Exceeded targets -> warning</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-040 ================= -->
+<section class="use-case" id="uc-040">
+<h2>Use Case 40 (UC-040) – Plan Categorization by Fitness Goals</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-040</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Tag templates with categories</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Template being created/edited</td></tr>
+ <tr><th>Postconditions</th><td>Category metadata stored & searchable</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select categories</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System validates at least one</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Save metadata</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Update category index</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Discoverable via filters</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Too many -> enforce limit</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Deprecated category -> replace</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>No category -> block publish</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-041 ================= -->
+<section class="use-case" id="uc-041">
+<h2>Use Case 41 (UC-041) – Plan Versioning & Tracking</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-041</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Maintain history of modifications</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Existing version present</td></tr>
+ <tr><th>Postconditions</th><td>New version stored; history accessible</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Edit plan</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System snapshots current</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Apply edits to new version</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Mark prior archived</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Update version history view</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Edit conflict -> merge/block</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Rollback -> reinstate prior</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Too many versions -> prompt cleanup</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-042 ================= -->
+<section class="use-case" id="uc-042">
+<h2>Use Case 42 (UC-042) – Plan Rating</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-042</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Provide 1–5 rating with criteria</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Used plan for minimum period</td></tr>
+ <tr><th>Postconditions</th><td>Rating stored & aggregated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open plan rating prompt</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Select overall & sub-scores</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Validate & submit</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Store & update averages</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Coach metrics updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Too early -> delay until threshold</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Incomplete -> prompt completion</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Withdraw -> replace/remove</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-043 ================= -->
+<section class="use-case" id="uc-043">
+<h2>Use Case 43 (UC-043) – Coach Rating & Feedback</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-043</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Rate coach interaction & expertise</td></tr>
+ <tr><th>Participating Actors</th><td>System, Coach</td></tr>
+ <tr><th>Preconditions</th><td>Active/recent coaching period</td></tr>
+ <tr><th>Postconditions</th><td>Feedback recorded; KPIs updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open coach profile -> Leave Feedback</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Provide scores & comment</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Validate once per window</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Store & recalc rating</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Coach notified (anonymized if set)</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Offensive content -> moderation</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Duplicate -> edit prior</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Anonymous -> hide name</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-044 ================= -->
+<section class="use-case" id="uc-044">
+<h2>Use Case 44 (UC-044) – Feedback Analysis</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-044</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Aggregate textual feedback (sentiment)</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Feedback entries exist</td></tr>
+ <tr><th>Postconditions</th><td>Sentiment scores in analytics</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Scheduler processes batch</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Run sentiment & keywords</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Update analytics dataset</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Display trends to coach</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Flag negative trend alerts</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>NLP unavailable -> retry</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Unsupported language -> unprocessed</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Low confidence -> manual review</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-045 ================= -->
+<section class="use-case" id="uc-045">
+<h2>Use Case 45 (UC-045) – Notification System for Reminders</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-045</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Deliver plan/log/achievement notifications</td></tr>
+ <tr><th>Participating Actors</th><td>System, Channels (Email/Push)</td></tr>
+ <tr><th>Preconditions</th><td>Events triggered; prefs allow</td></tr>
+ <tr><th>Postconditions</th><td>Notifications sent or queued</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Event occurs</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Build notification payload</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Select channel per preference</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Send & record status</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Update unread list</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Channel failure -> fallback</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Muted type -> suppress</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Duplicate event -> debounce</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-046 ================= -->
+<section class="use-case" id="uc-046">
+<h2>Use Case 46 (UC-046) – Manage Notification Preferences</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-046</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Customize channels & frequency</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>User authenticated</td></tr>
+ <tr><th>Postconditions</th><td>Preference settings saved</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open Notification Settings</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Toggle types & channels</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Adjust quiet hours</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Save settings</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>System applies rules</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Invalid quiet hours -> error</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>All critical off -> warn confirm</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Reset defaults -> restore</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-047 ================= -->
+<section class="use-case" id="uc-047">
+<h2>Use Case 47 (UC-047) – Advanced Coach Search</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-047</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Multi-filter & recommendation search</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Coach dataset indexed</td></tr>
+ <tr><th>Postconditions</th><td>Ranked list displayed</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Enter filters</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Apply filters & scoring model</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Generate ranked results</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Display with recommendation tags</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Refine or select coach</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Sparse results -> broaden criteria</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Model failure -> basic ordering</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Conflicting filters -> adjust</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-048 ================= -->
+<section class="use-case" id="uc-048">
+<h2>Use Case 48 (UC-048) – Plan Discovery & Recommendations</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-048</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Discover suggested plans</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Recommender active</td></tr>
+ <tr><th>Postconditions</th><td>Suggested list shown</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open Plan Discovery</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>System fetches profile & history</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Model ranks templates</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>List displayed with rationales</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Select to view/request</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Insufficient data -> popular plans</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Model timeout -> cached</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>User filters -> re-rank subset</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-049 ================= -->
+<section class="use-case" id="uc-049">
+<h2>Use Case 49 (UC-049) – Image Uploads with Auto Tagging</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-049</td></tr>
+ <tr><th>Initiating Actor</th><td>Client / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Upload images auto-tagged</td></tr>
+ <tr><th>Participating Actors</th><td>System, Tagging Service</td></tr>
+ <tr><th>Preconditions</th><td>Media service available</td></tr>
+ <tr><th>Postconditions</th><td>Image stored; tags appended</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Upload image</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate & store</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Send to tagging service</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Receive & associate tags</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Display with tags</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Service down -> retry later</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Low confidence -> manual edit</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Oversize -> compress before store</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-050 ================= -->
+<section class="use-case" id="uc-050">
+<h2>Use Case 50 (UC-050) – Plan Document File Management</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-050</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Manage supplementary documents with versioning</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Plan template exists</td></tr>
+ <tr><th>Postconditions</th><td>Document versions tracked</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Upload document</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Assign version number</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Add notes (optional)</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Index metadata</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Clients access latest</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Replace -> new version</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Delete with active link -> block</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Unsupported format -> reject</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-051 ================= -->
+<section class="use-case" id="uc-051">
+<h2>Use Case 51 (UC-051) – Create Challenges & Leaderboards</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-051</td></tr>
+ <tr><th>Initiating Actor</th><td>Staff / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Launch challenge with leaderboard</td></tr>
+ <tr><th>Participating Actors</th><td>System, Participants</td></tr>
+ <tr><th>Preconditions</th><td>Rules & metrics defined</td></tr>
+ <tr><th>Postconditions</th><td>Challenge active; leaderboard initialized</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Define rules & metrics</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate timeframe & overlaps</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Publish & send invites</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Participants log activities</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Leaderboard updates</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Low signup -> auto-cancel/extend</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Rule violation -> flag/remove</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Tie -> tie-breaker rule</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-052 ================= -->
+<section class="use-case" id="uc-052">
+<h2>Use Case 52 (UC-052) – Admin User Management Interface</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-052</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Bulk manage users</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Admin authenticated</td></tr>
+ <tr><th>Postconditions</th><td>Selected statuses updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select multiple users</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Choose bulk action</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Validate dependencies</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Apply updates & log</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Show summary</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Partial failure -> report</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Permission error -> abort</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Undo last batch (if allowed)</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-053 ================= -->
+<section class="use-case" id="uc-053">
+<h2>Use Case 53 (UC-053) – Coach Verification & Certification Tracking</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-053</td></tr>
+ <tr><th>Initiating Actor</th><td>Staff</td></tr>
+ <tr><th>Actor's Goal</th><td>Review & approve coach certifications</td></tr>
+ <tr><th>Participating Actors</th><td>System, Coach</td></tr>
+ <tr><th>Preconditions</th><td>Documents submitted</td></tr>
+ <tr><th>Postconditions</th><td>Certification status updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>View pending certifications</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Open & review document</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Approve & set expiry</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Schedule renewal reminder</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Notify coach</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Invalid document -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Expiry approaching -> alerts</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Renewal missed -> limit coach</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-054 ================= -->
+<section class="use-case" id="uc-054">
+<h2>Use Case 54 (UC-054) – System Monitoring & Analytics</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-054</td></tr>
+ <tr><th>Initiating Actor</th><td>Staff / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Observe operational metrics</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Monitoring endpoints active</td></tr>
+ <tr><th>Postconditions</th><td>Insights gathered; incidents possible</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open Ops dashboard</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>See real-time metrics</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Filter by component</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Open incident for anomaly</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Log investigation steps</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Metric stale -> mark outdated</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Dashboard timeout -> fallback</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Incident resolved -> close & archive</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-055 ================= -->
+<section class="use-case" id="uc-055">
+<h2>Use Case 55 (UC-055) – Track Energy Levels</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-055</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Log daily energy (1–5)</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Daily log open</td></tr>
+ <tr><th>Postconditions</th><td>Energy stored; analytics updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select energy rating</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate range</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Save rating</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Recalculate correlations</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Update wellness visualization</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Missing rating -> prompt</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Out-of-range -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Edit previous day (grace) -> allowed</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-056 ================= -->
+<section class="use-case" id="uc-056">
+<h2>Use Case 56 (UC-056) – Mood & Stress Monitoring</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-056</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Log mood & stress ratings</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Client authenticated</td></tr>
+ <tr><th>Postconditions</th><td>Ratings saved; trends updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Enter mood & stress</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate & store</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Update adherence correlation</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Alert sustained low mood</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Show updated chart</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Multiple entries/day -> average/latest</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Alert dismissed -> recorded</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Extreme value -> suggest coach contact</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-057 ================= -->
+<section class="use-case" id="uc-057">
+<h2>Use Case 57 (UC-057) – Sleep & Water Intake Tracking</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-057</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Record sleep hours & water</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Daily log accessible</td></tr>
+ <tr><th>Postconditions</th><td>Metrics stored; recommendations updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Input sleep & water</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate numeric ranges</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Compare vs goals</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Generate recommendation</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Update hydration/recovery charts</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Implausible value -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Missing sleep -> reminder</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Exceeds water goal -> overage note</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-058 ================= -->
+<section class="use-case" id="uc-058">
+<h2>Use Case 58 (UC-058) – Milestone Tracking & Badges</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-058</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Award achievements on completion</td></tr>
+ <tr><th>Participating Actors</th><td>System, Coach</td></tr>
+ <tr><th>Preconditions</th><td>Milestones defined & tracking</td></tr>
+ <tr><th>Postconditions</th><td>Badge awarded; milestone closed</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>System evaluates criteria</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Detects completion</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Awards badge & updates profile</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Notify client (and coach)</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Log achievement</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Manual verification -> pending</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Premature claim -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Duplicate -> suppress second award</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-059 ================= -->
+<section class="use-case" id="uc-059">
+<h2>Use Case 59 (UC-059) – Comprehensive Data Validation</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-059</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Enforce validation & integrity</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Data submitted</td></tr>
+ <tr><th>Postconditions</th><td>Valid data persisted or errors returned</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Receive data</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Apply schema & business rules</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Sanitize inputs</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Persist valid data</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Audit critical fields</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Validation failure -> error messages</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Sanitization changed value -> inform</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>High-risk pattern -> block & flag</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-060 ================= -->
+<section class="use-case" id="uc-060">
+<h2>Use Case 60 (UC-060) – Database Query Optimization & Caching</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-060</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Optimize slow queries</td></tr>
+ <tr><th>Participating Actors</th><td>System, Database</td></tr>
+ <tr><th>Preconditions</th><td>Monitoring identifies slowness</td></tr>
+ <tr><th>Postconditions</th><td>Optimizations applied; performance logged</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Flag slow query pattern</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Review performance report</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Add index or caching</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Deploy migration/cache rules</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Confirm improved metrics</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Index creation fails -> rollback</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Cache stale -> TTL refresh</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Regression -> revert changes</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-061 ================= -->
+<section class="use-case" id="uc-061">
+<h2>Use Case 61 (UC-061) – API Rate Limiting & Throttling</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-061</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Protect APIs from abuse</td></tr>
+ <tr><th>Participating Actors</th><td>System, Clients</td></tr>
+ <tr><th>Preconditions</th><td>Public API endpoints exposed</td></tr>
+ <tr><th>Postconditions</th><td>Excess calls throttled; metrics recorded</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Incoming request</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Check rate policy</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Allow within limits</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Record counters</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Respond normally</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Over limit -> 429 response</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>IP ban list -> block</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Burst handling -> token bucket</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-062 ================= -->
+<section class="use-case" id="uc-062">
+<h2>Use Case 62 (UC-062) – Secure File Storage & Access Control</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-062</td></tr>
+ <tr><th>Initiating Actor</th><td>System / User</td></tr>
+ <tr><th>Actor's Goal</th><td>Store and access files securely</td></tr>
+ <tr><th>Participating Actors</th><td>System, Storage</td></tr>
+ <tr><th>Preconditions</th><td>Auth in place</td></tr>
+ <tr><th>Postconditions</th><td>Access scoped; URLs signed</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Upload/download request</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Authorize resource access</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Use signed URL / direct upload</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Store with encryption</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Return success & metadata</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Unauthorized -> 403</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Expired URL -> refresh</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Virus detected -> quarantine</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-063 ================= -->
+<section class="use-case" id="uc-063">
+<h2>Use Case 63 (UC-063) – Backup & Restore</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-063</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Backup databases and restore when needed</td></tr>
+ <tr><th>Participating Actors</th><td>System, Storage</td></tr>
+ <tr><th>Preconditions</th><td>Backup schedule defined</td></tr>
+ <tr><th>Postconditions</th><td>Backups consistent; restores verified</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Create backup snapshot</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Store offsite</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Run integrity checks</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Perform periodic test restore</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Record results</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Corrupted backup -> retry</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Restore mismatch -> abort</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Space low -> prune policy</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-064 ================= -->
+<section class="use-case" id="uc-064">
+<h2>Use Case 64 (UC-064) – Audit Logging & Compliance</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-064</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Record sensitive operations</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Compliance policy defined</td></tr>
+ <tr><th>Postconditions</th><td>Immutable audit trail retained</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>User performs action</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Create audit record (who/what/when)</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Hash/sign entry</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Store in append-only log</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Expose read-only viewer</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Clock skew -> normalize</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Log tamper -> alert</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>PII policy -> redact fields</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-065 ================= -->
+<section class="use-case" id="uc-065">
+<h2>Use Case 65 (UC-065) – GDPR/Privacy Data Export & Delete</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-065</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Export or delete personal data</td></tr>
+ <tr><th>Participating Actors</th><td>System, Admin</td></tr>
+ <tr><th>Preconditions</th><td>User verified</td></tr>
+ <tr><th>Postconditions</th><td>Data export delivered or deleted</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Submit export/delete request</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Verify identity</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Compile datasets</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Export package / delete data</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Confirmation sent</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Legal hold -> deny delete</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Partial delete -> anonymize</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Secure delivery -> signed link</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-066 ================= -->
+<section class="use-case" id="uc-066">
+<h2>Use Case 66 (UC-066) – Multi-language Localization</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-066</td></tr>
+ <tr><th>Initiating Actor</th><td>User / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Use app in preferred language</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Locales available</td></tr>
+ <tr><th>Postconditions</th><td>Text & formats localized</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select language</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Load locale resources</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Apply translations & formats</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Persist preference</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Fallbacks for missing keys</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Missing translation -> default</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>RTL language -> adjust layout</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Region format -> locale aware</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-067 ================= -->
+<section class="use-case" id="uc-067">
+<h2>Use Case 67 (UC-067) – Accessibility Compliance (WCAG)</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-067</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Accessible experience for all users</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>UI implemented</td></tr>
+ <tr><th>Postconditions</th><td>Meets WCAG AA criteria</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Use keyboard navigation</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Screen reader labels present</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Color contrast sufficient</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Focus states visible</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Alt texts and ARIA roles set</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Motion reduce -> prefers-reduced-motion</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Text size -> responsive scaling</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Captioning -> media subtitles</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-068 ================= -->
+<section class="use-case" id="uc-068">
+<h2>Use Case 68 (UC-068) – Payment Integration</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-068</td></tr>
+ <tr><th>Initiating Actor</th><td>Client</td></tr>
+ <tr><th>Actor's Goal</th><td>Pay for premium coaching/plans</td></tr>
+ <tr><th>Participating Actors</th><td>System, Payment Gateway</td></tr>
+ <tr><th>Preconditions</th><td>Gateway configured</td></tr>
+ <tr><th>Postconditions</th><td>Payment processed; access granted</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Choose plan and checkout</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Redirect to payment</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Complete payment</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Webhook confirms</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Access enabled; receipt sent</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Payment failed -> retry</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Refund -> revoke access</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Dispute -> mark pending</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-069 ================= -->
+<section class="use-case" id="uc-069">
+<h2>Use Case 69 (UC-069) – Subscription Management</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-069</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Manage billing & subscription</td></tr>
+ <tr><th>Participating Actors</th><td>System, Payment Gateway</td></tr>
+ <tr><th>Preconditions</th><td>Active subscription</td></tr>
+ <tr><th>Postconditions</th><td>Plan updated/canceled appropriately</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open subscription page</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Change plan or cancel</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Prorate & confirm</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Update in billing system</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Reflect status in app</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Card expired -> dunning</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Grace period -> limited access</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Reactivation -> restore</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-070 ================= -->
+<section class="use-case" id="uc-070">
+<h2>Use Case 70 (UC-070) – Coach Payouts</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-070</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Receive payouts based on earnings</td></tr>
+ <tr><th>Participating Actors</th><td>System, Payment Processor</td></tr>
+ <tr><th>Preconditions</th><td>KYC verified; balance positive</td></tr>
+ <tr><th>Postconditions</th><td>Payout initiated; receipt recorded</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Request payout</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Validate KYC & bank</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Initiate transfer</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Record transaction</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Notify coach</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Insufficient balance -> deny</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>KYC expired -> re-verify</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Transfer failed -> retry</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-071 ================= -->
+<section class="use-case" id="uc-071">
+<h2>Use Case 71 (UC-071) – Messaging: Online Presence</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-071</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Users</td></tr>
+ <tr><th>Actor's Goal</th><td>Show online/typing presence</td></tr>
+ <tr><th>Participating Actors</th><td>System, WebSocket</td></tr>
+ <tr><th>Preconditions</th><td>Realtime channel connected</td></tr>
+ <tr><th>Postconditions</th><td>Presence states updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>User connects websocket</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Broadcast online state</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Typing events emitted</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Idle/away timers</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Disconnect -> offline</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Multiple devices -> merge presence</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Privacy mode -> hide status</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Network flaps -> debounce</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-072 ================= -->
+<section class="use-case" id="uc-072">
+<h2>Use Case 72 (UC-072) – Messaging: Read Receipts</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-072</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Users</td></tr>
+ <tr><th>Actor's Goal</th><td>Indicate message delivery and read</td></tr>
+ <tr><th>Participating Actors</th><td>System, WebSocket</td></tr>
+ <tr><th>Preconditions</th><td>Messages exchanged</td></tr>
+ <tr><th>Postconditions</th><td>Receipt statuses updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Sender sends message</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Deliver to recipient</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Recipient opens thread</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>System marks as read</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Notify sender of read</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Disable receipts -> do not emit</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Offline -> mark delivered only</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Message deleted -> hide receipt</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-073 ================= -->
+<section class="use-case" id="uc-073">
+<h2>Use Case 73 (UC-073) – Messaging: Attachments</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-073</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Send files and images in chat</td></tr>
+ <tr><th>Participating Actors</th><td>System, Storage</td></tr>
+ <tr><th>Preconditions</th><td>Chat thread exists</td></tr>
+ <tr><th>Postconditions</th><td>Attachment available to recipients</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Choose file</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Upload & scan</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Send message with link</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Recipients can download</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Preview inline if supported</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Oversize -> compress/refuse</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Virus positive -> block</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Expired link -> re-sign</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-074 ================= -->
+<section class="use-case" id="uc-074">
+<h2>Use Case 74 (UC-074) – Messaging: Group Chats</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-074</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Create and manage group chats</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Users selected</td></tr>
+ <tr><th>Postconditions</th><td>Group thread created; roles set</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Create group and name</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Add/remove members</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Assign moderators</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Post messages</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Leave or archive thread</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Invite link -> join flow</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Kick/ban -> role gated</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Mute group -> no notifications</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-075 ================= -->
+<section class="use-case" id="uc-075">
+<h2>Use Case 75 (UC-075) – Reporting & Insights</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-075</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Create reports on engagement and outcomes</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Data warehouse populated</td></tr>
+ <tr><th>Postconditions</th><td>Reports generated and downloadable</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Select report type & time range</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Query analytics store</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Render charts/tables</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Export as PDF/CSV</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Share or schedule</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Large dataset -> async job</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Filter mismatch -> adjust</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Scheduled -> recurring emails</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-076 ================= -->
+<section class="use-case" id="uc-076">
+<h2>Use Case 76 (UC-076) – Export Data to CSV/Excel</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-076</td></tr>
+ <tr><th>Initiating Actor</th><td>Coach / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Export selected datasets</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Filters selected</td></tr>
+ <tr><th>Postconditions</th><td>File downloaded</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Choose dataset</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Apply filters</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Generate export file</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Notify when ready</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Download securely</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>PII present -> mask</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Too large -> split</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Timeout -> queue job</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-077 ================= -->
+<section class="use-case" id="uc-077">
+<h2>Use Case 77 (UC-077) – Import Data from CSV</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-077</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin / Coach</td></tr>
+ <tr><th>Actor's Goal</th><td>Bulk import records</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>CSV formatted</td></tr>
+ <tr><th>Postconditions</th><td>Records created/updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Upload CSV</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Map columns</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Validate data</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Import rows</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Report summary & errors</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Duplicates -> upsert/skip</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Invalid rows -> reject</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Partial success -> continue</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-078 ================= -->
+<section class="use-case" id="uc-078">
+<h2>Use Case 78 (UC-078) – Admin Dashboard</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-078</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Monitor platform KPIs</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Admin role</td></tr>
+ <tr><th>Postconditions</th><td>KPIs visible; actions accessible</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open dashboard</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Load widgets</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Drill into metrics</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Perform admin actions</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Review audit events</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Widget error -> fallback</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Realtime off -> static snapshot</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Custom layout -> saved</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-079 ================= -->
+<section class="use-case" id="uc-079">
+<h2>Use Case 79 (UC-079) – Staff Workflow Tools</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-079</td></tr>
+ <tr><th>Initiating Actor</th><td>Staff</td></tr>
+ <tr><th>Actor's Goal</th><td>Manage support workflows</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Staff authenticated</td></tr>
+ <tr><th>Postconditions</th><td>Tickets/tasks updated</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open staff console</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>View queues</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Assign & act</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Resolve & close</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Escalate if needed</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>SLA breach -> alert</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Assignment conflict -> requeue</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Audit required -> capture notes</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-080 ================= -->
+<section class="use-case" id="uc-080">
+<h2>Use Case 80 (UC-080) – Multi-Tenancy Support</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-080</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Isolate data by tenant</td></tr>
+ <tr><th>Participating Actors</th><td>System, Database</td></tr>
+ <tr><th>Preconditions</th><td>Tenants configured</td></tr>
+ <tr><th>Postconditions</th><td>Scoped access and queries</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Resolve tenant from request</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Apply tenant filter/schemas</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Enforce tenant policies</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Serve data within scope</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Audit tenant context</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Cross-tenant access -> block</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Migrate tenant -> data move</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Tenant disable -> lock access</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-081 ================= -->
+<section class="use-case" id="uc-081">
+<h2>Use Case 81 (UC-081) – Feature Flags & A/B Testing</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-081</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Roll out features safely</td></tr>
+ <tr><th>Participating Actors</th><td>System, Users</td></tr>
+ <tr><th>Preconditions</th><td>Flag service available</td></tr>
+ <tr><th>Postconditions</th><td>Variants served; metrics tracked</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Create flag/experiment</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Target audience</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Roll out gradually</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Collect metrics</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Decide roll-forward/back</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Negative impact -> rollback</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Conflicting flags -> resolve order</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Experiment end -> archive</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-082 ================= -->
+<section class="use-case" id="uc-082">
+<h2>Use Case 82 (UC-082) – API Documentation (OpenAPI)</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-082</td></tr>
+ <tr><th>Initiating Actor</th><td>Developer</td></tr>
+ <tr><th>Actor's Goal</th><td>View and test API endpoints</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>OpenAPI spec published</td></tr>
+ <tr><th>Postconditions</th><td>Docs accessible; sandbox calls</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open API docs</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Browse endpoints</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Test with example payloads</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>View responses</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Copy client snippets</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Auth needed -> token input</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Version switch -> selector</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Try-it disabled -> read-only</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-083 ================= -->
+<section class="use-case" id="uc-083">
+<h2>Use Case 83 (UC-083) – Mobile Responsive UI</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-083</td></tr>
+ <tr><th>Initiating Actor</th><td>User</td></tr>
+ <tr><th>Actor's Goal</th><td>Use app comfortably on mobile</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Responsive CSS</td></tr>
+ <tr><th>Postconditions</th><td>Layouts adapt across devices</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Open app on phone</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Responsive breakpoints apply</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Touch targets sized</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Images optimized</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Performance acceptable</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Low bandwidth -> lazy load</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Landscape -> reflow</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>PWA install -> add to home</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-084 ================= -->
+<section class="use-case" id="uc-084">
+<h2>Use Case 84 (UC-084) – Performance Monitoring</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-084</td></tr>
+ <tr><th>Initiating Actor</th><td>System / Admin</td></tr>
+ <tr><th>Actor's Goal</th><td>Track client and server performance</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Monitoring integrated</td></tr>
+ <tr><th>Postconditions</th><td>Metrics and alerts available</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Collect metrics</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Store and analyze</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Define alert thresholds</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Trigger alerts</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Dashboard visualization</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>False positives -> tune</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Outage -> status page</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>SLI/SLO changes -> update</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-085 ================= -->
+<section class="use-case" id="uc-085">
+<h2>Use Case 85 (UC-085) – Error Handling & User Feedback</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-085</td></tr>
+ <tr><th>Initiating Actor</th><td>User / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Provide clear error messages and recovery</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Error occurs</td></tr>
+ <tr><th>Postconditions</th><td>User informed; logs captured</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Operation fails</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Show friendly message</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Offer retry/help</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Log with context</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Track error metrics</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Critical -> fallback UI</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Silent errors -> background report</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Network -> offline mode</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-086 ================= -->
+<section class="use-case" id="uc-086">
+<h2>Use Case 86 (UC-086) – Security: 2FA & Session Management</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-086</td></tr>
+ <tr><th>Initiating Actor</th><td>User / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Enhance account security</td></tr>
+ <tr><th>Participating Actors</th><td>System, Auth Provider</td></tr>
+ <tr><th>Preconditions</th><td>2FA enabled</td></tr>
+ <tr><th>Postconditions</th><td>Sessions controlled & secure</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Login requires 2FA</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Verify code/device</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Issue session tokens</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Allow session review/revoke</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Notify on new device</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Lost device -> recovery codes</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Remember device -> extended</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Suspicious login -> challenge</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-087 ================= -->
+<section class="use-case" id="uc-087">
+<h2>Use Case 87 (UC-087) – Data Encryption at Rest & Transit</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-087</td></tr>
+ <tr><th>Initiating Actor</th><td>System</td></tr>
+ <tr><th>Actor's Goal</th><td>Protect sensitive data</td></tr>
+ <tr><th>Participating Actors</th><td>System, Storage</td></tr>
+ <tr><th>Preconditions</th><td>Certificates & keys managed</td></tr>
+ <tr><th>Postconditions</th><td>All sensitive data encrypted</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Enable TLS everywhere</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Encrypt storage volumes/fields</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Rotate keys</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Monitor for plaintext</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Audit compliance</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Key compromise -> rotate & revoke</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Legacy endpoints -> block/upgrade</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Performance impact -> tune</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-088 ================= -->
+<section class="use-case" id="uc-088">
+<h2>Use Case 88 (UC-088) – Logging & Observability</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-088</td></tr>
+ <tr><th>Initiating Actor</th><td>System / DevOps</td></tr>
+ <tr><th>Actor's Goal</th><td>Centralized logs, traces, metrics</td></tr>
+ <tr><th>Participating Actors</th><td>System</td></tr>
+ <tr><th>Preconditions</th><td>Collector configured</td></tr>
+ <tr><th>Postconditions</th><td>Signals correlated for debugging</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Emit structured logs</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Trace spans propagate</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Metrics scraped</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Centralize & index</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Query & visualize</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>PII -> redact</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>High volume -> sampling</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Retention policy -> archive</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-089 ================= -->
+<section class="use-case" id="uc-089">
+<h2>Use Case 89 (UC-089) – Disaster Recovery & Incident Response</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-089</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Restore service after incidents</td></tr>
+ <tr><th>Participating Actors</th><td>System, Team</td></tr>
+ <tr><th>Preconditions</th><td>Runbooks defined</td></tr>
+ <tr><th>Postconditions</th><td>Service restored; postmortem recorded</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Detect incident</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Declare severity</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Execute runbook</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Communicate status</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Postmortem & actions</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Failover to DR site</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Rollback release</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Comms blackout -> status page</td></tr>
+</table>
+</section>
+
+<!-- ================= UC-090 ================= -->
+<section class="use-case" id="uc-090">
+<h2>Use Case 90 (UC-090) – Scalability & Capacity Planning</h2>
+<table class="meta">
+ <tr><th>Related Requirement</th><td>REQ-090</td></tr>
+ <tr><th>Initiating Actor</th><td>Admin / System</td></tr>
+ <tr><th>Actor's Goal</th><td>Scale system to meet demand</td></tr>
+ <tr><th>Participating Actors</th><td>System, Infra</td></tr>
+ <tr><th>Preconditions</th><td>Demand growth observed</td></tr>
+ <tr><th>Postconditions</th><td>Capacity increased; costs tracked</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Main Success Scenario</th></tr>
+ <tr><th class="arrows">→</th><td>1</td><td>Forecast load</td></tr>
+ <tr><th class="arrows">←</th><td>2</td><td>Choose scaling strategy</td></tr>
+ <tr><th class="arrows">←</th><td>3</td><td>Provision resources</td></tr>
+ <tr><th class="arrows">←</th><td>4</td><td>Load test & validate</td></tr>
+ <tr><th class="arrows">←</th><td>5</td><td>Monitor & optimize costs</td></tr>
+</table>
+<table class="flows">
+ <tr><th colspan="3" class="subhead">Flow of Events – Extensions / Alternate</th></tr>
+ <tr><th class="arrows">→</th><td>A</td><td>Autoscale policy -> adjust</td></tr>
+ <tr><th class="arrows">←</th><td>B</td><td>Bottleneck -> optimize code/db</td></tr>
+ <tr><th class="arrows">←</th><td>C</td><td>Cost spike -> reduce capacity</td></tr>
+</table>
+</section>
+
 
 </body>
+</html>
+<script>
+// Unify each use-case into a single physical table to improve copy/paste into Google Docs/Word
+(function(){
+	function unifyUseCase(section){
+		const h2 = section.querySelector('h2');
+		const meta = section.querySelector('table.meta');
+		const flows = section.querySelectorAll('table.flows');
+		if(!h2 || !meta || flows.length === 0) return;
+
+		// Create unified table
+		const tbl = document.createElement('table');
+		tbl.className = 'unified';
+
+		// Title row spanning all columns
+		const titleRow = tbl.insertRow();
+		const titleCell = document.createElement('td');
+		titleCell.colSpan = 3; // label | value spans 2 columns; we keep 3 for flows alignment
+		titleCell.textContent = h2.textContent.trim();
+		titleCell.className = 'subhead';
+		titleRow.appendChild(titleCell);
+
+		// Meta rows: convert to label/value rows
+		meta.querySelectorAll('tr').forEach(tr => {
+			const th = tr.querySelector('th');
+			const td = tr.querySelector('td');
+			if(!th || !td) return;
+			const r = tbl.insertRow();
+			const c1 = document.createElement('th');
+			c1.className = 'label';
+			c1.textContent = th.textContent.trim();
+			const c2 = document.createElement('td');
+			c2.colSpan = 2;
+			c2.innerHTML = td.innerHTML;
+			r.appendChild(c1); r.appendChild(c2);
+		});
+
+		// Helper to append a subhead row within unified table
+		function addSubhead(text){
+			const r = tbl.insertRow();
+			const c = document.createElement('td');
+			c.colSpan = 3; c.textContent = text; c.className = 'subhead';
+			r.appendChild(c);
+		}
+
+		// Main success scenario (first flows table)
+		const mainFlows = flows[0];
+		const mainHead = mainFlows.querySelector('tr:first-child .subhead');
+		addSubhead(mainHead ? mainHead.textContent.trim() : 'Flow of Events – Main Success Scenario');
+		mainFlows.querySelectorAll('tr').forEach((tr, idx) => {
+			if(idx === 0) return; // skip subhead row from source
+			const tds = tr.querySelectorAll('td, th');
+			if(tds.length < 3) return;
+			const r = tbl.insertRow();
+			const c1 = document.createElement('th'); c1.className = 'arrows'; c1.innerHTML = tds[0].innerHTML;
+			const c2 = document.createElement('td'); c2.className = 'step'; c2.innerHTML = tds[1].innerHTML;
+			const c3 = document.createElement('td'); c3.innerHTML = tds[2].innerHTML;
+			r.appendChild(c1); r.appendChild(c2); r.appendChild(c3);
+		});
+
+		// Alternate flows (second flows table)
+		if(flows[1]){
+			const altHead = flows[1].querySelector('tr:first-child .subhead');
+			addSubhead(altHead ? altHead.textContent.trim() : 'Flow of Events – Extensions / Alternate');
+			flows[1].querySelectorAll('tr').forEach((tr, idx) => {
+				if(idx === 0) return;
+				const tds = tr.querySelectorAll('td, th');
+				if(tds.length < 3) return;
+				const r = tbl.insertRow();
+				const c1 = document.createElement('th'); c1.className = 'arrows'; c1.innerHTML = tds[0].innerHTML;
+				const c2 = document.createElement('td'); c2.className = 'step'; c2.innerHTML = tds[1].innerHTML;
+				const c3 = document.createElement('td'); c3.innerHTML = tds[2].innerHTML;
+				r.appendChild(c1); r.appendChild(c2); r.appendChild(c3);
+			});
+		}
+
+		// Replace original tables with unified table
+		// Insert after h2 to preserve order
+		h2.insertAdjacentElement('afterend', tbl);
+		// Hide originals (keep in DOM for accessibility/copy fallback)
+		meta.style.display = 'none';
+		flows.forEach(f => f.style.display = 'none');
+	}
+
+	document.addEventListener('DOMContentLoaded', function(){
+		document.querySelectorAll('section.use-case').forEach(unifyUseCase);
+	});
+})();
+</script>
 </html>

@@ -11,6 +11,7 @@ class PlanNotificationSerializer(serializers.ModelSerializer):
     """Serializer for plan notifications"""
     subscription_info = serializers.SerializerMethodField()
     is_link_expired = serializers.ReadOnlyField()
+    user_id = serializers.IntegerField(source='user.id', read_only=True)
     
     class Meta:
         model = PlanNotification
@@ -18,19 +19,31 @@ class PlanNotificationSerializer(serializers.ModelSerializer):
             'id', 'notification_type', 'recipient_email', 'subject',
             'sent_at', 'is_sent', 'delivery_status', 'plan_access_token',
             'link_expires_at', 'is_link_expired', 'additional_data',
-            'subscription_info'
+            'subscription_info', 'is_read', 'read_at', 'created_at', 'user_id'
         ]
         read_only_fields = [
-            'id', 'sent_at', 'plan_access_token', 'link_expires_at', 'is_link_expired'
+            'id', 'sent_at', 'plan_access_token', 'link_expires_at', 'is_link_expired',
+            'is_read', 'read_at', 'created_at', 'user_id'
         ]
     
     def get_subscription_info(self, obj):
         """Get basic subscription information"""
-        return {
-            'plan_name': obj.subscription.product_plan.name,
-            'coach_name': obj.subscription.product_plan.coach.user.get_full_name(),
-            'client_name': obj.subscription.client.get_full_name()
-        }
+        sub = getattr(obj, 'subscription', None)
+        if not sub:
+            return None
+        try:
+            plan_name = getattr(sub.product_plan, 'name', None)
+            coach_user = getattr(getattr(sub.product_plan, 'coach', None), 'user', None)
+            coach_name = coach_user.get_full_name() if coach_user else None
+            client_name = sub.client.get_full_name() if getattr(sub, 'client', None) else None
+            return {
+                'plan_name': plan_name,
+                'coach_name': coach_name,
+                'client_name': client_name,
+            }
+        except Exception:
+            # Be graceful if relations are missing
+            return None
 
 
 class NotificationTemplateSerializer(serializers.ModelSerializer):

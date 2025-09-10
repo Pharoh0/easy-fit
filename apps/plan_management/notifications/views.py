@@ -10,8 +10,11 @@ from .serializers import (
 )
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+import logging
+import uuid
 
 User = get_user_model()
+logger = logging.getLogger(__name__)
 
 
 class PlanNotificationViewSet(viewsets.ModelViewSet):
@@ -19,11 +22,40 @@ class PlanNotificationViewSet(viewsets.ModelViewSet):
     serializer_class = PlanNotificationSerializer
     permission_classes = [IsAuthenticated]
     
+    @action(detail=False, methods=['post'], url_path='test-notification')
+    def test_notification(self, request):
+        """Create a test notification for the current user"""
+        try:
+            # Create a test notification
+            notification = PlanNotification.objects.create(
+                user=request.user,
+                subscription=None,  # No subscription for test
+                notification_type='plan_approved',  # Use any type
+                recipient_email=request.user.email,
+                subject='Test Notification',
+                email_content='This is a test notification',
+                plan_access_token=str(uuid.uuid4()),
+                link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                additional_data={'test': True}
+            )
+            
+            logger.info(f"Test notification created: {notification.id}")
+            return Response({'success': True, 'notification_id': notification.id})
+        except Exception as e:
+            logger.error(f"Error creating test notification: {e}")
+            return Response({'error': str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
     def get_queryset(self):
         """Get notifications for current user"""
-        return PlanNotification.objects.filter(
-            user=self.request.user
-        ).select_related('subscription__product_plan').order_by('-created_at')
+        return (
+            PlanNotification.objects.filter(user=self.request.user)
+            .select_related(
+                'subscription__product_plan',
+                'subscription__product_plan__coach__user',
+                'subscription__client',
+            )
+            .order_by('-created_at')
+        )
     
     def list(self, request, *args, **kwargs):
         """List notifications with filtering"""
@@ -87,20 +119,16 @@ class PlanNotificationViewSet(viewsets.ModelViewSet):
     def summary(self, request):
         """Get notification summary by type"""
         queryset = self.get_queryset()
-        
+
         summary = {}
-        notification_types = [
-            'plan_created', 'plan_updated', 'plan_completed',
-            'milestone_achieved', 'goal_achieved', 'reminder',
-            'coach_message', 'plan_expiring'
-        ]
-        
+        notification_types = [t[0] for t in PlanNotification.NOTIFICATION_TYPES]
+
         for ntype in notification_types:
             summary[ntype] = {
                 'total': queryset.filter(notification_type=ntype).count(),
-                'unread': queryset.filter(notification_type=ntype, is_read=False).count()
+                'unread': queryset.filter(notification_type=ntype, is_read=False).count(),
             }
-        
+
         return Response(summary)
 
 
@@ -149,22 +177,22 @@ class EmailQueueViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Get email queue based on user permissions"""
         user = self.request.user
-        
-        # Only allow admins and coaches to view email queue
+
+        # Only allow admins and coaches to view broader email queue
         if user.is_staff or hasattr(user, 'coach_profile'):
             queryset = EmailQueue.objects.all().order_by('-created_at')
-            
+
             # If coach, only show emails related to their clients
             if hasattr(user, 'coach_profile') and not user.is_staff:
                 queryset = queryset.filter(
-                    subscription__product_plan__coach=user.coach_profile
+                    notification__subscription__product_plan__coach=user.coach_profile
                 )
-            
+
             return queryset
-        
+
         # Regular users can only see their own email queue entries
         return EmailQueue.objects.filter(
-            subscription__client=user
+            notification__subscription__client=user
         ).order_by('-created_at')
     
     def list(self, request, *args, **kwargs):
@@ -175,11 +203,11 @@ class EmailQueueViewSet(viewsets.ReadOnlyModelViewSet):
         status_filter = request.query_params.get('status')
         if status_filter:
             queryset = queryset.filter(status=status_filter)
-        
-        # Filter by email type
+
+        # Filter by notification type
         email_type = request.query_params.get('email_type')
         if email_type:
-            queryset = queryset.filter(email_type=email_type)
+            queryset = queryset.filter(notification__notification_type=email_type)
         
         # Filter by date range
         start_date = request.query_params.get('start_date')
@@ -205,13 +233,14 @@ class EmailQueueViewSet(viewsets.ReadOnlyModelViewSet):
         
         stats = {
             'total_emails': queryset.count(),
-            'pending': queryset.filter(status='pending').count(),
+            'queued': queryset.filter(status='queued').count(),
+            'processing': queryset.filter(status='processing').count(),
             'sent': queryset.filter(status='sent').count(),
             'failed': queryset.filter(status='failed').count(),
             'recent_failures': queryset.filter(
                 status='failed',
                 created_at__gte=timezone.now() - timezone.timedelta(hours=24)
-            ).count()
+            ).count(),
         }
         
         return Response(stats)
@@ -230,29 +259,17 @@ class EmailQueueViewSet(viewsets.ReadOnlyModelViewSet):
         if email_queue.status != 'failed':
             return Response(
                 {'error': 'Can only retry failed emails'},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        # Reset email for retry
-        email_queue.status = 'pending'
-        email_queue.retry_count += 1
-        email_queue.error_message = None
-        email_queue.save()
-        
-        # Trigger email sending (this would typically be handled by a background task)
-        from .utils import send_plan_notification_email
-        try:
-            send_plan_notification_email(
-                email_queue.subscription,
-                email_queue.email_type,
-                email_queue.context_data
-            )
-            return Response({'message': 'Email queued for retry'})
-        except Exception as e:
-            return Response(
-                {'error': f'Failed to queue email: {str(e)}'},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
+
+        # Reset email for retry: re-queue the existing notification
+        email_queue.status = 'queued'
+        email_queue.scheduled_send_time = timezone.now()
+        email_queue.last_error = ''
+        email_queue.next_retry_at = None
+        email_queue.save(update_fields=['status', 'scheduled_send_time', 'last_error', 'next_retry_at'])
+
+        return Response({'message': 'Email re-queued for retry'})
 
 
 class NotificationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
@@ -263,8 +280,8 @@ class NotificationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         """Only allow staff to view templates"""
         if self.request.user.is_staff:
-            return NotificationTemplate.objects.all().order_by('template_type')
-        
+            return NotificationTemplate.objects.all().order_by('notification_type')
+
         return NotificationTemplate.objects.none()
     
     def list(self, request, *args, **kwargs):
@@ -280,7 +297,7 @@ class NotificationTemplateViewSet(viewsets.ReadOnlyModelViewSet):
         # Filter by template type
         template_type = request.query_params.get('type')
         if template_type:
-            queryset = queryset.filter(template_type=template_type)
+            queryset = queryset.filter(notification_type=template_type)
         
         # Filter active templates only
         if request.query_params.get('active_only') == 'true':

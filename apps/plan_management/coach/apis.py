@@ -544,6 +544,23 @@ class CoachPlanCustomizationViewSet(viewsets.ViewSet):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
     
     @action(detail=True, methods=['post'])
+    def generate_plan_days(self, request, pk=None):
+        """Backward-compatible alias that generates plan days if missing (no reset)."""
+        subscription = get_object_or_404(self.get_coach_subscriptions(), pk=pk)
+        try:
+            with transaction.atomic():
+                days_created = subscription.generate_plan_days(reset=False)
+                return Response({
+                    'message': f'Successfully generated {days_created} plan days',
+                    'days_created': days_created
+                })
+        except Exception as e:
+            return Response({
+                'error': 'Failed to generate plan days',
+                'details': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    
+    @action(detail=True, methods=['post'])
     def apply_template(self, request, pk=None):
         """Apply a template to a plan day"""
         subscription = get_object_or_404(self.get_coach_subscriptions(), pk=pk)
