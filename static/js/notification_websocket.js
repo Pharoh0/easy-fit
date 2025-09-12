@@ -157,15 +157,108 @@ class NotificationWebSocket {
             
             // Handle specific message types
             if (messageType === 'notification') {
-                // Show toast notification
-                if (window.utils && typeof window.utils.showToast === 'function') {
-                    const notification = data.notification;
-                    const title = notification.subject || notification.notification_type.replace(/_/g, ' ');
+                const notification = data.notification || {};
+                const title = notification.subject || (notification.notification_type ? notification.notification_type.replace(/_/g, ' ') : 'Notification');
+                const targetUrl = notification.target_url || null;
+                // Prefer rich toast with link when target_url exists; otherwise fallback to default toast
+                if (targetUrl) {
+                    try { this.showNotificationToast(notification); } catch (e) { console.error('toast render failed', e); }
+                } else if (window.utils && typeof window.utils.showToast === 'function') {
                     utils.showToast(title, 'info');
                 }
             }
         } catch (error) {
             console.error('Error handling WebSocket message:', error);
+        }
+    }
+
+    /**
+     * Render a Bootstrap toast with an optional navigation action.
+     * Navigates to notification.target_url when clicked, and marks as read.
+     */
+    showNotificationToast(notification) {
+        const container = document.querySelector('.toast-container');
+        if (!container) {
+            if (window.utils && typeof window.utils.showToast === 'function') {
+                const title = notification.subject || 'Notification';
+                return utils.showToast(title, 'info');
+            }
+            return;
+        }
+
+        const title = notification.subject || (notification.notification_type ? notification.notification_type.replace(/_/g, ' ') : 'Notification');
+        const targetUrl = notification.target_url || null;
+        const notifId = notification.id;
+
+        const toastEl = document.createElement('div');
+        toastEl.className = 'toast align-items-center text-bg-info border-0 my-2';
+        toastEl.setAttribute('role', 'alert');
+        toastEl.setAttribute('aria-live', 'assertive');
+        toastEl.setAttribute('aria-atomic', 'true');
+        toastEl.dataset.bsAutohide = 'true';
+        toastEl.dataset.bsDelay = '5000';
+
+        const wrap = document.createElement('div');
+        wrap.className = 'd-flex';
+
+        const body = document.createElement('div');
+        body.className = 'toast-body';
+        body.textContent = title;
+
+        const actions = document.createElement('div');
+        actions.className = 'd-flex align-items-center ms-auto me-2';
+
+        if (targetUrl) {
+            const viewBtn = document.createElement('button');
+            viewBtn.type = 'button';
+            viewBtn.className = 'btn btn-light btn-sm me-2';
+            viewBtn.textContent = 'View';
+            viewBtn.addEventListener('click', (ev) => {
+                ev.preventDefault();
+                ev.stopPropagation();
+                if (notifId) {
+                    try { this.markAsRead(notifId); } catch (e) {}
+                }
+                try { window.location.href = targetUrl; } catch (e) {}
+            });
+            actions.appendChild(viewBtn);
+        }
+
+        const closeBtn = document.createElement('button');
+        closeBtn.type = 'button';
+        closeBtn.className = 'btn-close btn-close-white m-auto';
+        closeBtn.setAttribute('data-bs-dismiss', 'toast');
+        closeBtn.setAttribute('aria-label', 'Close');
+
+        wrap.appendChild(body);
+        wrap.appendChild(actions);
+        wrap.appendChild(closeBtn);
+        toastEl.appendChild(wrap);
+        container.appendChild(toastEl);
+
+        // Clicking the toast body navigates too (if targetUrl exists)
+        if (targetUrl) {
+            toastEl.addEventListener('click', (ev) => {
+                // Ignore clicks on the close button
+                if (ev.target && (ev.target === closeBtn)) return;
+                if (notifId) {
+                    try { this.markAsRead(notifId); } catch (e) {}
+                }
+                try { window.location.href = targetUrl; } catch (e) {}
+            });
+        }
+
+        try {
+            const t = new bootstrap.Toast(toastEl);
+            toastEl.addEventListener('hidden.bs.toast', () => {
+                try { toastEl.remove(); } catch (e) {}
+            }, { once: true });
+            t.show();
+        } catch (e) {
+            // Fallback if bootstrap is not available for some reason
+            if (window.utils && typeof window.utils.showToast === 'function') {
+                utils.showToast(title, 'info');
+            }
         }
     }
     

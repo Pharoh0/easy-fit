@@ -12,13 +12,21 @@ class NotificationsAPI {
         return APIBase.request(url, { method: 'GET' });
     }
 
-    static async unreadCount() {
-        const url = `${this.BASE}/notifications/unread_count/`;
+    static async unreadCount(params = {}) {
+        const qs = new URLSearchParams();
+        for (const [k, v] of Object.entries(params || {})) {
+            if (v != null && v !== '') qs.append(k, String(v));
+        }
+        const url = `${this.BASE}/notifications/unread_count/${qs.toString() ? ('?' + qs.toString()) : ''}`;
         return APIBase.request(url, { method: 'GET', noRedirectOn401: true });
     }
 
-    static async markAllRead() {
-        const url = `${this.BASE}/notifications/mark_all_read/`;
+    static async markAllRead(params = {}) {
+        const qs = new URLSearchParams();
+        for (const [k, v] of Object.entries(params || {})) {
+            if (v != null && v !== '') qs.append(k, String(v));
+        }
+        const url = `${this.BASE}/notifications/mark_all_read/${qs.toString() ? ('?' + qs.toString()) : ''}`;
         return APIBase.request(url, { method: 'POST' });
     }
 

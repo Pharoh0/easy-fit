@@ -14,6 +14,8 @@ from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from apps.plan_management.notifications.models import PlanNotification
+import uuid
 
 User = get_user_model()
 
@@ -307,6 +309,28 @@ class ConversationViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
+            # Create in-app notifications for other participants (coach/client) with deep link to chat
+            try:
+                recipients = conversation.participants.exclude(id=request.user.id)
+                for recipient in recipients:
+                    PlanNotification.objects.create(
+                        subscription=conversation.related_subscription,
+                        user=recipient,
+                        notification_type='coach_message',
+                        recipient_email=getattr(recipient, 'email', '') or '',
+                        subject=f"New message from {request.user.get_full_name() or request.user.username}",
+                        email_content=(message.content or '')[:500],
+                        plan_access_token=str(uuid.uuid4()),
+                        link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                        additional_data={
+                            'conversation_id': conversation.id,
+                            'message_id': message.id,
+                        }
+                    )
+            except Exception:
+                # Do not break message sending on notification failure
+                pass
+
             return Response(out_data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
@@ -421,6 +445,27 @@ class MessageViewSet(viewsets.ModelViewSet):
             try:
                 broadcast_to_conversation(conversation.id, "message_created", {"message": out_data})
                 broadcast_to_conversation(conversation.id, "conversation_updated", {"conversation": conv_data})
+            except Exception:
+                pass
+
+            # Create in-app notifications for other participants (coach/client) with deep link to chat
+            try:
+                recipients = conversation.participants.exclude(id=request.user.id)
+                for recipient in recipients:
+                    PlanNotification.objects.create(
+                        subscription=conversation.related_subscription,
+                        user=recipient,
+                        notification_type='coach_message',
+                        recipient_email=getattr(recipient, 'email', '') or '',
+                        subject=f"New message from {request.user.get_full_name() or request.user.username}",
+                        email_content=(message.content or '')[:500],
+                        plan_access_token=str(uuid.uuid4()),
+                        link_expires_at=timezone.now() + timezone.timedelta(days=30),
+                        additional_data={
+                            'conversation_id': conversation.id,
+                            'message_id': message.id,
+                        }
+                    )
             except Exception:
                 pass
 

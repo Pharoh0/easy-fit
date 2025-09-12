@@ -69,6 +69,16 @@ class PlanNotificationViewSet(viewsets.ModelViewSet):
         notification_type = request.query_params.get('type')
         if notification_type:
             queryset = queryset.filter(notification_type=notification_type)
+        # Exclude a single type
+        exclude_type = request.query_params.get('exclude_type')
+        if exclude_type:
+            queryset = queryset.exclude(notification_type=exclude_type)
+        # Exclude multiple types (comma-separated)
+        exclude_types = request.query_params.get('exclude_types')
+        if exclude_types:
+            types_list = [t.strip() for t in exclude_types.split(',') if t.strip()]
+            if types_list:
+                queryset = queryset.exclude(notification_type__in=types_list)
         
         # Filter by subscription
         subscription_id = request.query_params.get('subscription')
@@ -100,7 +110,21 @@ class PlanNotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['post'])
     def mark_all_read(self, request):
         """Mark all notifications as read"""
-        updated_count = self.get_queryset().filter(is_read=False).update(
+        queryset = self.get_queryset().filter(is_read=False)
+        # Optional include/exclude filters like list()
+        notification_type = request.query_params.get('type')
+        if notification_type:
+            queryset = queryset.filter(notification_type=notification_type)
+        exclude_type = request.query_params.get('exclude_type')
+        if exclude_type:
+            queryset = queryset.exclude(notification_type=exclude_type)
+        exclude_types = request.query_params.get('exclude_types')
+        if exclude_types:
+            types_list = [t.strip() for t in exclude_types.split(',') if t.strip()]
+            if types_list:
+                queryset = queryset.exclude(notification_type__in=types_list)
+
+        updated_count = queryset.update(
             is_read=True,
             read_at=timezone.now()
         )
@@ -112,7 +136,20 @@ class PlanNotificationViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=['get'])
     def unread_count(self, request):
         """Get count of unread notifications"""
-        count = self.get_queryset().filter(is_read=False).count()
+        queryset = self.get_queryset().filter(is_read=False)
+        # Optional include/exclude filters
+        notification_type = request.query_params.get('type')
+        if notification_type:
+            queryset = queryset.filter(notification_type=notification_type)
+        exclude_type = request.query_params.get('exclude_type')
+        if exclude_type:
+            queryset = queryset.exclude(notification_type=exclude_type)
+        exclude_types = request.query_params.get('exclude_types')
+        if exclude_types:
+            types_list = [t.strip() for t in exclude_types.split(',') if t.strip()]
+            if types_list:
+                queryset = queryset.exclude(notification_type__in=types_list)
+        count = queryset.count()
         return Response({'unread_count': count})
     
     @action(detail=False, methods=['get'])

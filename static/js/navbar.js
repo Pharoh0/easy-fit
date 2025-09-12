@@ -257,16 +257,19 @@ document.addEventListener('DOMContentLoaded', function() {
         updateNavbar();
     }
     
-    // Handle notifications (example functionality)
-    const notificationBadges = document.querySelectorAll('.notification-badge');
+    // Handle notifications vs messages separation
     const notifBadge = document.querySelector('#notificationsDropdown .notification-badge');
     const notifMenu = document.getElementById('navNotificationsMenu');
     const notifDropdown = document.getElementById('notificationsDropdown');
     const markAllBtn = document.getElementById('markAllNotificationsRead');
+    const msgBadge = document.querySelector('#messagesDropdown .message-badge');
+    const msgMenu = document.getElementById('navMessagesMenu');
+    const msgDropdown = document.getElementById('messagesDropdown');
 
     async function updateUnreadBadge() {
         if (!window.NotificationsAPI || !notifBadge) return;
-        const res = await NotificationsAPI.unreadCount();
+        // Exclude chat notifications from the bell
+        const res = await NotificationsAPI.unreadCount({ exclude_type: 'coach_message' });
         let count = 0;
         if (res && res.success && res.data && typeof res.data.unread_count === 'number') {
             count = res.data.unread_count;
@@ -280,10 +283,30 @@ document.addEventListener('DOMContentLoaded', function() {
             notifBadge.style.display = 'none';
         }
     }
+
+    async function updateMessagesBadge() {
+        if (!msgBadge) return;
+        try {
+            const res = await APIBase.request('/messaging/api/v1/messages/unread_count/');
+            let count = 0;
+            if (res && res.success && res.data && typeof res.data.unread_count === 'number') {
+                count = res.data.unread_count;
+            } else if (res && res.unread_count != null) {
+                count = res.unread_count;
+            }
+            if (count > 0) {
+                msgBadge.textContent = String(count);
+                msgBadge.style.display = '';
+            } else {
+                msgBadge.style.display = 'none';
+            }
+        } catch (e) {}
+    }
     
     // Update badge when WebSocket sends unread count
     if (window.notificationWS) {
         window.notificationWS.addEventListener('unread_count', (data) => {
+            // Server-side already excludes chat notifications from bell count
             if (notifBadge && data && typeof data.count === 'number') {
                 if (data.count > 0) {
                     notifBadge.textContent = String(data.count);
@@ -293,10 +316,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-        
+
         // Handle real-time notifications
         window.notificationWS.addEventListener('notification', (data) => {
-            // Refresh the notification list if dropdown is open
+            const n = data && data.notification ? data.notification : null;
+            const ntype = n ? n.notification_type : null;
+            if (ntype === 'coach_message') {
+                // Update messages badge and refresh messages list if open
+                updateMessagesBadge();
+                if (msgDropdown && msgDropdown.classList.contains('show')) {
+                    loadMessagesList();
+                }
+                return; // do not refresh bell list for chat
+            }
+            // For non-chat notifications: refresh bell list if open
             if (notifDropdown && notifDropdown.classList.contains('show')) {
                 loadNotificationsList();
             }
@@ -352,7 +385,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         window.notificationWS.markAsRead(n.id);
                         li.querySelector('i').classList.remove('text-primary');
                         li.querySelector('i').classList.add('text-muted');
-                        return;
+                        // do not return; proceed to navigation if target_url exists
                     }
                     
                     // Fall back to REST API
@@ -361,6 +394,11 @@ document.addEventListener('DOMContentLoaded', function() {
                     li.querySelector('i').classList.add('text-muted');
                     await updateUnreadBadge();
                 } catch (err) {}
+                try {
+                    if (n && n.target_url) {
+                        window.location.href = n.target_url;
+                    }
+                } catch (e) {}
             });
             return li;
         };
@@ -370,7 +408,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     async function loadNotificationsList() {
         if (!window.NotificationsAPI) return;
-        const res = await NotificationsAPI.list({});
+        // Exclude chat notifications from bell list
+        const res = await NotificationsAPI.list({ exclude_type: 'coach_message' });
         let items = [];
         if (res && res.success) {
             const data = res.data;
@@ -380,13 +419,63 @@ document.addEventListener('DOMContentLoaded', function() {
         renderNotificationsList(items);
     }
 
-    // Initial load of unread count
+    function renderMessagesList(items) {
+        if (!msgMenu) return;
+        try { msgMenu.innerHTML = ''; } catch (e) {}
+        if (!items || !items.length) {
+            msgMenu.innerHTML = '<div class="p-3 text-muted">No messages</div>';
+            return;
+        }
+        const formatWhen = (iso) => {
+            try {
+                const d = new Date(iso);
+                return d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            } catch (e) { return ''; }
+        };
+        const makeItem = (c) => {
+            const a = document.createElement('a');
+            a.className = 'dropdown-item d-flex align-items-start gap-2';
+            a.href = `/messaging/chat/?conversation_id=${c.id}`;
+            const other = c.other_participant || {};
+            const unread = (c.unread_count || 0) > 0;
+            a.innerHTML = `
+                <img src="${other.avatar_url || '/static/images/default-avatar.svg'}" alt="Avatar" class="rounded-circle mt-1" width="24" height="24">
+                <div class="flex-grow-1">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="fw-semibold small">${other.full_name || other.username || 'Chat'}</div>
+                        <small class="text-muted">${formatWhen(c.last_message_at)}</small>
+                    </div>
+                    <div class="small ${unread ? 'fw-bold' : 'text-muted'}">${c.last_message ? c.last_message.content : ''}</div>
+                </div>
+            `;
+            return a;
+        };
+        items.slice(0, 10).forEach(c => msgMenu.appendChild(makeItem(c)));
+    }
+
+    async function loadMessagesList() {
+        try {
+            const res = await APIBase.request('/messaging/api/v1/conversations/');
+            let items = [];
+            if (res && res.success) {
+                const data = res.data;
+                if (data && Array.isArray(data.results)) items = data.results;
+                else if (Array.isArray(data)) items = data;
+            }
+            renderMessagesList(items);
+        } catch (e) {}
+    }
+
+    // Initial load of unread counts
     updateUnreadBadge();
+    updateMessagesBadge();
     
     // Only poll if WebSocket is not available
     if (!window.notificationWS || !window.notificationWS.connected) {
         setInterval(updateUnreadBadge, 60000);
     }
+    // Messages badge polling (no global WS for messaging)
+    setInterval(updateMessagesBadge, 60000);
 
     // Load notifications when dropdown is opened
     if (notifDropdown) {
@@ -395,19 +484,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
+    // Load messages when dropdown is opened
+    if (msgDropdown) {
+        msgDropdown.addEventListener('shown.bs.dropdown', () => {
+            loadMessagesList();
+        });
+    }
+
     if (markAllBtn) {
         markAllBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            
-            // Try WebSocket first if available
-            if (window.notificationWS && window.notificationWS.connected) {
-                window.notificationWS.markAllAsRead();
-                if (window.utils) utils.showToast('All notifications marked as read', 'success');
-                return;
-            }
-            
-            // Fall back to REST API
-            const res = await NotificationsAPI.markAllRead();
+            // Use REST API with exclude filter so chat messages remain untouched
+            const res = await NotificationsAPI.markAllRead({ exclude_type: 'coach_message' });
             if (res && res.success) {
                 updateUnreadBadge();
                 loadNotificationsList();

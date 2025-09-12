@@ -12,6 +12,7 @@ class PlanNotificationSerializer(serializers.ModelSerializer):
     subscription_info = serializers.SerializerMethodField()
     is_link_expired = serializers.ReadOnlyField()
     user_id = serializers.IntegerField(source='user.id', read_only=True)
+    target_url = serializers.SerializerMethodField()
     
     class Meta:
         model = PlanNotification
@@ -19,7 +20,8 @@ class PlanNotificationSerializer(serializers.ModelSerializer):
             'id', 'notification_type', 'recipient_email', 'subject',
             'sent_at', 'is_sent', 'delivery_status', 'plan_access_token',
             'link_expires_at', 'is_link_expired', 'additional_data',
-            'subscription_info', 'is_read', 'read_at', 'created_at', 'user_id'
+            'subscription_info', 'is_read', 'read_at', 'created_at', 'user_id',
+            'target_url'
         ]
         read_only_fields = [
             'id', 'sent_at', 'plan_access_token', 'link_expires_at', 'is_link_expired',
@@ -44,6 +46,57 @@ class PlanNotificationSerializer(serializers.ModelSerializer):
         except Exception:
             # Be graceful if relations are missing
             return None
+
+    def get_target_url(self, obj):
+        """Build a sensible target URL for this notification so the UI can navigate to relevant page."""
+        try:
+            ntype = getattr(obj, 'notification_type', '') or ''
+            user = getattr(obj, 'user', None)
+            is_coach = bool(getattr(user, 'is_coach', False)) or hasattr(user, 'coach_profile')
+            is_client = bool(getattr(user, 'is_client', False)) and not is_coach
+            sub = getattr(obj, 'subscription', None)
+            data = getattr(obj, 'additional_data', {}) or {}
+
+            # Chat message notifications
+            if ntype == 'coach_message':
+                conv_id = data.get('conversation_id') or data.get('conversation')
+                if conv_id:
+                    return f"/messaging/chat/?conversation_id={conv_id}"
+                return "/messaging/chat/"
+
+            # Plan-related with subscription
+            if sub and ntype in (
+                'plan_approved', 'plan_created', 'plan_cancelled',
+                'plan_updated', 'plan_completed', 'milestone_achieved', 'daily_reminder'
+            ):
+                if is_client:
+                    return f"/plan-management/client/plan-detail/{sub.id}/"
+                if is_coach:
+                    plan_id = getattr(getattr(sub, 'product_plan', None), 'id', None)
+                    client_id = getattr(getattr(sub, 'client', None), 'id', None)
+                    if plan_id and client_id:
+                        return f"/plan-management/coach/plan-customization/{plan_id}/?client_id={client_id}&subscription_id={sub.id}"
+                    if plan_id:
+                        return f"/plan-management/coach/plan-customization/{plan_id}/"
+                    return "/plan-management/coach/plan-management/"
+
+            # Plan request received -> coach pending requests
+            if ntype == 'plan_request_received':
+                return "/plan-management/coach/plan-management/"
+
+            # Rejected -> client dashboard as a safe default
+            if ntype == 'plan_rejected':
+                if is_client:
+                    return "/plan-management/client/dashboard/"
+                return "/plan-management/coach/plan-management/"
+
+            # Refund -> client subscription page when possible
+            if ntype == 'refund_processed' and sub:
+                return f"/plan-management/client/plan-detail/{sub.id}/"
+
+        except Exception:
+            pass
+        return None
 
 
 class NotificationTemplateSerializer(serializers.ModelSerializer):

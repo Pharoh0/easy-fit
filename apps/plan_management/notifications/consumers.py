@@ -124,7 +124,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         return PlanNotification.objects.filter(
             user=self.user,
             is_read=False
-        ).count()
+        ).exclude(notification_type='coach_message').count()
 
     @database_sync_to_async
     def mark_notification_read(self, notification_id):
