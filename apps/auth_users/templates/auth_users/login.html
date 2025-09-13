@@ -61,7 +61,7 @@
                             <input type="checkbox" class="form-check-input" id="keep_logged_in">
                             <label class="form-check-label" for="keep_logged_in">Keep me logged in</label>
                         </div>
-                        <a href="#" class="text-primary fw-semibold text-decoration-none">Forgot Password?</a>
+                        <a href="{% url 'auth_users:password_reset' %}" class="text-primary fw-semibold text-decoration-none">Forgot Password?</a>
                     </div>
                     <!-- Error Messages -->
                     <div id="error-messages" class="text-danger mb-3"></div>
