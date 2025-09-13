@@ -309,13 +309,13 @@
       </div>
     </div>
     <div class="col-lg-5">
-      <div class="card h-100">
+      <div class="card h-50">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h6 class="mb-0">Completion distribution</h6>
         </div>
         <div class="card-body"><div class="chart-container"><canvas id="completionChart"></canvas></div></div>
       </div>
-      <div class="card h-100 mt-3">
+      <div class="card h-50 mt-3">
         <div class="card-header d-flex justify-content-between align-items-center">
           <h6 class="mb-0">Wellness trend</h6>
         </div>
@@ -409,7 +409,6 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
 <script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>

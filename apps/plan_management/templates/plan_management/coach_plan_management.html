@@ -36,7 +36,7 @@
 <div class="container-fluid py-4">
     <!-- Breadcrumb -->
     <nav aria-label="breadcrumb" class="mb-4">
-        <ol class="breadcrumb">
+        {% comment %} <ol class="breadcrumb">
             {% for crumb in breadcrumbs %}
                 {% if crumb.url %}
                     <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.name }}</a></li>
@@ -44,7 +44,7 @@
                     <li class="breadcrumb-item active">{{ crumb.name }}</li>
                 {% endif %}
             {% endfor %}
-        </ol>
+        </ol> {% endcomment %}
     </nav>
 
     <!-- Page Header -->

@@ -1225,7 +1225,7 @@ def coach_revenue_metrics(request):
     ]
 
     data = {
-        'currency': 'USD',
+        'currency': 'EGP',
         'total_revenue': float(totals['revenue'] or 0),
         'subscription_count': totals['subs'] or 0,
         'monthly_trend': monthly,

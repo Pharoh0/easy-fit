@@ -121,7 +121,8 @@ class ProductPlanViewSet(viewsets.ModelViewSet):
             except Exception:
                 pass
 
-        return qs
+        # Default ordering: newest first so freshly created plans are visible
+        return qs.order_by('-created_at')
 
     def perform_create(self, serializer):
         # Automatically set the coach field to the authenticated user's coach profile
@@ -138,6 +139,54 @@ class ProductPlanViewSet(viewsets.ModelViewSet):
             self.create_default_plan_structure(plan)
             
         return plan
+
+    def create(self, request, *args, **kwargs):
+        """Create ProductPlan with simple idempotency to prevent accidental duplicates.
+
+        If a plan with the same (coach, name, start_date, end_date, price)
+        was created within the last 60 seconds, return that existing plan
+        instead of creating a new record. This guards against double-submits
+        from rapid button clicks or brief network retries.
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Resolve coach profile (permission enforced in perform_create)
+        try:
+            coach_profile = request.user.coach_profile
+        except CoachProfile.DoesNotExist:
+            raise PermissionDenied("You must have a coach profile to create a plan.")
+
+        name = serializer.validated_data.get('name')
+        start_date = serializer.validated_data.get('start_date')
+        end_date = serializer.validated_data.get('end_date')
+        price = serializer.validated_data.get('price')
+
+        # Best-effort duplicate detection window
+        try:
+            window_seconds = 60
+            cutoff = timezone.now() - timedelta(seconds=window_seconds)
+            existing = ProductPlan.objects.filter(
+                coach=coach_profile,
+                name=name,
+                start_date=start_date,
+                end_date=end_date,
+                price=price,
+                created_at__gte=cutoff,
+            ).order_by('-created_at').first()
+        except Exception:
+            existing = None
+
+        if existing is not None:
+            data = self.get_serializer(existing).data
+            headers = self.get_success_headers(data)
+            # 200 OK to indicate no new resource was created
+            return Response(data, status=status.HTTP_200_OK, headers=headers)
+
+        plan = self.perform_create(serializer)
+        data = self.get_serializer(plan).data if plan is not None else serializer.data
+        headers = self.get_success_headers(data)
+        return Response(data, status=status.HTTP_201_CREATED, headers=headers)
     
     def create_default_plan_structure(self, plan):
         """Create default plan structure based on plan settings"""
