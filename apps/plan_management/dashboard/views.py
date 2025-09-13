@@ -2,8 +2,11 @@ from rest_framework import viewsets, status, permissions
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from django.db.models import Q, Avg, Sum, Count
+from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.http import HttpResponse
 from datetime import datetime, timedelta
+from io import BytesIO
 from .models import (
     PlanProgress, DailyProgressLog, PlanMilestone, 
     WeeklyProgressSummary, GoalTracking
@@ -15,6 +18,21 @@ from .serializers import (
 )
 from rest_framework.permissions import IsAuthenticated
 from django.contrib.auth import get_user_model
+from ..client.models import PlanSubscription
+from ..daily_entries.models import PlanDay, WorkoutPlan, NutritionPlan, MealPlan
+
+# Optional deps for export
+try:
+    from openpyxl import Workbook
+except Exception:
+    Workbook = None
+
+try:
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.pagesizes import A4
+except Exception:
+    canvas = None
+    A4 = None
 
 User = get_user_model()
 
@@ -67,6 +85,384 @@ class PlanProgressViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
+    def _parse_date_range(self, request):
+        """Parse date range from query params; default last 30 days."""
+        today = timezone.now().date()
+        date_from_str = request.query_params.get('date_from')
+        date_to_str = request.query_params.get('date_to')
+        try:
+            date_from = datetime.strptime(date_from_str, '%Y-%m-%d').date() if date_from_str else (today - timedelta(days=30))
+        except Exception:
+            date_from = today - timedelta(days=30)
+        try:
+            date_to = datetime.strptime(date_to_str, '%Y-%m-%d').date() if date_to_str else today
+        except Exception:
+            date_to = today
+        if date_from > date_to:
+            date_from, date_to = date_to, date_from
+        return date_from, date_to
+
+    def _apply_progress_filters(self, request, qs):
+        """Apply filters common to dashboard summary to a PlanProgress queryset."""
+        subscription_id = request.query_params.get('subscription_id') or request.query_params.get('subscription')
+        if subscription_id:
+            qs = qs.filter(subscription_id=subscription_id)
+        plan_type = (request.query_params.get('plan_type') or '').strip().lower()
+        # Normalize UI values to backend
+        if plan_type in ('', 'all', None):
+            plan_type = None
+        elif plan_type == 'nutrition':
+            plan_type = 'diet'
+        elif plan_type == 'hybrid':
+            plan_type = 'combined'
+        if plan_type:
+            qs = qs.filter(subscription__product_plan__plan_type=plan_type)
+        active_only = request.query_params.get('active_only')
+        if active_only and active_only.lower() in ('true', '1', 'yes'):
+            qs = qs.filter(subscription__status='active')
+        return qs
+
+    def _apply_log_filters(self, request, qs, date_from=None, date_to=None):
+        """Apply filters to DailyProgressLog queryset based on query params."""
+        if date_from:
+            qs = qs.filter(date__gte=date_from)
+        if date_to:
+            qs = qs.filter(date__lte=date_to)
+        subscription_id = request.query_params.get('subscription_id') or request.query_params.get('subscription')
+        if subscription_id:
+            qs = qs.filter(progress__subscription_id=subscription_id)
+        plan_type = (request.query_params.get('plan_type') or '').strip().lower()
+        if plan_type in ('', 'all', None):
+            plan_type = None
+        elif plan_type == 'nutrition':
+            plan_type = 'diet'
+        elif plan_type == 'hybrid':
+            plan_type = 'combined'
+        if plan_type:
+            qs = qs.filter(progress__subscription__product_plan__plan_type=plan_type)
+        active_only = request.query_params.get('active_only')
+        if active_only and active_only.lower() in ('true', '1', 'yes'):
+            qs = qs.filter(progress__subscription__status='active')
+        return qs
+
+    @action(detail=False, methods=['get'])
+    def dashboard_summary(self, request):
+        """Client dashboard summary with KPIs, charts, and options."""
+        user = request.user
+        date_from, date_to = self._parse_date_range(request)
+
+        # Ensure progress objects exist for user's filtered subscriptions
+        subs_qs = PlanSubscription.objects.filter(client=user)
+        # Apply filters to subscriptions similarly to progress filters
+        subscription_id = request.query_params.get('subscription_id') or request.query_params.get('subscription')
+        if subscription_id:
+            subs_qs = subs_qs.filter(id=subscription_id)
+        plan_type = (request.query_params.get('plan_type') or '').strip().lower()
+        if plan_type in ('', 'all', None):
+            plan_type = None
+        elif plan_type == 'nutrition':
+            plan_type = 'diet'
+        elif plan_type == 'hybrid':
+            plan_type = 'combined'
+        if plan_type:
+            subs_qs = subs_qs.filter(product_plan__plan_type=plan_type)
+        active_only = request.query_params.get('active_only')
+        if active_only and active_only.lower() in ('true', '1', 'yes'):
+            subs_qs = subs_qs.filter(status='active')
+
+        # Prefetch to minimize queries
+        subs_qs = subs_qs.select_related('product_plan', 'product_plan__coach')
+
+        # Map existing progress by subscription id
+        existing_progress = {
+            p.subscription_id: p
+            for p in PlanProgress.objects.filter(subscription__in=subs_qs).select_related('subscription__product_plan__coach')
+        }
+        # Create missing progress entries (light-weight, no heavy recomputation)
+        to_create = []
+        for s in subs_qs:
+            if s.id not in existing_progress:
+                to_create.append(PlanProgress(subscription=s))
+        if to_create:
+            PlanProgress.objects.bulk_create(to_create, ignore_conflicts=True)
+
+        # Compute final progress queryset (includes any newly created)
+        progress_qs = PlanProgress.objects.filter(subscription__in=subs_qs).select_related('subscription__product_plan__coach')
+
+        logs_qs = DailyProgressLog.objects.filter(
+            progress__subscription__client=user
+        ).select_related('progress__subscription__product_plan')
+        logs_qs = self._apply_log_filters(request, logs_qs, date_from, date_to)
+
+        # KPIs
+        active_subs = PlanSubscription.objects.filter(client=user, status='active').count()
+        completion_avg = progress_qs.aggregate(v=Avg('completion_percentage'))['v'] or 0
+        adherence_avg = progress_qs.aggregate(v=Avg('adherence_rate'))['v'] or 0
+        streak_avg = progress_qs.aggregate(v=Avg('current_streak'))['v'] or 0
+
+        meals_sum = logs_qs.aggregate(v=Sum('meals_completed'))['v'] or 0
+        workouts_sum = logs_qs.aggregate(v=Sum('workouts_completed'))['v'] or 0
+        calories_sum = logs_qs.aggregate(v=Sum('calories_burned'))['v'] or 0
+
+        goals_qs = GoalTracking.objects.filter(subscription__client=user)
+        goals_active = goals_qs.filter(is_active=True).count()
+        goals_achieved = goals_qs.filter(is_achieved=True).count()
+
+        # Charts: timeseries completion (per-day completion rate%)
+        # Prepare a baseline series with zeros to make charts informative even with no logs
+        daily_stats = {}
+        cur = date_from
+        while cur <= date_to:
+            daily_stats[cur] = {'total': 0, 'completed': 0, 'mood': [], 'energy': []}
+            cur += timedelta(days=1)
+        # Accumulate log stats on top of baseline
+        for log in logs_qs.order_by('date').values('date', 'day_completed'):
+            d = log['date']
+            if d not in daily_stats:
+                daily_stats[d] = {'total': 0, 'completed': 0, 'mood': [], 'energy': []}
+            daily_stats[d]['total'] += 1
+            if log['day_completed']:
+                daily_stats[d]['completed'] += 1
+
+        # For wellness series we need mood/energy; fetch with values
+        for item in logs_qs.exclude(mood_rating=None, energy_level=None).values('date', 'mood_rating', 'energy_level'):
+            d = item['date']
+            if d not in daily_stats:
+                daily_stats[d] = {'total': 0, 'completed': 0, 'mood': [], 'energy': []}
+            daily_stats[d]['mood'].append(item['mood_rating'])
+            daily_stats[d]['energy'].append(item['energy_level'])
+
+        progress_timeseries = []
+        wellness_series = []
+        completed_count = 0
+        incomplete_count = 0
+
+        for d in sorted(daily_stats.keys()):
+            tot = daily_stats[d]['total']
+            comp = daily_stats[d]['completed']
+            rate = float(comp) * 100.0 / float(tot) if tot else 0.0
+            progress_timeseries.append({'date': d.strftime('%Y-%m-%d'), 'completion_rate': round(rate, 2)})
+            # Distribution
+            completed_count += comp
+            incomplete_count += max(0, tot - comp)
+            # Wellness
+            moods = daily_stats[d]['mood']
+            energ = daily_stats[d]['energy']
+            if moods or energ:
+                mood_avg = sum(moods) / len(moods) if moods else None
+                energy_avg = sum(energ) / len(energ) if energ else None
+                wellness_series.append({'date': d.strftime('%Y-%m-%d'), 'mood': mood_avg, 'energy': energy_avg})
+
+        completion_distribution = {
+            'completed': completed_count,
+            'incomplete': incomplete_count,
+        }
+
+        # Subscription status counts (using filtered subscriptions)
+        status_counts_raw = PlanSubscription.objects.filter(id__in=subs_qs.values('id')).values('status').annotate(c=Count('id'))
+        status_defaults = {'active': 0, 'completed': 0, 'pending': 0, 'cancelled': 0, 'expired': 0}
+        subscription_counts = {**status_defaults}
+        for row in status_counts_raw:
+            subscription_counts[row['status']] = int(row['c'] or 0)
+
+        # Per-plan progress compact list for table rendering on the frontend
+        per_plan_progress = [
+            {
+                'subscription_id': p.subscription_id,
+                'plan_name': getattr(p.subscription.product_plan, 'name', ''),
+                'status': getattr(p.subscription, 'status', ''),
+                'completion_percentage': float(p.completion_percentage or 0.0),
+                'adherence_rate': float(p.adherence_rate or 0.0),
+                'subscribed_at': getattr(p.subscription, 'subscribed_at', None),
+                'plan_type': getattr(p.subscription.product_plan, 'plan_type', ''),
+                'coach_name': getattr(getattr(p.subscription.product_plan, 'coach', None), 'user', None).get_full_name() if getattr(p.subscription.product_plan, 'coach', None) else ''
+            }
+            for p in progress_qs.select_related('subscription__product_plan__coach')[:200]
+        ]
+
+        # Today at a glance (aggregated across filtered subscriptions)
+        today = timezone.now().date()
+        today_days = PlanDay.objects.filter(subscription__in=subs_qs, scheduled_date=today)
+        # Prefetch related plans/meals to avoid N+1
+        today_days = today_days.prefetch_related('workout_plans', 'nutrition_plans__meals', 'subscription__product_plan')
+
+        todays_workouts_scheduled = 0
+        todays_workouts_completed = 0
+        todays_meals_scheduled = 0
+        todays_meals_completed = 0
+        todays_target_cal = 0
+        todays_actual_cal = 0
+        todays_target_water = 0
+        todays_actual_water = 0
+        next_actions = []
+
+        for day in today_days:
+            # Workouts
+            wos = list(day.workout_plans.all())
+            todays_workouts_scheduled += len(wos)
+            todays_workouts_completed += sum(1 for w in wos if getattr(w, 'is_completed', False))
+            for w in wos:
+                if not getattr(w, 'is_completed', False):
+                    next_actions.append({'type': 'workout', 'name': w.workout_name, 'plan': day.subscription.product_plan.name})
+            # Nutrition
+            nps = list(day.nutrition_plans.all())
+            for n in nps:
+                todays_target_cal += int(n.target_calories or 0)
+                todays_actual_cal += int(n.actual_calories or 0) if n.actual_calories is not None else 0
+                try:
+                    todays_target_water += float(n.target_water_liters or 0)
+                except Exception:
+                    pass
+                try:
+                    todays_actual_water += float(n.actual_water_liters or 0) if n.actual_water_liters is not None else 0.0
+                except Exception:
+                    pass
+                meals = list(n.meals.all())
+                todays_meals_scheduled += len(meals)
+                todays_meals_completed += sum(1 for m in meals if getattr(m, 'is_completed', False))
+                for m in meals:
+                    if not getattr(m, 'is_completed', False):
+                        next_actions.append({'type': 'meal', 'name': m.meal_name, 'plan': day.subscription.product_plan.name})
+
+        # Today wellness from logs
+        today_logs = DailyProgressLog.objects.filter(progress__subscription__in=subs_qs, date=today)
+        avg_mood = today_logs.aggregate(v=Avg('mood_rating'))['v'] or None
+        avg_energy = today_logs.aggregate(v=Avg('energy_level'))['v'] or None
+        today_water_log = today_logs.aggregate(v=Avg('water_intake_liters'))['v']
+        today_sleep_log = today_logs.aggregate(v=Avg('sleep_hours'))['v']
+
+        # Last 7 days summary
+        last7_from = today - timedelta(days=6)
+        last7_to = today
+        logs_7d = DailyProgressLog.objects.filter(progress__subscription__in=subs_qs, date__gte=last7_from, date__lte=last7_to)
+        # Completion per day
+        by_date = {}
+        for item in logs_7d.values('date', 'day_completed', 'meals_completed', 'workouts_completed'):
+            d = item['date']
+            if d not in by_date:
+                by_date[d] = {'any_completed': False, 'meals': 0, 'workouts': 0, 'total': 0, 'completed': 0}
+            by_date[d]['total'] += 1
+            by_date[d]['meals'] += int(item['meals_completed'] or 0)
+            by_date[d]['workouts'] += int(item['workouts_completed'] or 0)
+            if item['day_completed']:
+                by_date[d]['completed'] += 1
+                by_date[d]['any_completed'] = True
+
+        days_completed = sum(1 for d in by_date.values() if d['any_completed'])
+        total_days_in_window = 7
+        missed_days = max(0, total_days_in_window - days_completed)
+        # Adherence average in last 7 days
+        day_rates = []
+        curd = last7_from
+        while curd <= last7_to:
+            stats = by_date.get(curd)
+            rate = (stats['completed'] / stats['total'] * 100.0) if stats and stats['total'] else 0.0
+            day_rates.append(rate)
+            curd += timedelta(days=1)
+        adherence_7d = round(sum(day_rates) / len(day_rates), 2) if day_rates else 0.0
+        # Best streak in 7d
+        cur_streak = 0
+        best_streak = 0
+        curd = last7_from
+        while curd <= last7_to:
+            if by_date.get(curd, {}).get('any_completed'):
+                cur_streak += 1
+                best_streak = max(best_streak, cur_streak)
+            else:
+                cur_streak = 0
+            curd += timedelta(days=1)
+
+        # Options for selectors
+        progress_options = [
+            {
+                'progress_id': p.id,
+                'subscription_id': p.subscription_id,
+                'plan_name': p.subscription.product_plan.name,
+                'plan_type': p.subscription.product_plan.plan_type,
+            }
+            for p in progress_qs[:100]
+        ]
+        subs_options = [
+            {
+                'id': s.id,
+                'name': s.product_plan.name,
+                'plan_type': s.product_plan.plan_type,
+            }
+            for s in PlanSubscription.objects.filter(client=user).select_related('product_plan')[:100]
+        ]
+
+        data = {
+            'success': True,
+            'kpis': {
+                'active_subscriptions': active_subs,
+                'completion_avg': float(completion_avg) if completion_avg else 0.0,
+                'adherence_rate': float(adherence_avg) if adherence_avg else 0.0,
+                'current_streak_avg': float(streak_avg) if streak_avg else 0.0,
+                'total_meals': int(meals_sum),
+                'total_workouts': int(workouts_sum),
+                'calories_burned': int(calories_sum),
+                'goals_active': goals_active,
+                'goals_achieved': goals_achieved,
+            },
+            'charts': {
+                'progress_timeseries': progress_timeseries,
+                'completion_distribution': completion_distribution,
+                'wellness_series': wellness_series,
+            },
+            'stats': {
+                'subscription_counts': subscription_counts,
+                'per_plan_progress': per_plan_progress,
+            },
+            'today': {
+                'workouts': {'completed': int(todays_workouts_completed), 'scheduled': int(todays_workouts_scheduled)},
+                'meals': {'completed': int(todays_meals_completed), 'scheduled': int(todays_meals_scheduled)},
+                'calories': {'actual': int(todays_actual_cal), 'target': int(todays_target_cal)},
+                'water_liters': {'actual': float(todays_actual_water) if todays_actual_water else float(today_water_log or 0.0), 'target': float(todays_target_water)},
+                'mood': (float(avg_mood) if avg_mood is not None else None),
+                'energy': (float(avg_energy) if avg_energy is not None else None),
+                'next_actions': next_actions[:6],
+            },
+            'week_summary': {
+                'days_completed': int(days_completed),
+                'missed_days': int(missed_days),
+                'adherence_avg': float(adherence_7d),
+                'total_meals_completed': int(sum(v['meals'] for v in by_date.values())),
+                'total_workouts_completed': int(sum(v['workouts'] for v in by_date.values())),
+                'best_streak': int(best_streak),
+            },
+            'options': {
+                'progress_options': progress_options,
+                'subscriptions': subs_options,
+            }
+        }
+        return Response(data)
+
+    @action(detail=False, methods=['get'])
+    def progress_timeseries(self, request):
+        """Return only the progress timeseries for lightweight chart reloads."""
+        user = request.user
+        date_from, date_to = self._parse_date_range(request)
+        logs_qs = DailyProgressLog.objects.filter(
+            progress__subscription__client=user
+        )
+        logs_qs = self._apply_log_filters(request, logs_qs, date_from, date_to)
+
+        daily_stats = {}
+        for log in logs_qs.order_by('date').values('date', 'day_completed'):
+            d = log['date']
+            if d not in daily_stats:
+                daily_stats[d] = {'total': 0, 'completed': 0}
+            daily_stats[d]['total'] += 1
+            if log['day_completed']:
+                daily_stats[d]['completed'] += 1
+
+        series = []
+        for d in sorted(daily_stats.keys()):
+            tot = daily_stats[d]['total']
+            comp = daily_stats[d]['completed']
+            rate = float(comp) * 100.0 / float(tot) if tot else 0.0
+            series.append({'date': d.strftime('%Y-%m-%d'), 'completion_rate': round(rate, 2)})
+        return Response({'success': True, 'progress_timeseries': series})
     @action(detail=True, methods=['post'])
     def update_progress(self, request, pk=None):
         """Manually trigger progress update"""
@@ -224,36 +620,61 @@ class DailyProgressLogViewSet(viewsets.ModelViewSet):
         """Get daily logs for user's progress"""
         return DailyProgressLog.objects.filter(
             progress__subscription__client=self.request.user
-        ).select_related('progress__subscription').order_by('-date')
+        ).select_related('progress__subscription__product_plan').order_by('-date')
     
-    def list(self, request, *args, **kwargs):
-        """List daily logs with filtering"""
-        queryset = self.get_queryset()
-        
+    def _apply_filters(self, request, queryset):
+        """Apply additional filters for list and export endpoints."""
         # Filter by progress/subscription
         progress_id = request.query_params.get('progress')
         if progress_id:
             queryset = queryset.filter(progress_id=progress_id)
-        
+
+        subscription_id = request.query_params.get('subscription_id') or request.query_params.get('subscription')
+        if subscription_id:
+            queryset = queryset.filter(progress__subscription_id=subscription_id)
+
         # Filter by date range
-        start_date = request.query_params.get('start_date')
-        end_date = request.query_params.get('end_date')
+        start_date = request.query_params.get('start_date') or request.query_params.get('date_from')
+        end_date = request.query_params.get('end_date') or request.query_params.get('date_to')
         if start_date:
             queryset = queryset.filter(date__gte=start_date)
         if end_date:
             queryset = queryset.filter(date__lte=end_date)
-        
-        # Get current week logs
+
+        # Current week convenience
         if request.query_params.get('current_week') == 'true':
             today = timezone.now().date()
             week_start = today - timedelta(days=today.weekday())
             queryset = queryset.filter(date__gte=week_start)
-        
+
+        # Plan type filter (normalize UI values)
+        plan_type = (request.query_params.get('plan_type') or '').strip().lower()
+        if plan_type in ('', 'all', None):
+            plan_type = None
+        elif plan_type == 'nutrition':
+            plan_type = 'diet'
+        elif plan_type == 'hybrid':
+            plan_type = 'combined'
+        if plan_type:
+            queryset = queryset.filter(progress__subscription__product_plan__plan_type=plan_type)
+
+        # Active only
+        active_only = request.query_params.get('active_only')
+        if active_only and active_only.lower() in ('true', '1', 'yes'):
+            queryset = queryset.filter(progress__subscription__status='active')
+
+        return queryset
+
+    def list(self, request, *args, **kwargs):
+        """List daily logs with filtering"""
+        queryset = self.get_queryset()
+        queryset = self._apply_filters(request, queryset)
+
         page = self.paginate_queryset(queryset)
         if page is not None:
             serializer = self.get_serializer(page, many=True)
             return self.get_paginated_response(serializer.data)
-        
+
         serializer = self.get_serializer(queryset, many=True)
         return Response(serializer.data)
     
@@ -301,6 +722,102 @@ class DailyProgressLogViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(daily_log)
         return Response(serializer.data, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    @action(detail=False, methods=['get'])
+    def export_excel(self, request):
+        """Export filtered daily logs as Excel (.xlsx)."""
+        if Workbook is None:
+            return Response({'success': False, 'error': 'Excel export not available (openpyxl missing).'}, status=500)
+
+        queryset = self._apply_filters(request, self.get_queryset())
+        wb = Workbook()
+        ws = wb.active
+        ws.title = 'Daily Logs'
+        headers = [
+            'Date', 'Plan', 'Completed', 'Meals', 'Workouts', 'Calories',
+            'Energy', 'Mood', 'Sleep(h)', 'Water(L)', 'Stress', 'Notes'
+        ]
+        ws.append(headers)
+
+        # Prefetch related to avoid N+1
+        logs = queryset.select_related('progress__subscription__product_plan').order_by('-date')[:5000]
+        for log in logs:
+            ws.append([
+                log.date.strftime('%Y-%m-%d') if log.date else '',
+                getattr(getattr(log.progress.subscription, 'product_plan', None), 'name', ''),
+                'Yes' if log.day_completed else 'No',
+                log.meals_completed,
+                log.workouts_completed,
+                log.calories_burned,
+                log.energy_level or '',
+                log.mood_rating or '',
+                float(log.sleep_hours) if log.sleep_hours is not None else '',
+                float(log.water_intake_liters) if log.water_intake_liters is not None else '',
+                log.stress_level or '',
+                (log.daily_notes[:200] + '...') if log.daily_notes and len(log.daily_notes) > 200 else (log.daily_notes or ''),
+            ])
+
+        output = BytesIO()
+        wb.save(output)
+        output.seek(0)
+
+        response = HttpResponse(output.getvalue(), content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        response['Content-Disposition'] = 'attachment; filename="daily_logs.xlsx"'
+        return response
+
+    @action(detail=False, methods=['get'])
+    def export_pdf(self, request):
+        """Export filtered daily logs as a simple PDF."""
+        if canvas is None or A4 is None:
+            return Response({'success': False, 'error': 'PDF export not available (reportlab missing).'}, status=500)
+
+        queryset = self._apply_filters(request, self.get_queryset())
+        buffer = BytesIO()
+        p = canvas.Canvas(buffer, pagesize=A4)
+        width, height = A4
+
+        # Title
+        p.setFont('Helvetica-Bold', 14)
+        p.drawString(40, height - 40, 'Daily Progress Logs')
+        p.setFont('Helvetica', 9)
+
+        y = height - 70
+        line_height = 12
+        max_rows_per_page = int((height - 100) / line_height)
+        row_count = 0
+
+        # Header row
+        headers = ['Date', 'Plan', 'Completed', 'Meals', 'Workouts', 'Calories']
+        p.drawString(40, y, ' | '.join(headers))
+        y -= line_height
+        row_count += 1
+
+        logs = queryset.select_related('progress__subscription__product_plan').order_by('-date')[:1000]
+        for log in logs:
+            row = [
+                log.date.strftime('%Y-%m-%d') if log.date else '',
+                getattr(getattr(log.progress.subscription, 'product_plan', None), 'name', '')[:30],
+                'Yes' if log.day_completed else 'No',
+                str(log.meals_completed),
+                str(log.workouts_completed),
+                str(log.calories_burned),
+            ]
+            p.drawString(40, y, ' | '.join(row))
+            y -= line_height
+            row_count += 1
+            if row_count >= max_rows_per_page:
+                p.showPage()
+                p.setFont('Helvetica', 9)
+                y = height - 40
+                row_count = 0
+
+        p.showPage()
+        p.save()
+        buffer.seek(0)
+
+        response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = 'attachment; filename="daily_logs.pdf"'
+        return response
 
 
 class GoalTrackingViewSet(viewsets.ModelViewSet):

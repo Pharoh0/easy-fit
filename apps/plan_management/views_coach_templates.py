@@ -17,6 +17,11 @@ from .daily_entries.models import PlanDay
 from django.core.cache import cache
 import hashlib
 import json
+import csv
+import io
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.units import inch
 
 User = get_user_model()
 
@@ -682,7 +687,6 @@ def coach_measurement_insights(request):
     cache.set(cache_key, insights, 60)
     return Response({'success': True, 'insights': insights})
 
-
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def coach_top_clients(request):
@@ -691,6 +695,308 @@ def coach_top_clients(request):
     Applies usual filters (plan_type, plan_id, client_id, segment, q, preset/dates).
     Returns fields: index, client_html, plan_type, status, measurement_count, last_activity_date, progress_percent, actions_html.
     """
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    from apps.profiles.client_profile.models import ClientMeasurement
+
+    filters = _extract_filters(request)
+
+    # DataTables params
+    draw = int(request.GET.get('draw', 1) or 1)
+    try:
+        start = int(request.GET.get('start', 0) or 0)
+    except (TypeError, ValueError):
+        start = 0
+    try:
+        length = int(request.GET.get('length', 10) or 10)
+    except (TypeError, ValueError):
+        length = 10
+    length = max(1, min(100, length))
+    order_col = request.GET.get('order[0][column]')
+    order_dir = (request.GET.get('order[0][dir]') or 'desc').lower()
+    dt_search = (request.GET.get('search[value]') or '').strip()
+
+    # Window
+    end = filters.get('end_date') or timezone.now().date()
+    start_90 = filters.get('start_date') or (end - timedelta(days=90))
+
+    # Scope clients
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    # Base queryset: counts per client in window
+    base_qs = (
+        ClientMeasurement.objects.filter(
+            client__user_id__in=client_ids_qs,
+            date__gte=start_90,
+            date__lte=end,
+        )
+        .values('client__user__first_name', 'client__user__last_name', 'client__user_id')
+        .annotate(measurement_count=Count('id'), last_activity_date=Max('date'))
+    )
+
+    total_count = base_qs.count()
+
+    # Apply search across client fields if provided either via dt_search or filters['q']
+    search_text = dt_search or (filters.get('q') or '')
+    if search_text:
+        users_q = User.objects.filter(
+            Q(first_name__icontains=search_text) | Q(last_name__icontains=search_text) | Q(username__icontains=search_text) | Q(id__icontains=search_text)
+        ).values_list('id', flat=True)
+        base_qs = base_qs.filter(client__user_id__in=users_q)
+
+    filtered_count = base_qs.count()
+
+    # Sorting map (fallback to measurement_count desc)
+    order_fields = {
+        '1': ['client__user__first_name', 'client__user__last_name'], # Client
+        '4': ['-measurement_count'],  # Measurements
+        '5': ['-last_activity_date'], # Last Activity
+    }
+    if order_col in order_fields:
+        fields = order_fields[order_col]
+        if order_dir == 'asc':
+            fields = [f.lstrip('-') for f in fields]
+        base_qs = base_qs.order_by(*fields)
+    else:
+        base_qs = base_qs.order_by('-measurement_count')
+
+    # Slice
+    page_qs = list(base_qs[start:start + length])
+
+    # Enrich
+    data_rows = []
+    index = start + 1
+    for item in page_qs:
+        cid = item['client__user_id']
+        fname = item.get('client__user__first_name') or ''
+        lname = item.get('client__user__last_name') or ''
+        name = (f"{fname} {lname}").strip() or f"Client #{cid}"
+
+        subs_qs = PlanSubscription.objects.filter(product_plan__coach=coach_profile, client_id=cid)
+        if filters.get('plan_type_values'):
+            subs_qs = subs_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+        if filters.get('plan_id'):
+            subs_qs = subs_qs.filter(product_plan_id=filters['plan_id'])
+
+        plan_types = list(subs_qs.values_list('product_plan__plan_type', flat=True).distinct())
+        if len(plan_types) > 1:
+            plan_type = 'hybrid'
+        elif len(plan_types) == 1:
+            plan_type = plan_types[0]
+        else:
+            plan_type = None
+
+        status = 'Inactive'
+        if subs_qs.filter(status='active').exists():
+            status = 'Active'
+        elif subs_qs.filter(status='pending').exists():
+            status = 'Pending'
+        elif subs_qs.filter(status='completed').exists():
+            status = 'Completed'
+
+        days_qs = PlanDay.objects.filter(subscription__product_plan__coach=coach_profile, subscription__client_id=cid)
+        if filters.get('plan_id'):
+            days_qs = days_qs.filter(subscription__product_plan_id=filters['plan_id'])
+        if filters.get('start_date') and filters.get('end_date'):
+            days_qs = days_qs.filter(scheduled_date__range=(filters['start_date'], filters['end_date']))
+        comp_counts = days_qs.values('completion_status').annotate(c=Count('id'))
+        counts_map = {x['completion_status']: x['c'] for x in comp_counts}
+        denom = (counts_map.get('completed', 0) + counts_map.get('in_progress', 0) + counts_map.get('not_started', 0))
+        progress_percent = int(round((counts_map.get('completed', 0) / denom) * 100)) if denom else 0
+
+        # Presentation helpers (keep formatting at frontend but include raw types)
+        view_url = f"/plan-management/coach/client-measurements/?client_id={cid}"
+        plan_url = f"/plan-management/coach/plan-creation/?client_id={cid}"
+        client_html = f"<div class='d-flex align-items-center'><img class='client-avatar avatar-img rounded-circle me-2' src='' alt='{name}' data-username='{name}' width='32' height='32' loading='lazy' /><div><div class='fw-medium'>{name}</div><div class='small text-muted'>#{cid}</div></div></div>"
+        actions_html = (
+            f"<div class='btn-group' role='group'>"
+            f"<a class='btn btn-sm btn-outline-primary' href='{view_url}' data-clientid='{cid}'><i class='bi bi-eye'></i> View</a>"
+            f"<a class='btn btn-sm btn-primary' href='{plan_url}' data-clientid='{cid}'><i class='bi bi-plus-circle'></i> Plan</a>"
+            f"</div>"
+        )
+
+        data_rows.append({
+            'index': index,
+            'client': client_html,
+            'plan_type': plan_type or '',
+            'status': status,
+            'measurement_count': item.get('measurement_count') or 0,
+            'last_activity_date': (item.get('last_activity_date').strftime('%Y-%m-%d') if item.get('last_activity_date') else ''),
+            'progress_percent': progress_percent,
+            'actions': actions_html,
+        })
+        index += 1
+
+    payload = {
+        'draw': draw,
+        'recordsTotal': total_count,
+        'recordsFiltered': filtered_count,
+        'data': data_rows,
+    }
+    return Response(payload)
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_export_csv(request):
+    """CSV export for coach dashboard using current filters."""
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    from apps.profiles.client_profile.models import ClientMeasurement
+
+    filters = _extract_filters(request)
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    # Quick stats
+    total_clients = client_ids_qs.count()
+    active_qs = PlanSubscription.objects.filter(product_plan__coach=coach_profile, status='active', client_id__in=client_ids_qs)
+    if filters.get('plan_type_values'):
+        active_qs = active_qs.filter(product_plan__plan_type__in=filters['plan_type_values'])
+    if filters.get('plan_id'):
+        active_qs = active_qs.filter(product_plan_id=filters['plan_id'])
+    if filters.get('start_date') and filters.get('end_date'):
+        active_qs = active_qs.filter(plan_days__scheduled_date__range=(filters['start_date'], filters['end_date']))
+    active_subscriptions = active_qs.distinct().count()
+
+    end = filters.get('end_date') or timezone.now().date()
+    start_30 = filters.get('start_date') or (end - timedelta(days=30))
+    start_90 = filters.get('start_date') or (end - timedelta(days=90))
+
+    recent_meas_qs = ClientMeasurement.objects.filter(client__user_id__in=client_ids_qs, date__gte=start_30, date__lte=end)
+    recent_measurements = recent_meas_qs.count()
+    active_clients = recent_meas_qs.values('client').distinct().count()
+
+    # Measurement frequency
+    measurement_frequency = (
+        ClientMeasurement.objects.filter(client__user_id__in=client_ids_qs, date__gte=start_30, date__lte=end)
+        .annotate(day=TruncDate('date')).values('day').annotate(count=Count('id')).order_by('day')
+    )
+
+    # Top clients (limit 500)
+    base_top_qs = (
+        ClientMeasurement.objects.filter(client__user_id__in=client_ids_qs, date__gte=start_90, date__lte=end)
+        .values('client__user__first_name', 'client__user__last_name', 'client__user_id')
+        .annotate(measurement_count=Count('id'), last_activity_date=Max('date'))
+        .order_by('-measurement_count')
+    )
+    raw_top = list(base_top_qs[:500])
+
+    # Write CSV
+    sio = io.StringIO()
+    w = csv.writer(sio)
+    w.writerow(['Coach Dashboard Report'])
+    w.writerow(['Generated', timezone.now().isoformat()])
+    w.writerow(['Preset', filters.get('preset') or ''])
+    w.writerow(['Start Date', (filters.get('start_date') or '')])
+    w.writerow(['End Date', (filters.get('end_date') or '')])
+    w.writerow(['Plan Type', (request.GET.get('plan_type') or 'All')])
+    w.writerow(['Plan ID', (request.GET.get('plan_id') or 'All')])
+    w.writerow(['Client ID', (request.GET.get('client_id') or 'All')])
+    w.writerow([])
+    w.writerow(['Quick Stats'])
+    w.writerow(['Total Clients', total_clients])
+    w.writerow(['Active Subscriptions', active_subscriptions])
+    w.writerow(['Recent Measurements', recent_measurements])
+    w.writerow(['Active Clients', active_clients])
+    w.writerow([])
+    w.writerow(['Measurement Frequency'])
+    w.writerow(['Day', 'Count'])
+    for row in measurement_frequency:
+        w.writerow([row['day'].isoformat() if row['day'] else '', row['count']])
+    w.writerow([])
+    w.writerow(['Top Clients'])
+    w.writerow(['#', 'Client ID', 'First Name', 'Last Name', 'Measurements', 'Last Activity'])
+    for idx, r in enumerate(raw_top, start=1):
+        w.writerow([idx, r.get('client__user_id'), r.get('client__user__first_name') or '', r.get('client__user__last_name') or '', r.get('measurement_count') or 0, (r.get('last_activity_date').isoformat() if r.get('last_activity_date') else '')])
+
+    resp = HttpResponse(sio.getvalue(), content_type='text/csv; charset=utf-8')
+    resp['Content-Disposition'] = 'attachment; filename="coach_dashboard_report.csv"'
+    return resp
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_export_pdf(request):
+    """PDF export for coach dashboard using current filters."""
+    try:
+        coach_profile = request.user.coach_profile
+    except CoachProfile.DoesNotExist:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    from apps.profiles.client_profile.models import ClientMeasurement
+
+    filters = _extract_filters(request)
+    client_ids_qs = _filtered_client_ids_for_coach(coach_profile, filters)
+
+    total_clients = client_ids_qs.count()
+    end = filters.get('end_date') or timezone.now().date()
+    start_90 = filters.get('start_date') or (end - timedelta(days=90))
+
+    base_top_qs = (
+        ClientMeasurement.objects.filter(client__user_id__in=client_ids_qs, date__gte=start_90, date__lte=end)
+        .values('client__user__first_name', 'client__user__last_name', 'client__user_id')
+        .annotate(measurement_count=Count('id'), last_activity_date=Max('date'))
+        .order_by('-measurement_count')
+    )
+    raw_top = list(base_top_qs[:25])
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf, pagesize=A4)
+    width, height = A4
+    x = 50
+    y = height - 50
+    def line(txt, dy=16, font=('Helvetica', 10)):
+        nonlocal y
+        c.setFont(*font)
+        c.drawString(x, y, str(txt))
+        y -= dy
+
+    line('Coach Dashboard Report', dy=20, font=('Helvetica-Bold', 14))
+    line(f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}")
+    line(f"Preset: {filters.get('preset') or ''}")
+    line(f"Date Range: {(filters.get('start_date') or '')} to {(filters.get('end_date') or '')}")
+    line(f"Plan Type: {request.GET.get('plan_type') or 'All'} | Plan ID: {request.GET.get('plan_id') or 'All'} | Client ID: {request.GET.get('client_id') or 'All'}")
+    y -= 8
+    line('Quick Summary', dy=18, font=('Helvetica-Bold', 12))
+    line(f"Total Clients: {total_clients}")
+    y -= 8
+    line('Top Clients (first 25)', dy=18, font=('Helvetica-Bold', 12))
+    headers = ['#', 'Client', 'Measurements', 'Last Activity']
+    cols = [x, x + 40, x + 300, x + 430]
+    c.setFont('Helvetica-Bold', 10)
+    for i, h in enumerate(headers):
+        c.drawString(cols[i], y, h)
+    y -= 14
+    c.setFont('Helvetica', 10)
+    for idx, r in enumerate(raw_top, start=1):
+        if y < 60:
+            c.showPage(); y = height - 50
+            c.setFont('Helvetica-Bold', 10)
+            for i, h in enumerate(headers):
+                c.drawString(cols[i], y, h)
+            y -= 14
+            c.setFont('Helvetica', 10)
+        name = (f"{r.get('client__user__first_name') or ''} {r.get('client__user__last_name') or ''}").strip() or f"Client #{r.get('client__user_id')}"
+        c.drawString(cols[0], y, str(idx))
+        c.drawString(cols[1], y, name[:40])
+        c.drawString(cols[2], y, str(r.get('measurement_count') or 0))
+        last = r.get('last_activity_date')
+        c.drawString(cols[3], y, (last.isoformat() if last else ''))
+        y -= 14
+    c.showPage()
+    c.save()
+    pdf = buf.getvalue(); buf.close()
+    resp = HttpResponse(pdf, content_type='application/pdf')
+    resp['Content-Disposition'] = 'attachment; filename="coach_dashboard_report.pdf"'
+    return resp
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def coach_insights_export_csv(request):
+    """Export coach insights as CSV."""
     try:
         coach_profile = request.user.coach_profile
     except CoachProfile.DoesNotExist:

@@ -72,6 +72,8 @@ urlpatterns = [
     path('api/v1/coach/ratings-summary/', views_coach_templates.coach_ratings_summary, name='coach_ratings_summary_api_v1'),
     path('api/v1/coach/top-clients/', views_coach_templates.coach_top_clients, name='coach_top_clients_api_v1'),
     path('api/v1/coach/clients/', views_coach_templates.coach_clients, name='coach_clients_api_v1'),
+    path('api/v1/coach/export/csv/', views_coach_templates.coach_export_csv, name='coach_export_csv_api_v1'),
+    path('api/v1/coach/export/pdf/', views_coach_templates.coach_export_pdf, name='coach_export_pdf_api_v1'),
     
     # Coach plan customization API endpoints
     path('api/v1/coach-plan-customization/<int:subscription_id>/subscription_details/', views_coach_api.get_subscription_details, name='subscription_details_api'),

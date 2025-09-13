@@ -12,6 +12,8 @@ class DailyProgressLogSerializer(serializers.ModelSerializer):
     """Serializer for daily progress logs"""
     overall_day_rating = serializers.ReadOnlyField()
     day_completion_summary = serializers.SerializerMethodField()
+    plan_name = serializers.SerializerMethodField()
+    subscription_id = serializers.SerializerMethodField()
     
     class Meta:
         model = DailyProgressLog
@@ -20,7 +22,7 @@ class DailyProgressLogSerializer(serializers.ModelSerializer):
             'time_spent_minutes', 'energy_level', 'mood_rating', 'sleep_hours',
             'water_intake_liters', 'stress_level', 'daily_notes', 'achievements',
             'challenges', 'day_completed', 'completion_time', 'overall_day_rating',
-            'day_completion_summary'
+            'day_completion_summary', 'plan_name', 'subscription_id'
         ]
         read_only_fields = ['id', 'overall_day_rating', 'completion_time']
     
@@ -63,6 +65,18 @@ class DailyProgressLogSerializer(serializers.ModelSerializer):
             return 2
         else:
             return 1
+
+    def get_plan_name(self, obj):
+        try:
+            return obj.progress.subscription.product_plan.name
+        except Exception:
+            return None
+
+    def get_subscription_id(self, obj):
+        try:
+            return obj.progress.subscription_id
+        except Exception:
+            return None
 
 
 class PlanMilestoneSerializer(serializers.ModelSerializer):

@@ -82,7 +82,8 @@ class EnhancedClientMeasurementViewSet(viewsets.ModelViewSet):
         """
         Return appropriate serializer based on action
         """
-        if self.action in ['list', 'retrieve', 'update', 'partial_update']:
+        # Use enhanced serializer for read operations and custom GET actions
+        if self.action in ['list', 'retrieve', 'update', 'partial_update', 'latest']:
             return EnhancedClientMeasurementSerializer
         return ClientMeasurementSerializer
     
@@ -139,6 +140,10 @@ class EnhancedClientMeasurementViewSet(viewsets.ModelViewSet):
             serializer = self.get_serializer(measurement)
             return Response(serializer.data)
         except ClientMeasurement.DoesNotExist:
+            # If empty_ok flag is set, return a 200 with empty payload to avoid frontend errors
+            empty_ok = request.query_params.get('empty_ok')
+            if empty_ok and str(empty_ok).lower() in ('1','true','yes'):
+                return Response({"empty": True}, status=status.HTTP_200_OK)
             return Response({"error": "No measurements found for this client"}, status=status.HTTP_404_NOT_FOUND)
     
     @action(detail=False, methods=['get'])
@@ -197,4 +202,7 @@ class EnhancedClientMeasurementViewSet(viewsets.ModelViewSet):
             
             return Response(progress_data)
         else:
+            empty_ok = request.query_params.get('empty_ok')
+            if empty_ok and str(empty_ok).lower() in ('1','true','yes'):
+                return Response({"measurements": [], "body_parts": {}}, status=status.HTTP_200_OK)
             return Response({"error": "No measurements found for this client"}, status=status.HTTP_404_NOT_FOUND)
