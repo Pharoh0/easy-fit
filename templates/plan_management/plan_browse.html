@@ -46,13 +46,13 @@
                             </select>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label">Price Range</label>
+                            <label class="form-label">Price Range (EGP)</label>
                             <select class="form-select" id="priceRangeFilter">
                                 <option value="">Any Price</option>
-                                <option value="0-50">$0 - $50</option>
-                                <option value="51-100">$51 - $100</option>
-                                <option value="101-200">$101 - $200</option>
-                                <option value="201+">$201+</option>
+                                <option value="0-50">EGP 0 - EGP 50</option>
+                                <option value="51-100">EGP 51 - EGP 100</option>
+                                <option value="101-200">EGP 101 - EGP 200</option>
+                                <option value="201+">EGP 201+</option>
                             </select>
                         </div>
                         <div class="col-md-3">
@@ -89,6 +89,15 @@
     <!-- Plans Grid -->
     <div class="row" id="plansContainer">
         <!-- Plans will be loaded here -->
+    </div>
+
+    <!-- Pagination -->
+    <div class="row mt-3">
+        <div class="col-12 d-flex justify-content-center">
+            <nav aria-label="Plans pagination">
+                <ul class="pagination" id="plansPagination"></ul>
+            </nav>
+        </div>
     </div>
 
     <!-- Loading Spinner -->
@@ -172,13 +181,13 @@
                                 placeholder="e.g., 3 days/week, morning workouts">
                         </div>
                         <div class="col-md-6">
-                            <label class="form-label">Budget Range</label>
+                            <label class="form-label">Budget Range (EGP)</label>
                             <select class="form-select" name="budget_range">
                                 <option value="">Select Budget</option>
-                                <option value="0-50">$0 - $50</option>
-                                <option value="51-100">$51 - $100</option>
-                                <option value="101-200">$101 - $200</option>
-                                <option value="201+">$201+</option>
+                                <option value="0-50">EGP 0 - EGP 50</option>
+                                <option value="51-100">EGP 51 - EGP 100</option>
+                                <option value="101-200">EGP 101 - EGP 200</option>
+                                <option value="201+">EGP 201+</option>
                             </select>
                         </div>
                     </div>
