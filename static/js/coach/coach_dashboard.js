@@ -47,6 +47,30 @@
         };
     }
 
+    async function downloadReport(endpoint, filename) {
+        try {
+            const state = lastAppliedState || collectStateFromUI();
+            const filters = buildQueryOptionsFromState(state);
+            const usp = new URLSearchParams(filters);
+            const url = `/plan-management/api/v1/coach/${endpoint}?${usp.toString()}`;
+            const token = APIBase.getJWTToken ? APIBase.getJWTToken() : null;
+            const res = await fetch(url, { headers: token ? { 'Authorization': `Bearer ${token}` } : {} });
+            if (!res.ok) {
+                utils?.showToast?.('Failed to download report', 'danger');
+                return;
+            }
+            const blob = await res.blob();
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = filename;
+            a.click();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        } catch (e) {
+            console.error('Download error', e);
+            utils?.showToast?.('Download error', 'danger');
+        }
+    }
+
     async function initCoachDashboard(options = {}) {
         console.debug('Initializing coach dashboard with options:', options);
         // Ensure options is not null/undefined
@@ -57,7 +81,26 @@
             console.warn('Invalid options format, resetting to empty object');
             options = {};
         }
+        // Helper functions are defined at top level to ensure availability before initialization
+        
+        // Show loading state (avoid replacing quick stats DOM which we will update in-place)
+        ['analyticsContainer', 'insightsSummaryContainer', 'topClientsTableContainer'].forEach(id => {
+            const container = document.getElementById(id);
+            if (container) APIBase.showLoading(id);
+        });
+        
+        // Load all sections in parallel with current filter options
+        await Promise.allSettled([
+            loadQuickStats(options),
+            loadAnalytics(options),
+            loadMeasurementInsights(options),
+            loadRevenueMetrics(options),
+        ]);
+        
+        console.debug('Dashboard initialization completed');
+    }
 
+    // ===== Data loaders (top-level) =====
     async function loadCoachClients(searchTerm = '') {
         try {
             // Build query using current UI state (plan/category filters should scope the clients)
@@ -68,11 +111,14 @@
             if (!usp.get('limit')) usp.set('limit', '20');
             const url = `/plan-management/api/v1/coach/clients/?${usp.toString()}`;
             const res = await APIBase.request(url);
-            const results = (res && res.success && Array.isArray(res.results)) ? res.results : [];
+            const payload = (res && res.data) ? res.data : res;
+            const results = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload?.results) ? payload.results : []);
             clientsCache = results;
             const menu = document.querySelector('.clients-menu');
             if (menu) {
-                // Keep the first item (All clients)
+                // Keep the first item (search input + All clients)
                 const first = menu.querySelector('li');
                 menu.innerHTML = '';
                 if (first) menu.appendChild(first);
@@ -92,10 +138,21 @@
         }
     }
 
-    async function loadCoachPlans() {
+    function mapPlanTypeForProducts(uiCode) {
+        const m = { nutrition: 'diet', workout: 'workout', hybrid: 'combined', combined: 'combined' };
+        if (!uiCode || uiCode === 'all') return null;
+        const k = String(uiCode).toLowerCase();
+        return m[k] || k;
+    }
+
+    async function loadCoachPlans(selectedPlanTypeUI = null) {
         try {
-            // Pull coach plans (scoped by backend to current coach), page_size large enough for dropdown
-            const url = '/plan-management/api/v1/product-plans/?page_size=100';
+            // Pull coach plans (scoped by backend to current coach), optionally filtered by plan_type
+            const backendPlanType = mapPlanTypeForProducts(selectedPlanTypeUI || ($('#planTypesDropdown').data('selected') || 'all'));
+            const usp = new URLSearchParams();
+            usp.set('page_size', '100');
+            if (backendPlanType) usp.set('plan_type', backendPlanType);
+            const url = `/plan-management/api/v1/product-plans/?${usp.toString()}`;
             const res = await APIBase.request(url);
             const data = (res && res.success) ? res.data : null;
             const results = data && (Array.isArray(data) ? data : data.results);
@@ -195,23 +252,6 @@
         } catch (e) {
             console.error('Error loading revenue metrics', e);
         }
-    }
-        
-        // Show loading state (avoid replacing quick stats DOM which we will update in-place)
-        ['analyticsContainer', 'insightsSummaryContainer', 'topClientsTableContainer'].forEach(id => {
-            const container = document.getElementById(id);
-            if (container) APIBase.showLoading(id);
-        });
-        
-        // Load all sections in parallel with current filter options
-        await Promise.allSettled([
-            loadQuickStats(options),
-            loadAnalytics(options),
-            loadMeasurementInsights(options),
-            loadRevenueMetrics(options),
-        ]);
-        
-        console.debug('Dashboard initialization completed');
     }
 
     function updateTopClientsPagerUI() {
@@ -508,29 +548,72 @@
                     data: values,
                     borderColor: 'rgb(13, 110, 253)',
                     backgroundColor: gradient || 'rgba(13, 110, 253, 0.2)',
-                    tension: 0.3,
+                    tension: 0.4,
                     fill: true,
-                    pointRadius: 3,
-                    pointHoverRadius: 4
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: 'rgb(13, 110, 253)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
                 }]
             },
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
+                layout: {
+                    padding: {
+                        top: 10,
+                        right: 10,
+                        bottom: 10,
+                        left: 10
+                    }
+                },
                 plugins: {
                     legend: { display: false },
                     tooltip: {
                         mode: 'index',
-                        intersect: false
+                        intersect: false,
+                        backgroundColor: 'rgba(255, 255, 255, 0.95)',
+                        titleColor: '#333',
+                        bodyColor: '#666',
+                        borderColor: 'rgba(13, 110, 253, 0.3)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: false
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
-                        ticks: { precision: 0 },
-                        grid: { color: 'rgba(0,0,0,0.06)' }
+                        ticks: { 
+                            precision: 0,
+                            maxTicksLimit: 6,
+                            font: {
+                                size: 11
+                            }
+                        },
+                        grid: { 
+                            color: 'rgba(0,0,0,0.06)',
+                            drawBorder: false
+                        }
                     },
-                    x: { grid: { display: false } }
+                    x: { 
+                        grid: { display: false },
+                        ticks: {
+                            font: {
+                                size: 11
+                            }
+                        }
+                    }
+                },
+                elements: {
+                    point: {
+                        hoverBackgroundColor: 'rgb(13, 110, 253)'
+                    }
+                },
+                animation: {
+                    duration: 1200,
+                    easing: 'easeOutCubic'
                 }
             }
         });
@@ -794,9 +877,7 @@
             end_date: '',
             plan_type: 'all',
             plan_id: '',
-            client_id: '',
-            segment: 'all',
-            q: ''
+            client_id: ''
         };
     }
 
@@ -837,8 +918,6 @@
             state.plan_type = p.get('plan_type') || state.plan_type;
             state.plan_id = p.get('plan_id') || state.plan_id;
             state.client_id = p.get('client_id') || state.client_id;
-            state.segment = p.get('segment') || state.segment;
-            state.q = p.get('q') || state.q;
 
             if (state.preset !== 'custom') {
                 const { start_date, end_date } = computeDateRange(state.preset);
@@ -924,19 +1003,6 @@
             }
             $clientsBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selectedClient ? labelText : 'All'}</span>`);
         }
-
-        // Segment dropdown
-        const $segBtn = $('#segmentsDropdown');
-        if ($segBtn.length) {
-            const selected = state.segment || 'all';
-            $segBtn.data('selected', selected);
-            const $item = $(`.segments-menu .dropdown-item[data-value="${selected}"]`);
-            const labelText = $item.length ? $item.text().trim() : 'All segments';
-            $segBtn.html(`${labelText}<span class="badge bg-primary rounded-pill ms-2 filter-count">${selected === 'all' ? 'All' : labelText}</span>`);
-        }
-
-        // Search
-        $('#searchClients').val(state.q || '');
     }
 
     function collectStateFromUI() {
@@ -955,8 +1021,6 @@
         state.plan_type = ($('#planTypesDropdown').data('selected') || 'all');
         state.plan_id = ($('#plansDropdown').data('selected') || '');
         state.client_id = ($('#clientsDropdown').data('selected') || '');
-        state.segment = ($('#segmentsDropdown').data('selected') || 'all');
-        state.q = ($('#searchClients').val() || '').trim();
         return state;
     }
 
@@ -970,8 +1034,6 @@
         if (state.plan_type && state.plan_type !== 'all') opts.plan_type = state.plan_type;
         if (state.plan_id) opts.plan_id = state.plan_id;
         if (state.client_id) opts.client_id = state.client_id;
-        if (state.segment && state.segment !== 'all') opts.segment = state.segment;
-        if (state.q) opts.q = state.q;
         
         // Debug log to ensure options are generated properly
         console.debug('Filter options:', opts);
@@ -988,8 +1050,6 @@
             if (state.plan_type && state.plan_type !== 'all') params.set('plan_type', state.plan_type); else params.delete('plan_type');
             if (state.plan_id) params.set('plan_id', state.plan_id); else params.delete('plan_id');
             if (state.client_id) params.set('client_id', state.client_id); else params.delete('client_id');
-            if (state.segment && state.segment !== 'all') params.set('segment', state.segment); else params.delete('segment');
-            if (state.q) params.set('q', state.q); else params.delete('q');
             // Persist Top Clients pagination
             if (topClientsLimit) params.set('top_limit', String(topClientsLimit)); else params.delete('top_limit');
             if (typeof topClientsOffset === 'number') params.set('top_offset', String(topClientsOffset)); else params.delete('top_offset');
@@ -1024,6 +1084,17 @@
                 $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
                 try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
             }
+            // When plan type changes, reload plans and clients to reflect dependency
+            loadCoachPlans(value).then(() => {
+                // Reset selected plan after repopulating
+                const $plansBtn = $('#plansDropdown');
+                if ($plansBtn.length) {
+                    $plansBtn.data('selected', '');
+                    $plansBtn.html(`All plans<span class="badge bg-primary rounded-pill ms-2 filter-count">All</span>`);
+                }
+                // Reload clients with new scope
+                loadCoachClients('').catch(() => {});
+            }).catch(() => {});
         });
 
         // Plans dropdown (specific plan)
@@ -1038,11 +1109,13 @@
                 $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
                 try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
             }
+            // When plan changes, reload clients to reflect dependency
+            loadCoachClients('').catch(() => {});
         });
 
         // Clients dropdown behavior: populate on open and handle selection
         $(document).on('show.bs.dropdown', '#clientsDropdown', async function () {
-            try { await loadCoachClients($('#searchClients').val() || ''); } catch (_) {}
+            try { await loadCoachClients(''); } catch (_) {}
         });
         // Typeahead inside client dropdown
         $(document).on('input', '#clientSearchInput', debounce(function () {
@@ -1057,20 +1130,6 @@
             if ($btn.length) {
                 $btn.data('selected', value);
                 const badgeText = (value === '') ? 'All' : label;
-                $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
-                try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
-            }
-        });
-
-        // Segments dropdown
-        $(document).on('click', '.segments-menu .dropdown-item', function (e) {
-            e.preventDefault();
-            const value = $(this).data('value');
-            const label = $(this).text().trim();
-            const $btn = $('#segmentsDropdown');
-            if ($btn.length) {
-                $btn.data('selected', value);
-                const badgeText = (value === 'all') ? 'All' : label;
                 $btn.html(`${label}<span class="badge bg-primary rounded-pill ms-2 filter-count">${badgeText}</span>`);
                 try { bootstrap.Dropdown.getOrCreateInstance($btn[0]).hide(); } catch (err) {}
             }
@@ -1130,18 +1189,15 @@
             if (topClientsTable && topClientsTable.ajax) {
                 topClientsTable.page('first').draw('page');
             }
+            // Reload dependent lists to defaults
+            loadCoachPlans(state.plan_type).then(() => loadCoachClients('')).catch(() => {});
         });
 
-        // Search input and button
-        $('#searchClients').on('keydown', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                $('#btnApplyFilters').trigger('click');
-            }
-        });
-        $('#btnSearch').on('click', function () {
-            $('#btnApplyFilters').trigger('click');
-        });
+        // Export handlers
+        $('#btnExportMeasurementCSV').on('click', exportMeasurementCSV);
+        $('#btnExportTopClientsCSV').on('click', exportTopClientsCSV);
+        $('#btnExportDashboardCSV').on('click', function(){ downloadReport('export/csv/', 'coach_dashboard_report.csv'); });
+        $('#btnExportPDF').on('click', function(){ downloadReport('export/pdf/', 'coach_dashboard_report.pdf'); });
 
         // Pager controls for Top Clients (prefer DataTables if present)
         $(document).on('click', '#btnTopPrev', function () {

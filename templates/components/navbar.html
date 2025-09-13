@@ -3,8 +3,7 @@
     <div class="container">
         <!-- Logo and Brand -->
         <a class="navbar-brand d-flex align-items-center" href="{% url 'auth_users:dashboard' %}">
-            <img src="{% static 'images/default-logo.png' %}" alt="Eazy Fit" width="28" height="28" class="me-2 navbar-logo">
-            <span>Eazy Fit</span>
+            <img src="{% static 'images/eazy-fit-logo.png' %}" alt="Eazy Fit" class="navbar-logo">
         </a>
 
         <!-- Hamburger Menu for Mobile -->
@@ -14,12 +13,6 @@
 
         <!-- Navbar Content -->
         <div class="collapse navbar-collapse" id="navbarContent">
-            <!-- Search Bar -->
-            <div class="navbar-search mx-lg-4 my-2 my-lg-0">
-                <i class="bi bi-search search-icon"></i>
-                <input type="text" class="form-control" placeholder="Search...">
-            </div>
-
             <!-- Main Navigation -->
             <ul class="navbar-nav me-auto mb-1 mb-lg-0">
                 <!-- Apps Dropdown -->
@@ -199,14 +192,6 @@
             <!-- Right Side Navigation -->
             <ul class="navbar-nav profile-section">
                 
-                
-                <!-- Dark Mode Toggle -->
-                <li class="nav-item d-none d-lg-block">
-                    <button class="dark-mode-toggle" id="darkModeToggle" style="width: 28px; height: 28px;">
-                        <i class="bi bi-moon" style="font-size: 0.9rem;"></i>
-                    </button>
-                </li>
-                
                 <!-- Notifications -->
                 <li class="nav-item dropdown">
                     <a class="nav-link position-relative dropdown-toggle" href="#" id="notificationsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 0.4rem; padding-right: 0.4rem;">
@@ -228,9 +213,9 @@
                 <li class="nav-item dropdown">
                     <a class="nav-link" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false" style="padding-left: 0.4rem; padding-right: 0.4rem;">
                         {% if request.user.is_client and request.user.client_profile.avatar %}
-                            <img src="{{ request.user.client_profile.avatar.url }}" alt="Profile" class="navbar-profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
+                            <img src="{% static 'images/default-avatar.svg' %}" data-remote-src="{{ request.user.client_profile.avatar.url }}" alt="Profile" class="navbar-profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}" data-fallback="{% static 'images/default-avatar.svg' %}">
                         {% elif request.user.is_coach and request.user.coach_profile.avatar %}
-                            <img src="{{ request.user.coach_profile.avatar.url }}" alt="Profile" class="navbar-profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
+                            <img src="{% static 'images/default-avatar.svg' %}" data-remote-src="{{ request.user.coach_profile.avatar.url }}" alt="Profile" class="navbar-profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}" data-fallback="{% static 'images/default-avatar.svg' %}">
                         {% else %}
                             <img src="{% static 'images/default-avatar.svg' %}" alt="Profile" class="navbar-profile-avatar" data-username="{{ request.user.first_name }} {{ request.user.last_name }}">
                         {% endif %}

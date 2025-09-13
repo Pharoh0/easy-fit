@@ -85,10 +85,31 @@
             // For navbar avatar, prefer generated avatar over default static placeholder
             if (img.classList.contains('navbar-profile-avatar') && isDefaultAvatarSrc(currentSrc)) {
                 applyGeneratedAvatar(img);
-                return;
+                // continue to try loading remote image below if provided
             }
         } catch (e) { /* ignore */ }
-        
+
+        // Preload remote avatar if provided via data-remote-src and swap only on success
+        try {
+            const remoteSrc = img.getAttribute('data-remote-src');
+            if (remoteSrc && !img.getAttribute('data-remote-attempted')) {
+                img.setAttribute('data-remote-attempted', '1');
+                const tmp = new Image();
+                tmp.onload = function() {
+                    // Only swap if still default or generated
+                    try {
+                        const cur = img.getAttribute('src') || '';
+                        const isPlaceholder = isDefaultAvatarSrc(cur) || cur.startsWith('data:image/svg');
+                        if (isPlaceholder) img.src = remoteSrc;
+                    } catch (_) { img.src = remoteSrc; }
+                };
+                tmp.onerror = function() {
+                    // keep generated/default
+                };
+                tmp.src = remoteSrc;
+            }
+        } catch (e) { /* ignore */ }
+
         // Force reload if already failed to load (but src is set)
         if (img.complete && img.naturalHeight === 0 && img.src) {
             const originalSrc = img.src;
