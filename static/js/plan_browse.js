@@ -8,6 +8,8 @@ class PlanBrowseManager {
         this.currentFilters = {};
         this.currentPage = 1;
         this.plansPerPage = 12;
+        this.totalCount = 0;
+        this.totalPages = 1;
         this.selectedPlan = null;
         // Track plans that the current user is already enrolled in (active or pending)
         this.enrolledPlanIds = new Set();
@@ -65,6 +67,29 @@ class PlanBrowseManager {
             this.loadPlans();
         });
 
+        // Pagination clicks (event delegation)
+        document.getElementById('plansPagination')?.addEventListener('click', (e) => {
+            const li = e.target.closest('li.page-item');
+            if (!li) return;
+            e.preventDefault();
+            const action = li.dataset.action;
+            if (action === 'prev' && this.currentPage > 1) {
+                this.currentPage -= 1;
+                this.loadPlans();
+                return;
+            }
+            if (action === 'next' && this.currentPage < this.totalPages) {
+                this.currentPage += 1;
+                this.loadPlans();
+                return;
+            }
+            const page = parseInt(li.dataset.page, 10);
+            if (Number.isFinite(page) && page >= 1 && page <= this.totalPages && page !== this.currentPage) {
+                this.currentPage = page;
+                this.loadPlans();
+            }
+        });
+
         // Plan request form
         document.getElementById('planRequestForm')?.addEventListener('submit', (e) => {
             this.handlePlanRequest(e);
@@ -81,6 +106,8 @@ class PlanBrowseManager {
             utils.showLoading('loadingSpinner');
             document.getElementById('plansContainer').innerHTML = '';
             document.getElementById('noResults').style.display = 'none';
+            // Reset pagination render until data arrives
+            this.renderPagination(0, 1);
 
             // Build query parameters
             const params = new URLSearchParams();
@@ -101,6 +128,17 @@ class PlanBrowseManager {
             if (response.ok) {
                 const data = await response.json();
                 this.renderPlans(data.results || data);
+                // Update pagination if paginated payload
+                if (typeof data.count === 'number') {
+                    this.totalCount = data.count;
+                    this.totalPages = Math.max(1, Math.ceil(this.totalCount / this.plansPerPage));
+                    this.renderPagination(this.totalCount, this.currentPage);
+                } else {
+                    // Fallback when pagination meta not present
+                    this.totalCount = Array.isArray(data) ? data.length : 0;
+                    this.totalPages = 1;
+                    this.renderPagination(this.totalCount, 1);
+                }
                 
                 if (data.results && data.results.length === 0) {
                     document.getElementById('noResults').style.display = 'block';
@@ -545,6 +583,40 @@ class PlanBrowseManager {
         
         this.currentPage = 1;
         this.loadPlans();
+    }
+
+    renderPagination(totalCount, currentPage) {
+        const nav = document.getElementById('plansPagination');
+        if (!nav) return;
+        // No pages needed if results fit on one page
+        if (!totalCount || this.totalPages <= 1) {
+            nav.innerHTML = '';
+            return;
+        }
+        const createPageItem = (label, page, active = false, disabled = false, dataAttrs = {}) => {
+            const li = document.createElement('li');
+            li.className = `page-item${active ? ' active' : ''}${disabled ? ' disabled' : ''}`;
+            if (page) li.dataset.page = String(page);
+            Object.keys(dataAttrs).forEach(k => li.dataset[k] = dataAttrs[k]);
+            li.innerHTML = `<a class="page-link" href="#">${label}</a>`;
+            return li;
+        };
+        const ul = document.createDocumentFragment();
+        // Prev
+        ul.appendChild(createPageItem('«', null, false, currentPage <= 1, { action: 'prev' }));
+        // Neighbor pages: show up to 5 pages centered
+        const windowSize = 5;
+        let start = Math.max(1, currentPage - Math.floor(windowSize / 2));
+        let end = Math.min(this.totalPages, start + windowSize - 1);
+        start = Math.max(1, Math.min(start, end - windowSize + 1));
+        for (let p = start; p <= end; p++) {
+            ul.appendChild(createPageItem(String(p), p, p === currentPage));
+        }
+        // Next
+        ul.appendChild(createPageItem('»', null, false, currentPage >= this.totalPages, { action: 'next' }));
+        // Render
+        nav.innerHTML = '';
+        nav.appendChild(ul);
     }
 }
 

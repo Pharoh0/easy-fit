@@ -109,6 +109,19 @@ class StaffAPI {
         async metrics() {
             const url = `${StaffAPI.BASE_PATH}/dashboard/metrics/`;
             return await APIBase.request(url);
+        },
+        async report(filters = {}) {
+            const params = new URLSearchParams(filters).toString();
+            const url = `${StaffAPI.BASE_PATH}/dashboard/report/?${params}`;
+            return await APIBase.request(url);
+        },
+        exportCsvUrl(filters = {}) {
+            const params = new URLSearchParams(filters).toString();
+            return `${StaffAPI.BASE_PATH}/dashboard/export/csv/?${params}`;
+        },
+        exportPdfUrl(filters = {}) {
+            const params = new URLSearchParams(filters).toString();
+            return `${StaffAPI.BASE_PATH}/dashboard/export/pdf/?${params}`;
         }
     };
 }

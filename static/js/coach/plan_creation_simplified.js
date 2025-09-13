@@ -5,6 +5,8 @@
 
 // Global variables
 let currentPlanId = null;
+// Guard to prevent double submissions
+let isPublishingPlan = false;
 
 // CoachPlanAPI is imported from static/js/api/coach_plan_api.js
 
@@ -312,6 +314,10 @@ function initializePlanCreationListeners() {
  * Publish the plan
  */
 function publishPlan() {
+    // Reentrancy guard: if a publish is already in progress, ignore new clicks
+    if (isPublishingPlan) return;
+    isPublishingPlan = true;
+
     const planName = (document.getElementById('planName').value || '').trim();
     const planDescription = (document.getElementById('planDescription').value || '').trim();
     let planType = document.getElementById('planType')?.value || '';
@@ -415,6 +421,7 @@ function publishPlan() {
     }).finally(() => {
         publishBtn.disabled = false;
         publishBtn.innerHTML = originalBtnText;
+        isPublishingPlan = false;
     });
 }
 
@@ -456,15 +463,7 @@ document.addEventListener('DOMContentLoaded', function() {
     currentPlanId = sessionStorage.getItem('currentPlanId');
     console.log('Initialized with plan ID from sessionStorage:', currentPlanId);
     
-    // Delegated click handler as fallback (in case button is re-rendered or listeners lost)
-    document.addEventListener('click', function(e) {
-        const pubBtn = e.target.closest('#publishPlanBtn');
-        if (pubBtn) {
-            console.log('Publish button clicked (delegated handler)');
-            e.preventDefault();
-            try { publishPlan(); } catch (err) { console.error('publishPlan threw (delegated)', err); showToast('error', err?.message || 'Publish failed'); }
-        }
-    });
+    // Note: Removed delegated click handler to prevent double submissions
 
     // Initialize tooltips
     initTooltips();

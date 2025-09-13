@@ -507,6 +507,10 @@ let exerciseBlocks = [];
 
 function loadWorkoutTemplates() {
     const tableBody = document.getElementById('workoutTemplatesTableBody');
+    if (!tableBody) {
+        console.warn('loadWorkoutTemplates(): #workoutTemplatesTableBody not found; skipping.');
+        return;
+    }
     tableBody.innerHTML = `
         <tr class="placeholder-row">
             <td colspan="6" class="text-center py-4">
@@ -1409,7 +1413,7 @@ function renderPlanSummary(plan, container) {
                         <p class="mb-2"><strong>Level:</strong> ${plan.level || 'Not specified'}</p>
                     </div>
                     <div class="col-md-6">
-                        <p class="mb-2"><strong>Price:</strong> ${plan.price ? '$' + plan.price : 'Not specified'}</p>
+                        <p class="mb-2"><strong>Price:</strong> ${plan.price ? (window.utils ? window.utils.formatCurrency(plan.price) : ('EGP ' + plan.price)) : 'Not specified'}</p>
                         <p class="mb-2"><strong>Workout Days/Week:</strong> ${plan.workout_days || '0'}</p>
                         <p class="mb-2"><strong>Rest Days/Week:</strong> ${plan.rest_days || '0'}</p>
                         <p class="mb-2"><strong>Status:</strong> <span class="badge bg-${plan.is_active ? 'success' : 'warning'}">${plan.is_active ? 'Active' : 'Draft'}</span></p>
@@ -1568,7 +1572,7 @@ function renderWorkoutTemplatesPreview(templates) {
                 <td>${template.category || 'N/A'}</td>
                 <td>${template.focus_area || 'N/A'}</td>
                 <td>
-                    ${getDifficultyStars(template.difficulty || 1)}
+                    ${generateDifficultyStars(template.difficulty || 1)}
                 </td>
                 <td>${template.exercises?.length || 0} exercises</td>
             </tr>
@@ -1923,6 +1927,10 @@ function loadPlanReview() {
     CoachPlanAPI.workoutTemplates.getAll()
         .then(templates => {
             const tbody = document.getElementById('workoutTemplatesReviewBody');
+            if (!tbody) {
+                // Section not present (e.g., no selected templates preview created)
+                return;
+            }
             
             if (!templates || templates.length === 0) {
                 tbody.innerHTML = `
@@ -1956,20 +1964,27 @@ function loadPlanReview() {
         })
         .catch(error => {
             console.error('Error loading workout templates:', error);
-            document.getElementById('workoutTemplatesReviewBody').innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center text-danger">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        Error loading workout templates
-                    </td>
-                </tr>
-            `;
+            const tbody = document.getElementById('workoutTemplatesReviewBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Error loading workout templates
+                        </td>
+                    </tr>
+                `;
+            }
         });
     
     // Load meal templates
     CoachPlanAPI.mealTemplates.getAll()
         .then(templates => {
             const tbody = document.getElementById('mealTemplatesReviewBody');
+            if (!tbody) {
+                // Section not present (e.g., no selected templates preview created)
+                return;
+            }
             
             if (!templates || templates.length === 0) {
                 tbody.innerHTML = `
@@ -2001,24 +2016,35 @@ function loadPlanReview() {
         })
         .catch(error => {
             console.error('Error loading meal templates:', error);
-            document.getElementById('mealTemplatesReviewBody').innerHTML = `
-                <tr>
-                    <td colspan="5" class="text-center text-danger">
-                        <i class="bi bi-exclamation-triangle-fill me-1"></i>
-                        Error loading meal templates
+            const tbody = document.getElementById('mealTemplatesReviewBody');
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="5" class="text-center text-danger">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Error loading meal templates
+                        </td>
                     </td>
                 </tr>
-            `;
+                `;
+            }
         });
     
     // Re-attach event listeners
-    document.getElementById('backToMealTemplate').addEventListener('click', function() {
-        document.getElementById('meal-template-tab').click();
-    });
+    const backToMealTemplateEl = document.getElementById('backToMealTemplate');
+    if (backToMealTemplateEl) {
+        backToMealTemplateEl.addEventListener('click', function() {
+            const mealTab = document.getElementById('meal-template-tab');
+            if (mealTab) mealTab.click();
+        });
+    }
     
-    document.getElementById('publishPlanBtn').addEventListener('click', function() {
-        publishPlan();
-    });
+    const publishPlanBtnEl = document.getElementById('publishPlanBtn');
+    if (publishPlanBtnEl) {
+        publishPlanBtnEl.addEventListener('click', function() {
+            publishPlan();
+        });
+    }
 }
 
 /**
@@ -2049,7 +2075,7 @@ function renderPlanSummary(plan, container) {
                     </div>
                     <div class="col-md-4">
                         <div class="small text-muted mb-1">Price</div>
-                        <div class="fw-bold">$${plan.price || 0}</div>
+                        <div class="fw-bold">${(plan.price !== undefined && plan.price !== null) ? (window.utils ? window.utils.formatCurrency(plan.price) : ('EGP ' + plan.price)) : 'EGP 0'}</div>
                     </div>
                 </div>
                 
@@ -3424,7 +3450,7 @@ function savePlanStructure() {
         });
 }
 
-function saveWorkoutTemplate() {
+async function saveWorkoutTemplate() {
     console.log('saveWorkoutTemplate called');
     
     // Get form data
@@ -3447,8 +3473,13 @@ function saveWorkoutTemplate() {
         exercise_blocks: []
     };
     
-    // Get coach profile ID
-    const coachProfileId = getCoachProfileId();
+    // Get coach profile ID (await async source)
+    let coachProfileId = null;
+    try {
+        coachProfileId = await getCoachProfileId();
+    } catch (e) {
+        console.error('Failed to get coach profile ID:', e);
+    }
     if (!coachProfileId) {
         showToast('error', 'Could not determine coach profile ID');
         return;
@@ -3564,6 +3595,17 @@ function initPopovers() {
     });
 }
 
+// Safe initializer to hook up listeners for the current page
+function initializePlanCreationListeners() {
+    try {
+        if (typeof updatePlanStructureNavigation === 'function') {
+            updatePlanStructureNavigation();
+        }
+    } catch (e) {
+        console.error('Failed to initialize plan creation listeners:', e);
+    }
+}
+
 // Event Handlers
 document.addEventListener('DOMContentLoaded', function() {
     // Initialize event listeners
@@ -3651,77 +3693,125 @@ function updatePlanStructureNavigation() {
     loadTemplates();
     
     // Navigation between steps
-    document.getElementById('nextToStructure').addEventListener('click', function() {
-        savePlanBasics()
-            .then(() => {
-                showToast('success', 'Plan basics saved successfully');
-                document.getElementById('plan-structure-tab').click();
-            })
-            .catch(error => console.error('Error saving plan basics:', error));
-    });
+    const nextToStructureEl = document.getElementById('nextToStructure');
+    if (nextToStructureEl) {
+        nextToStructureEl.addEventListener('click', function() {
+            savePlanBasics()
+                .then(() => {
+                    showToast('success', 'Plan basics saved successfully');
+                    const structureTab = document.getElementById('plan-structure-tab');
+                    if (structureTab) structureTab.click();
+                })
+                .catch(error => console.error('Error saving plan basics:', error));
+        });
+    }
     
-    document.getElementById('backToBasics').addEventListener('click', function() {
-        document.getElementById('plan-basics-tab').click();
-    });
+    const backToBasicsEl = document.getElementById('backToBasics');
+    if (backToBasicsEl) {
+        backToBasicsEl.addEventListener('click', function() {
+            const basicsTab = document.getElementById('plan-basics-tab');
+            if (basicsTab) basicsTab.click();
+        });
+    }
     
-    document.getElementById('nextToWorkoutTemplate').addEventListener('click', function() {
-        savePlanStructure()
-            .then(() => {
-                showToast('success', 'Plan structure saved successfully');
-                document.getElementById('workout-template-tab').click();
-            })
-            .catch(error => console.error('Error saving plan structure:', error));
-    });
+    const nextToWorkoutTemplateEl = document.getElementById('nextToWorkoutTemplate');
+    if (nextToWorkoutTemplateEl) {
+        nextToWorkoutTemplateEl.addEventListener('click', function() {
+            savePlanStructure()
+                .then(() => {
+                    showToast('success', 'Plan structure saved successfully');
+                    const workoutTab = document.getElementById('workout-template-tab');
+                    if (workoutTab) workoutTab.click();
+                })
+                .catch(error => console.error('Error saving plan structure:', error));
+        });
+    }
     
-    document.getElementById('backToStructure').addEventListener('click', function() {
-        document.getElementById('plan-structure-tab').click();
-    });
+    const backToStructureEl = document.getElementById('backToStructure');
+    if (backToStructureEl) {
+        backToStructureEl.addEventListener('click', function() {
+            const structureTab = document.getElementById('plan-structure-tab');
+            if (structureTab) structureTab.click();
+        });
+    }
     
-    document.getElementById('nextToMealTemplate').addEventListener('click', function() {
-        // Save workout templates association if needed
-        document.getElementById('meal-template-tab').click();
-    });
+    const nextToMealTemplateEl = document.getElementById('nextToMealTemplate');
+    if (nextToMealTemplateEl) {
+        nextToMealTemplateEl.addEventListener('click', function() {
+            const mealTab = document.getElementById('meal-template-tab');
+            if (mealTab) mealTab.click();
+        });
+    }
     
-    document.getElementById('backToWorkoutTemplate').addEventListener('click', function() {
-        document.getElementById('workout-template-tab').click();
-    });
+    const backToWorkoutTemplateEl = document.getElementById('backToWorkoutTemplate');
+    if (backToWorkoutTemplateEl) {
+        backToWorkoutTemplateEl.addEventListener('click', function() {
+            const workoutTab = document.getElementById('workout-template-tab');
+            if (workoutTab) workoutTab.click();
+        });
+    }
     
-    document.getElementById('nextToPlanReview').addEventListener('click', function() {
-        // Save meal templates association if needed
-        document.getElementById('plan-review-tab').click();
-        loadPlanReview();
-    });
+    const nextToPlanReviewEl = document.getElementById('nextToPlanReview');
+    if (nextToPlanReviewEl) {
+        nextToPlanReviewEl.addEventListener('click', function() {
+            const reviewTab = document.getElementById('plan-review-tab');
+            if (reviewTab) reviewTab.click();
+            loadPlanReview();
+        });
+    }
     
-    document.getElementById('backToMealTemplate').addEventListener('click', function() {
-        document.getElementById('meal-template-tab').click();
-    });
+    const backToMealTemplateSafe = document.getElementById('backToMealTemplate');
+    if (backToMealTemplateSafe) {
+        backToMealTemplateSafe.addEventListener('click', function() {
+            const mealTab = document.getElementById('meal-template-tab');
+            if (mealTab) mealTab.click();
+        });
+    }
     
-    document.getElementById('publishPlanBtn').addEventListener('click', function() {
-        publishPlan();
-    });
+    const publishPlanBtnSafe = document.getElementById('publishPlanBtn');
+    if (publishPlanBtnSafe) {
+        publishPlanBtnSafe.addEventListener('click', function() {
+            publishPlan();
+        });
+    }
     
     // Workout template handling
-    document.getElementById('createWorkoutTemplateBtn').addEventListener('click', function() {
-        showWorkoutTemplateEditor();
-    });
+    const createWorkoutTemplateBtn = document.getElementById('createWorkoutTemplateBtn');
+    if (createWorkoutTemplateBtn) {
+        createWorkoutTemplateBtn.addEventListener('click', function() {
+            showWorkoutTemplateEditor();
+        });
+    }
     
-    document.getElementById('cancelWorkoutTemplateBtn').addEventListener('click', function() {
-        hideWorkoutTemplateEditor();
-    });
+    const cancelWorkoutTemplateBtn = document.getElementById('cancelWorkoutTemplateBtn');
+    if (cancelWorkoutTemplateBtn) {
+        cancelWorkoutTemplateBtn.addEventListener('click', function() {
+            hideWorkoutTemplateEditor();
+        });
+    }
     
-    document.getElementById('addExerciseBlockBtn').addEventListener('click', function() {
-        addExerciseBlock();
-    });
+    const addExerciseBlockBtn = document.getElementById('addExerciseBlockBtn');
+    if (addExerciseBlockBtn) {
+        addExerciseBlockBtn.addEventListener('click', function() {
+            addExerciseBlock();
+        });
+    }
     
-    document.getElementById('workoutTemplateForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        saveWorkoutTemplate();
-    });
+    const workoutTemplateForm = document.getElementById('workoutTemplateForm');
+    if (workoutTemplateForm) {
+        workoutTemplateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveWorkoutTemplate();
+        });
+    }
     
     // Meal templates tab activation
-    document.getElementById('meal-template-tab').addEventListener('click', function() {
-        loadMealTemplates();
-    });
+    const mealTemplateTab = document.getElementById('meal-template-tab');
+    if (mealTemplateTab) {
+        mealTemplateTab.addEventListener('click', function() {
+            loadMealTemplates();
+        });
+    }
     
     // Setup meal templates navigation buttons
     const mealTabNextToReviewBtn = document.getElementById('nextToReview');
@@ -3745,29 +3835,46 @@ function updatePlanStructureNavigation() {
         });
     }
     
-    document.getElementById('cancelMealTemplateBtn').addEventListener('click', function() {
-        hideMealTemplateEditor();
-    });
+    const cancelMealTemplateBtn = document.getElementById('cancelMealTemplateBtn');
+    if (cancelMealTemplateBtn) {
+        cancelMealTemplateBtn.addEventListener('click', function() {
+            hideMealTemplateEditor();
+        });
+    }
     
     // Meal template handling
-    document.getElementById('createMealTemplateBtn').addEventListener('click', function() {
-        showMealTemplateEditor();
-    });
+    const createMealTemplateBtn = document.getElementById('createMealTemplateBtn');
+    if (createMealTemplateBtn) {
+        createMealTemplateBtn.addEventListener('click', function() {
+            showMealTemplateEditor();
+        });
+    }
     
-    document.getElementById('addIngredientBtn').addEventListener('click', function() {
-        addIngredient();
-    });
+    const addIngredientBtn = document.getElementById('addIngredientBtn');
+    if (addIngredientBtn) {
+        addIngredientBtn.addEventListener('click', function() {
+            addIngredient();
+        });
+    }
     
-    document.getElementById('mealTemplateForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        saveMealTemplate();
-    });
-    
+    const mealTemplateForm = document.getElementById('mealTemplateForm');
+    if (mealTemplateForm) {
+        mealTemplateForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            saveMealTemplate();
+        });
+    }
     // Calculator for workout vs rest days
-    document.getElementById('workoutDaysPerWeek').addEventListener('change', updateWorkoutDaysCalculation);
-    updateWorkoutDaysCalculation();
-    
-    // Load initial data
-    loadWorkoutTemplates();
-    loadMealTemplates();
-});
+    const workoutDaysInput = document.getElementById('workoutDaysPerWeek');
+    if (workoutDaysInput) {
+        workoutDaysInput.addEventListener('change', updateWorkoutDaysCalculation);
+    }
+
+    // Load initial data if the corresponding containers exist
+    if (document.getElementById('workoutTemplatesTableBody')) {
+        loadWorkoutTemplates();
+    }
+    if (document.getElementById('mealTemplatesTableBody')) {
+        loadMealTemplates();
+    }
+}

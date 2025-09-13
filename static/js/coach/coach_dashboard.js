@@ -194,7 +194,7 @@
             }
             const rev = res.revenue;
             const total = Number(rev.total_revenue || 0);
-            const currency = rev.currency || 'USD';
+            const currency = rev.currency || 'EGP';
             const statEl = document.getElementById('statRevenue');
             if (statEl) statEl.textContent = CoachAnalyticsAPI.formatCurrency(total, currency);
 

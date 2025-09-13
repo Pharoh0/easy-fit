@@ -655,7 +655,7 @@
           render: (row) => {
             const p = row?.product_plan?.price;
             return (p !== undefined && p !== null)
-              ? (window.utils ? window.utils.formatCurrency(p) : `$${parseFloat(p).toFixed(2)}`)
+              ? (window.utils ? window.utils.formatCurrency(p) : `EGP ${parseFloat(p).toFixed(2)}`)
               : '—';
           }
         },
@@ -714,7 +714,9 @@
     // Delegated cancel handler
     $('#subscriptionsTable').on('click', '.btn-cancel-sub', async function() {
       const id = $(this).data('id');
-      const proceed = await utils.confirm({ title: 'Cancel Subscription', message: 'Cancel this subscription?', confirmText: 'Cancel', variant: 'danger' });
+      const proceed = await (window.utils && typeof window.utils.confirm === 'function'
+        ? window.utils.confirm({ title: 'Cancel Subscription', message: 'Cancel this subscription?', confirmText: 'Cancel', variant: 'danger' })
+        : Promise.resolve(window.confirm('Cancel this subscription?')));
       if (!proceed) return;
       try {
         setLoading(true);
@@ -808,6 +810,15 @@
 
   document.addEventListener('DOMContentLoaded', function() {
     if (!document.getElementById('subscriptionsTable')) return;
+    // Guard for required globals
+    if (!window.SubscriptionsAPI) {
+      showError('Subscriptions module not loaded.');
+      return;
+    }
+    if (!window.APIBase) {
+      showError('API module not loaded.');
+      return;
+    }
     if (typeof $ === 'undefined' || typeof $.fn.DataTable === 'undefined') {
       showError('jQuery/DataTables not loaded.');
       return;

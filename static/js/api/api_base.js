@@ -5,6 +5,39 @@
 
 class APIBase {
     /**
+     * Get list of public (auth-exempt) routes
+     * Allows overriding via window.PUBLIC_ROUTES
+     */
+    static getPublicRoutes() {
+        const defaults = [
+            '/auth-users/login/',
+            '/auth-users/register/',
+            '/auth-users/verify/',
+            '/auth-users/password-reset/',
+            '/auth-users/password-reset/confirm/',
+            '/auth-users/reset/Nw/'
+        ];
+        try {
+            if (Array.isArray(window.PUBLIC_ROUTES) && window.PUBLIC_ROUTES.length) {
+                return window.PUBLIC_ROUTES;
+            }
+        } catch (e) { /* ignore */ }
+        return defaults;
+    }
+
+    /**
+     * Determine if a pathname is public (no auth redirect should occur)
+     * @param {string} pathname
+     */
+    static isPublicRoute(pathname) {
+        const routes = this.getPublicRoutes();
+        try {
+            return routes.some(p => pathname === p || pathname.startsWith(p));
+        } catch (e) {
+            return false;
+        }
+    }
+    /**
      * Get JWT token from storage
      * @returns {string|null} JWT token or null if not found
      */
@@ -269,10 +302,13 @@ class APIBase {
                     try {
                         const loginUrl = (window.LOGIN_URL || '/auth-users/login/');
                         const currentUrl = window.location.href;
-                        // Avoid redirect loop if already on login page
-                        if (window.location.pathname !== loginUrl) {
+                        const currentPath = window.location.pathname || '/';
+                        // Avoid redirect loop if already on a public route (e.g., login/register)
+                        if (!this.isPublicRoute(currentPath) && currentPath !== loginUrl) {
                             console.log('Redirecting to login due to authentication failure');
                             window.location.href = `${loginUrl}?next=${encodeURIComponent(currentUrl)}`;
+                        } else {
+                            console.log('401 on public route; skipping login redirect');
                         }
                     } catch (e) {
                         console.error('Error during login redirect:', e);

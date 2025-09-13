@@ -23,6 +23,35 @@
     font-size: 0.75rem;
 }
 
+/* New: icon avatar used when images are removed */
+.plan-avatar {
+    width: 40px;
+    height: 40px;
+    min-width: 40px;
+}
+
+.plan-avatar i {
+    font-size: 1rem;
+}
+
+.plan-avatar-lg {
+    width: 60px;
+    height: 60px;
+    min-width: 60px;
+    border-radius: 12px !important;
+}
+
+.plan-avatar-lg i {
+    font-size: 1.25rem;
+}
+
+.info-tile {
+    padding: 0.75rem 1rem;
+    border: 1px solid #e9ecef;
+    border-radius: 10px;
+    background: #fff;
+}
+
 /* Dashboard Styles */
 .dashboard-card {
     border-radius: 15px;

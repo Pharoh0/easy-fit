@@ -10,8 +10,8 @@ const utils = {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#039;');
     },
-    // Format currency based on locale
-    formatCurrency: function(amount, locale = 'en-US', currency = 'USD') {
+    // Format currency based on locale (default: EGP)
+    formatCurrency: function(amount, locale = 'en-EG', currency = 'EGP') {
         if (typeof amount !== 'number') {
             amount = parseFloat(amount) || 0;
         }

@@ -342,7 +342,7 @@ class CoachAnalyticsAPI {
                 },{
                     label:'Cancelled', value: subscriptions.cancelled_subscriptions, icon:'bi-x-circle'
                 },{
-                    label:'Avg Price', value: (typeof subscriptions.avg_price === 'number' ? subscriptions.avg_price.toFixed(2) : subscriptions.avg_price), icon:'bi-currency-dollar'
+                    label:'Avg Price', value: (typeof subscriptions.avg_price === 'number' ? subscriptions.avg_price.toFixed(2) : subscriptions.avg_price), icon:'bi-cash-stack'
                 },{
                     label:'Churn', value: (subscriptions.churn_rate || 0) + '%', icon:'bi-arrow-repeat'
                 }].map(k => `
@@ -430,8 +430,8 @@ class CoachAnalyticsAPI {
      * @param {string} currency
      * @returns {string}
      */
-    static formatCurrency(amount, currency = 'USD') {
-        return new Intl.NumberFormat('en-US', {
+    static formatCurrency(amount, currency = 'EGP') {
+        return new Intl.NumberFormat('en-EG', {
             style: 'currency',
             currency,
         }).format(amount);
