@@ -9,12 +9,38 @@ class PlanBrowseManager {
         this.currentPage = 1;
         this.plansPerPage = 12;
         this.selectedPlan = null;
+        // Track plans that the current user is already enrolled in (active or pending)
+        this.enrolledPlanIds = new Set();
         this.init();
     }
 
-    init() {
+    async init() {
         this.bindEvents();
+        await this.loadEnrolledPlans();
         this.loadPlans();
+    }
+
+    async loadEnrolledPlans() {
+        // Try to fetch client's subscriptions to know which plans are already joined
+        try {
+            const token = (window.APIBase && APIBase.getJWTToken) ? APIBase.getJWTToken() : null;
+            if (!token) return; // not logged in, skip
+
+            // Pull subscriptions (all), then filter for active/pending client-side
+            const url = '/plan-management/api/v1/plan-subscriptions/?page_size=200';
+            const resp = await (window.APIBase ? APIBase.request(url, { noRedirectOn401: true }) : api.get(url));
+            const ok = resp && (resp.success || resp.ok);
+            if (!ok) return;
+            const data = resp.success ? resp.data : (await resp.json());
+            const items = data.results || data || [];
+            const eligible = items.filter(s => {
+                const st = (s.status || '').toLowerCase();
+                return st === 'active' || st === 'pending';
+            });
+            this.enrolledPlanIds = new Set(eligible.map(s => (s.product_plan?.id || s.product_plan_id || s.plan_id)).filter(Boolean));
+        } catch (e) {
+            console.warn('Failed to load enrolled plans', e);
+        }
     }
 
     bindEvents() {
@@ -103,18 +129,22 @@ class PlanBrowseManager {
         const col = document.createElement('div');
         col.className = 'col-md-6 col-lg-4 mb-4';
 
+        const alreadyInPlan = this.enrolledPlanIds.has(plan.id);
         col.innerHTML = `
             <div class="card h-100 plan-card" data-plan-id="${plan.id}">
-                <div class="card-img-top position-relative">
-                    <img src="${plan.image || '/static/images/default-plan.jpg'}" 
-                         alt="${plan.name}" class="w-100" style="height: 200px; object-fit: cover;">
-                    <div class="position-absolute top-0 end-0 m-2">
-                        <span class="badge bg-primary">${plan.plan_type}</span>
-                    </div>
-                    ${plan.featured ? '<div class="position-absolute top-0 start-0 m-2"><span class="badge bg-warning">Featured</span></div>' : ''}
-                </div>
                 <div class="card-body d-flex flex-column">
-                    <h5 class="card-title">${plan.name}</h5>
+                    <div class="d-flex align-items-start justify-content-between mb-2">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="plan-avatar bg-primary text-white d-flex align-items-center justify-content-center rounded">
+                                <i class="fas fa-dumbbell"></i>
+                            </div>
+                            <h5 class="card-title mb-0">${plan.name}</h5>
+                        </div>
+                        <div class="text-end">
+                            ${alreadyInPlan ? '<span class="badge bg-success me-1"><i class="fas fa-check-circle me-1"></i>Enrolled</span>' : (plan.featured ? '<span class="badge bg-warning me-1">Featured</span>' : '')}
+                            <span class="badge bg-primary text-uppercase">${plan.plan_type}</span>
+                        </div>
+                    </div>
                     <p class="card-text text-muted flex-grow-1">${plan.description || 'No description available'}</p>
                     
                     <div class="mb-3">
@@ -145,8 +175,8 @@ class PlanBrowseManager {
                         <button class="btn btn-outline-primary btn-sm view-details-btn" data-plan-id="${plan.id}">
                             <i class="fas fa-eye"></i> View Details
                         </button>
-                        <button class="btn btn-primary btn-sm request-plan-btn" data-plan-id="${plan.id}">
-                            <i class="fas fa-paper-plane"></i> Request Plan
+                        <button class="btn btn-primary btn-sm request-plan-btn" data-plan-id="${plan.id}" ${alreadyInPlan ? 'disabled title="You are already in this plan"' : ''}>
+                            <i class="fas fa-paper-plane"></i> ${alreadyInPlan ? 'Already Joined' : 'Request Plan'}
                         </button>
                     </div>
                 </div>
@@ -158,10 +188,13 @@ class PlanBrowseManager {
             this.showPlanDetails(plan.id);
         });
 
-        col.querySelector('.request-plan-btn').addEventListener('click', () => {
-            this.selectedPlan = plan;
-            this.showPlanRequestModal();
-        });
+        const reqBtn = col.querySelector('.request-plan-btn');
+        if (reqBtn && !reqBtn.disabled) {
+            reqBtn.addEventListener('click', () => {
+                this.selectedPlan = plan;
+                this.showPlanRequestModal();
+            });
+        }
 
         return col;
     }
@@ -211,26 +244,40 @@ class PlanBrowseManager {
 
     renderPlanDetails(plan) {
         const content = document.getElementById('planDetailsContent');
+        const alreadyInPlan = this.enrolledPlanIds.has(plan.id);
         content.innerHTML = `
-            <div class="row">
-                <div class="col-md-6">
-                    <img src="${plan.image || '/static/images/default-plan.jpg'}" 
-                         alt="${plan.name}" class="img-fluid rounded mb-3">
-                </div>
-                <div class="col-md-6">
-                    <h4>${plan.name}</h4>
-                    <p class="text-muted">${plan.description || 'No description available'}</p>
-                    
-                    <div class="mb-3">
-                        <h6>Plan Details:</h6>
-                        <ul class="list-unstyled">
-                            <li><strong>Type:</strong> ${plan.plan_type}</li>
-                            <li><strong>Duration:</strong> ${plan.duration_days} days</li>
-                            <li><strong>Price:</strong> ${utils.formatCurrency(plan.price)}</li>
-                            <li><strong>Coach:</strong> ${plan.coach_name}</li>
-                            ${plan.rating_average ? `<li><strong>Rating:</strong> ${this.renderStars(plan.rating_average)} (${plan.rating_count} reviews)</li>` : ''}
-                        </ul>
+            <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="plan-avatar-lg bg-primary text-white d-flex align-items-center justify-content-center rounded">
+                        <i class="fas fa-dumbbell"></i>
                     </div>
+                    <div>
+                        <h4 class="mb-1">${plan.name}</h4>
+                        <div>
+                            ${alreadyInPlan ? '<span class="badge bg-success me-1"><i class="fas fa-check-circle me-1"></i>Enrolled</span>' : (plan.featured ? '<span class="badge bg-warning me-1">Featured</span>' : '')}
+                            <span class="badge bg-primary text-uppercase">${plan.plan_type}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-end">
+                    ${plan.rating_average ? `<div class="mb-1">${this.renderStars(plan.rating_average)} <small class="text-muted">(${plan.rating_count} reviews)</small></div>` : ''}
+                    <div class="fs-5 fw-bold text-primary">${utils.formatCurrency(plan.price)}</div>
+                </div>
+            </div>
+            ${alreadyInPlan ? '<div class="alert alert-success d-flex align-items-center gap-2 mt-3 mb-0"><i class="fas fa-info-circle"></i><div>You are already subscribed to this plan.</div></div>' : ''}
+            <p class="text-muted mt-3">${plan.description || 'No description available'}</p>
+            <div class="row g-3 mb-2">
+                <div class="col-sm-6 col-lg-3">
+                    <div class="info-tile"><small class="text-muted">Coach</small><div class="fw-semibold">${plan.coach_name}</div></div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="info-tile"><small class="text-muted">Duration</small><div class="fw-semibold">${plan.duration_days} days</div></div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="info-tile"><small class="text-muted">Type</small><div class="fw-semibold text-uppercase">${plan.plan_type}</div></div>
+                </div>
+                <div class="col-sm-6 col-lg-3">
+                    <div class="info-tile"><small class="text-muted">Price</small><div class="fw-semibold text-primary">${utils.formatCurrency(plan.price)}</div></div>
                 </div>
             </div>
             
@@ -269,9 +316,23 @@ class PlanBrowseManager {
                     <a class="btn btn-outline-primary btn-sm" id="viewAllReviewsBtn" href="/plan-management/client/ratings/?tab=all-ratings&plan_id=${plan.id}" target="_self">View All Reviews</a>
                 </div>
             </div>
-        `;
+    `;
 
         this.selectedPlan = plan;
+
+        // Toggle modal request button state based on enrollment
+        const reqBtn = document.getElementById('requestPlanBtn');
+        if (reqBtn) {
+            if (alreadyInPlan) {
+                reqBtn.disabled = true;
+                reqBtn.innerHTML = '<i class="fas fa-check-circle"></i> Already in this plan';
+                reqBtn.title = 'You are already subscribed to this plan';
+            } else {
+                reqBtn.disabled = false;
+                reqBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Request This Plan';
+                reqBtn.title = '';
+            }
+        }
     }
 
     async loadPlanReviews(planId) {
@@ -318,6 +379,12 @@ class PlanBrowseManager {
     async showPlanRequestModal() {
         if (!this.selectedPlan) {
             utils.showToast('Please select a plan first', 'warning');
+            return;
+        }
+
+        // If already joined, block and inform
+        if (this.enrolledPlanIds && this.enrolledPlanIds.has(this.selectedPlan.id)) {
+            utils.showToast('You are already subscribed to this plan.', 'info');
             return;
         }
 
