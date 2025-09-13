@@ -1,11 +1,13 @@
-from django.core.mail import send_mail
-from django.template.loader import render_to_string
-from django.conf import settings
-from django.utils import timezone
-from .models import PlanNotification, EmailQueue
+import logging
 import uuid
 from datetime import timedelta
-import logging
+
+from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.utils import timezone
+
+from .models import PlanNotification, EmailQueue
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +52,13 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         try:
             subject = render_to_string(f'plan_management/emails/{notification_type}_subject.txt', context).strip()
             html_content = render_to_string(f'plan_management/emails/{notification_type}.html', context)
+            text_content = render_to_string(f'plan_management/emails/{notification_type}.txt', context)
         except Exception as template_error:
             logger.error(f"Template rendering error for {notification_type}: {template_error}")
             # Use fallback templates
             subject = f"Plan {notification_type.replace('_', ' ').title()} - {context['plan_name']}"
             html_content = render_to_string('plan_management/emails/default_notification.html', context)
+            text_content = render_to_string('plan_management/emails/default_notification.txt', context)
         
         # Update notification with rendered content
         notification.subject = subject
@@ -62,13 +66,16 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         notification.save()
         
         # Add to email queue
-        EmailQueue.objects.create(
+        email_queue = EmailQueue.objects.create(
             notification=notification,
             priority=get_notification_priority(notification_type),
-            scheduled_send_time=timezone.now()
+            scheduled_send_time=timezone.now(),
+            status='pending',
+            retry_count=0,
+            last_attempt=timezone.now()
         )
         
-        logger.info(f"Notification queued: {notification_type} for {subscription.client.email}")
+        logger.info(f"Notification queued: {notification_type} for {subscription.client.email} (Queue ID: {email_queue.id})")
         return notification
         
     except Exception as e:
@@ -199,45 +206,91 @@ def get_notification_priority(notification_type):
 
 def process_email_queue():
     """Process queued emails - to be called by a management command or celery task"""
-    from .models import EmailQueue
-    
-    # Get queued emails ready to be sent
+    # Get pending emails, ordered by priority (high to low) and creation time (oldest first)
     queued_emails = EmailQueue.objects.filter(
-        status='queued',
+        status='pending',
         scheduled_send_time__lte=timezone.now()
-    ).order_by('priority', 'scheduled_send_time')[:10]  # Process 10 at a time
+    ).order_by('-priority', 'created_at').select_related('notification')[:50]  # Process in batches of 50
     
-    for queue_item in queued_emails:
+    success_count = 0
+    error_count = 0
+    
+    for email in queued_emails:
         try:
-            queue_item.status = 'processing'
-            queue_item.save()
+            # Update status to processing
+            email.status = 'processing'
+            email.last_attempt = timezone.now()
+            email.save(update_fields=['status', 'last_attempt'])
             
-            notification = queue_item.notification
+            # Get text content (fallback to HTML if not available)
+            text_content = getattr(email.notification, 'text_content', None)
+            if not text_content:
+                text_content = 'Please enable HTML to view this email.'
             
-            # Check if user has notification preferences
-            user_prefs = getattr(notification.subscription.client, 'notification_preferences', None)
-            if user_prefs and not should_send_notification(notification.notification_type, user_prefs):
-                queue_item.status = 'cancelled'
-                queue_item.save()
-                continue
-            
-            # Send the email
-            send_mail(
-                subject=notification.subject,
-                message='',  # Plain text version can be added later
-                html_message=notification.email_content,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@eazyfit.com'),
-                recipient_list=[notification.recipient_email],
-                fail_silently=False,
+            # Send email using EmailMultiAlternatives for better control
+            msg = EmailMultiAlternatives(
+                subject=email.notification.subject,
+                body=text_content,
+                from_email=settings.DEFAULT_FROM_EMAIL,
+                to=[email.notification.recipient_email],
+                reply_to=[settings.REPLY_TO_EMAIL] if hasattr(settings, 'REPLY_TO_EMAIL') else None,
+                headers={
+                    'X-Auto-Response-Suppress': 'OOF, AutoReply',
+                    'Precedence': 'bulk',
+                }
             )
             
+            # Attach HTML version
+            msg.attach_alternative(email.notification.email_content, "text/html")
+            
+            # Send the email
+            msg.send(fail_silently=False)
+            
             # Mark as sent
-            queue_item.mark_as_sent()
-            logger.info(f"Email sent successfully to {notification.recipient_email}")
+            email.status = 'sent'
+            email.sent_at = timezone.now()
+            email.save(update_fields=['status', 'sent_at'])
+            success_count += 1
+            
+            logger.info(f"Successfully sent email {email.id} to {email.notification.recipient_email}")
             
         except Exception as e:
-            logger.error(f"Error sending email to {queue_item.notification.recipient_email}: {e}")
-            queue_item.mark_as_failed(str(e))
+            error_msg = str(e)
+            logger.error(f"Error sending email {email.id}: {error_msg}", exc_info=True)
+            
+            email.status = 'failed'
+            email.error_message = error_msg[:500]  # Truncate error message
+            email.retry_count = (email.retry_count or 0) + 1
+            
+            # Calculate next retry time with exponential backoff (max 24h delay)
+            if email.retry_count < 5:  # Max 5 retries
+                delay_minutes = min(60 * 24, 5 * (2 ** (email.retry_count - 1)))  # 5, 10, 20, 40, 60 minutes
+                email.scheduled_send_time = timezone.now() + timedelta(minutes=delay_minutes)
+                email.status = 'pending'
+                logger.warning(
+                    f"Email {email.id} will be retried in {delay_minutes} minutes "
+                    f"(attempt {email.retry_count}/5)"
+                )
+            
+            email.save(update_fields=[
+                'status', 'error_message', 'retry_count', 
+                'scheduled_send_time', 'last_attempt'
+            ])
+            error_count += 1
+    
+    stats = {
+        'processed': len(queued_emails),
+        'success': success_count,
+        'errors': error_count,
+        'pending': EmailQueue.objects.filter(status='pending').count()
+    }
+    
+    if stats['errors'] > 0:
+        logger.warning(f"Email processing completed with {stats['errors']} errors: {stats}")
+    else:
+        logger.info(f"Email processing completed: {stats}")
+    
+    return stats
 
 
 def should_send_notification(notification_type, user_prefs):

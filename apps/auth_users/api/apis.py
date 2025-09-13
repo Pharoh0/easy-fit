@@ -18,7 +18,10 @@ from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 
 from django.contrib.auth.tokens import default_token_generator
-from django.core.mail import send_mail
+import logging
+from django.core.mail import send_mail, EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.urls import reverse
@@ -61,32 +64,55 @@ def _build_verification_link(request, user: User) -> str:
     return request.build_absolute_uri(f"{verify_path}?uid={uid}&token={token}")
 
 def _send_verification_email(request, user: User, code: str) -> None:
+    """Send verification email with code and verification link."""
     subject = 'Verify your Eazy Fit account'
     link = _build_verification_link(request, user)
-    # Always print the code and link to the server console for easy copying during development
-    # Remove or guard with settings.DEBUG in production environments.
+    
+    # Debug output in development
+    if settings.DEBUG:
+        try:
+            print("\n=== EMAIL VERIFICATION (DEV) ===")
+            print(f"To      : {user.email} ({user.username})")
+            print(f"Code    : {code}")
+            print(f"Link    : {link}")
+            print("=== END EMAIL VERIFICATION ===\n")
+        except Exception as e:
+            print(f"Debug output error: {e}")
+    
+    # Email context
+    context = {
+        'user': user,
+        'verification_code': code,
+        'verification_link': link,
+        'expiry_minutes': VERIFICATION_CODE_EXPIRY_MINUTES,
+        'site_name': getattr(settings, 'SITE_NAME', 'Eazy Fit'),
+        'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
+    }
+    
+    # Render both plain text and HTML versions
+    message_plain = render_to_string('emails/verification_email.txt', context)
+    message_html = render_to_string('emails/verification_email.html', context)
+    
+    from_email = settings.DEFAULT_FROM_EMAIL
+    recipient_list = [user.email]
+    
     try:
-        print("\n=== EMAIL VERIFICATION (DEV) ===")
-        print(f"To      : {user.email} ({user.username})")
-        print(f"Code    : {code}")
-        print(f"Link    : {link}")
-        print("=== END EMAIL VERIFICATION ===\n")
-    except Exception:
-        pass
-    message = (
-        f"Hello {user.first_name or user.username},\n\n"
-        f"Welcome to Eazy Fit! To complete your signup, please verify your email.\n\n"
-        f"Your verification code: {code}\n\n"
-        f"Or verify instantly by clicking this link:\n{link}\n\n"
-        f"This code/link will expire in {VERIFICATION_CODE_EXPIRY_MINUTES} minutes.\n\n"
-        "If you didn't request this, you can ignore this email."
-    )
-    from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'no-reply@eazyfit.local')
-    try:
-        send_mail(subject, message, from_email, [user.email], fail_silently=True)
+        # Send email using EmailMultiAlternatives to support HTML
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=message_plain,
+            from_email=from_email,
+            to=recipient_list,
+            reply_to=[from_email],
+        )
+        msg.attach_alternative(message_html, "text/html")
+        msg.send(fail_silently=False)
+        
     except Exception as e:
-        # Avoid breaking the flow in development; log instead
-        print('Failed to send verification email:', e)
+        # Log the error but don't break the flow in production
+        logger.error(f"Failed to send verification email to {user.email}: {str(e)}")
+        if settings.DEBUG:
+            raise  # Re-raise in development for debugging
 
 class CustomTokenRefreshView(TokenRefreshView):
     def post(self, request, *args, **kwargs):

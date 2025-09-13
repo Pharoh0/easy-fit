@@ -59,8 +59,9 @@ section {
 }
 
 .navbar-scrolled .navbar-brand,
-.navbar-scrolled .nav-link {
-  color: var(--dark);
+.navbar-scrolled .nav-link,
+.navbar-scrolled .navbar-nav .nav-link {
+  color: var(--dark, #2b2d42) !important;
 }
 
 .logo {
@@ -88,8 +89,38 @@ section {
   color: rgba(255, 255, 255, 0.8);
 }
 
-.navbar-scrolled .nav-link:hover {
-  color: var(--primary);
+.navbar-scrolled .nav-link:hover,
+.navbar-scrolled .navbar-nav .nav-link:hover {
+  color: var(--primary, #4361ee) !important;
+}
+
+/* Scrolled navbar button styles */
+.navbar-scrolled .login-btn {
+  color: var(--dark) !important;
+}
+
+.navbar-scrolled .login-btn:hover {
+  color: var(--primary) !important;
+}
+
+.navbar-scrolled .signup-btn {
+  background-color: var(--primary) !important;
+  border-color: var(--primary) !important;
+  color: white !important;
+}
+
+.navbar-scrolled .signup-btn:hover {
+  background-color: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+/* Navbar toggler for mobile in scrolled state */
+.navbar-scrolled .navbar-toggler {
+  border-color: var(--dark) !important;
+}
+
+.navbar-scrolled .navbar-toggler-icon {
+  background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%2833, 37, 41, 0.75%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e") !important;
 }
 
 .login-btn {
