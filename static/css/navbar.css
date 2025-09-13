@@ -2,49 +2,12 @@
 .modern-navbar {
     background-color: #ffffff;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-    padding: 0.75rem 1rem;
+    padding: 0.75rem 1rem; /* Back to original padding */
     position: sticky;
     top: 0;
     z-index: 1000;
     height: auto;
-    min-height: 70px;
-    overflow: visible !important; /* Ensure dropdowns can overflow */
-}
-
-/* Ensure dropdown menus can extend beyond their containers */
-.dropdown-menu {
-    z-index: 1080 !important; /* Higher than default */
-    position: absolute !important;
-    margin: 0;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
-    min-width: 280px;
-    border: none;
-    border-radius: 0.5rem;
-    padding: 0.5rem 0;
-    overflow: visible !important;
-}
-
-/* Fix for dropdown positioning */
-.dropdown {
-    position: static !important;
-}
-
-/* Ensure dropdowns in the navbar can extend beyond their containers */
-.navbar-collapse {
-    overflow: visible !important;
-}
-
-/* Fix for dropdown items */
-.dropdown-item {
-    padding: 0.5rem 1.5rem;
-    font-size: 0.9rem;
-    transition: all 0.2s ease;
-}
-
-.dropdown-item:hover, .dropdown-item:focus {
-    background-color: #f8f9fa;
-    color: #16181b;
-    transform: translateX(3px);
+    min-height: 70px; /* Back to original height */
 }
 
 .modern-navbar .container {
