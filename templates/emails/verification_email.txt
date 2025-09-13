@@ -1,0 +1,16 @@
+Hello {{ user.first_name|default:user.username }},
+
+Welcome to {{ site_name }}! To complete your signup, please verify your email address.
+
+Your verification code: {{ verification_code }}
+
+Or verify instantly by clicking this link:
+{{ verification_link }}
+
+This code/link will expire in {{ expiry_minutes }} minutes.
+
+If you didn't request this, you can safely ignore this email.
+
+Best regards,
+The {{ site_name }} Team
+{{ site_url }}

@@ -40,6 +40,12 @@
             <div class="d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-funnel me-2"></i>Dashboard Filters</h5>
                 <div class="d-flex align-items-center">
+                    <button class="btn btn-outline-secondary btn-sm me-2" id="btnExportDashboardCSV" title="Download CSV report">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i> CSV
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm me-2" id="btnExportPDF" title="Download PDF report">
+                        <i class="bi bi-filetype-pdf me-1"></i> PDF
+                    </button>
                     <button class="btn btn-primary btn-sm me-2" id="btnApplyFilters">
                         <i class="bi bi-check2-circle me-1"></i> Apply Filters
                     </button>
@@ -64,28 +70,28 @@
             </div>
         </div>
         <div class="card-body" id="filterBody">
-            <div class="row">
+            <div class="row g-3">
                 <!-- Time Period -->
                 <div class="col-md-3 mb-3">
                     <label class="form-label"><i class="bi bi-calendar3 me-2"></i>Time Period</label>
-                    <div class="btn-group d-flex" role="group">
+                    <div class="d-flex flex-wrap gap-2 time-period-group" role="group" aria-label="Time period">
                         <input type="radio" class="btn-check" name="timePeriod" id="allTime" autocomplete="off" checked>
-                        <label class="btn btn-outline-secondary" for="allTime">All Time</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="allTime">All Time</label>
 
                         <input type="radio" class="btn-check" name="timePeriod" id="7days" autocomplete="off">
-                        <label class="btn btn-outline-secondary" for="7days">7 Days</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="7days">7 Days</label>
 
                         <input type="radio" class="btn-check" name="timePeriod" id="30days" autocomplete="off">
-                        <label class="btn btn-outline-secondary" for="30days">30 Days</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="30days">30 Days</label>
 
                         <input type="radio" class="btn-check" name="timePeriod" id="90days" autocomplete="off">
-                        <label class="btn btn-outline-secondary" for="90days">90 Days</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="90days">90 Days</label>
 
                         <input type="radio" class="btn-check" name="timePeriod" id="thisYear" autocomplete="off">
-                        <label class="btn btn-outline-secondary" for="thisYear">This Year</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="thisYear">This Year</label>
 
                         <input type="radio" class="btn-check" name="timePeriod" id="customRange" autocomplete="off">
-                        <label class="btn btn-outline-secondary" for="customRange">Custom Range</label>
+                        <label class="btn btn-sm btn-outline-secondary" for="customRange">Custom Range</label>
                     </div>
                 </div>
                 
@@ -118,37 +124,8 @@
                         </ul>
                     </div>
                 </div>
-
-                <!-- Client Segments -->
-                <div class="col-md-3 mb-3">
-                    <label class="form-label"><i class="bi bi-people me-2"></i>All segments</label>
-                    <div class="dropdown w-100">
-                        <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="segmentsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                            All segments<span class="badge bg-primary rounded-pill ms-2 filter-count">All</span>
-                        </button>
-                        <ul class="dropdown-menu w-100 segments-menu" aria-labelledby="segmentsDropdown">
-                            <li><a class="dropdown-item" href="#" data-value="all">All segments</a></li>
-                            <li><a class="dropdown-item" href="#" data-value="active">Active clients</a></li>
-                            <li><a class="dropdown-item" href="#" data-value="new">New clients (< 30 days)</a></li>
-                            <li><a class="dropdown-item" href="#" data-value="at-risk">At risk (no activity > 14 days)</a></li>
-                            <li><a class="dropdown-item" href="#" data-value="inactive">Inactive (no activity > 30 days)</a></li>
-                        </ul>
-                    </div>
-                </div>
-                
-                <!-- Search Clients -->
-                <div class="col-12 mb-3">
-                    <label class="form-label"><i class="bi bi-search me-2"></i>Search Clients</label>
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="searchClients" placeholder="Enter client name or ID">
-                        <button class="btn btn-outline-secondary" type="button" id="btnSearch">
-                            <i class="bi bi-search"></i>
-                        </button>
-                    </div>
-                </div>
-
                 <!-- Client (specific) -->
-                <div class="col-12 mb-3">
+                <div class="col-md-3 mb-3">
                     <label class="form-label"><i class="bi bi-person-check me-2"></i>Client</label>
                     <div class="dropdown w-100">
                         <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start" type="button" id="clientsDropdown" data-bs-toggle="dropdown" aria-expanded="false">
