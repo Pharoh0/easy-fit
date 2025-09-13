@@ -19,7 +19,7 @@ function setupImagePreviews() {
     
     // Avatar preview
     const avatarInput = document.getElementById('avatar');
-    const avatarPreview = document.getElementById('avatar-preview');
+    let avatarPreview = document.getElementById('avatar-preview');
     
     if (avatarInput && avatarPreview) {
         avatarInput.addEventListener('change', function() {
@@ -49,37 +49,7 @@ function setupImagePreviews() {
         console.log('Avatar input or preview elements not found');
     }
     
-    // Cover image preview
-    const coverInput = document.getElementById('cover_image');
-    const coverPreview = document.getElementById('cover-preview');
-    
-    if (coverInput && coverPreview) {
-        coverInput.addEventListener('change', function() {
-            if (this.files && this.files[0]) {
-                const reader = new FileReader();
-                
-                reader.onload = function(e) {
-                    // If there's a default cover placeholder, replace it with an img
-                    if (coverPreview.tagName.toLowerCase() !== 'img') {
-                        const img = document.createElement('img');
-                        img.id = 'cover-preview';
-                        img.classList.add('current-cover');
-                        img.alt = 'Cover image';
-                        coverPreview.parentNode.replaceChild(img, coverPreview);
-                        coverPreview = img;
-                    }
-                    
-                    // Set the preview image source
-                    coverPreview.src = e.target.result;
-                };
-                
-                reader.readAsDataURL(this.files[0]);
-            }
-        });
-        console.log('Cover image preview setup complete');
-    } else {
-        console.log('Cover image input or preview elements not found');
-    }
+    // Cover image functionality removed
 }
 
 /**
@@ -279,11 +249,6 @@ function populateForm(profile) {
         displayImagePreview('avatar-preview', profile.avatar);
         console.log('Set avatar preview to', profile.avatar);
     }
-    
-    if (profile.cover_image) {
-        displayImagePreview('cover-preview', profile.cover_image);
-        console.log('Set cover image preview to', profile.cover_image);
-    }
 }
 
 /**
@@ -312,23 +277,6 @@ function displayImagePreview(previewId, imageUrl) {
             imgElement.src = imageUrl;
             imgElement.alt = 'Profile avatar';
             imgElement.className = 'current-avatar';
-            previewElement.appendChild(imgElement);
-        }
-    } else if (previewId === 'cover-preview') {
-        // For cover image preview
-        if (previewElement.tagName === 'IMG') {
-            // If it's already an img element
-            previewElement.src = imageUrl;
-            previewElement.style.display = 'block';
-            previewElement.classList.add('current-cover');
-        } else {
-            // Clear any default content
-            previewElement.innerHTML = '';
-            // Create image element
-            const imgElement = document.createElement('img');
-            imgElement.src = imageUrl;
-            imgElement.alt = 'Cover image';
-            imgElement.className = 'current-cover';
             previewElement.appendChild(imgElement);
         }
     }
@@ -418,14 +366,12 @@ async function saveProfile() {
         
         // Check if we have file inputs with files selected
         const avatarInput = document.getElementById('avatar');
-        const coverImageInput = document.getElementById('cover_image');
         const hasAvatarFile = avatarInput && avatarInput.files && avatarInput.files.length > 0;
-        const hasCoverFile = coverImageInput && coverImageInput.files && coverImageInput.files.length > 0;
         
         // Determine if we need to use FormData (for files) or JSON (for text-only updates)
-        const useFormData = hasAvatarFile || hasCoverFile;
+        const useFormData = hasAvatarFile;
         
-        console.log('File inputs detected:', { hasAvatarFile, hasCoverFile });
+        console.log('File inputs detected:', { hasAvatarFile });
         console.log('Using FormData for submission:', useFormData);
         
         // Get the basic form data (text fields)
@@ -463,10 +409,6 @@ async function saveProfile() {
             // Add files if selected
             if (hasAvatarFile) {
                 formData.append('avatar', avatarInput.files[0]);
-            }
-            
-            if (hasCoverFile) {
-                formData.append('cover_image', coverImageInput.files[0]);
             }
             
             console.log('Sending FormData with files');

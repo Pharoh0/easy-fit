@@ -28,6 +28,47 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeProfilePage();
 });
 
+// In case this script loads after DOMContentLoaded, run immediately
+if (document.readyState !== 'loading') {
+    try { initializeProfilePage(); } catch (e) { console.error('Init error:', e); }
+}
+
+/**
+ * Normalize relative media URLs (e.g., "clients/avatars/x.jpg") to web-accessible paths
+ * - If url starts with http(s) or '/', return as-is
+ * - Otherwise, prefix with '/media/'
+ */
+function resolveImageUrl(url) {
+    if (!url) return url;
+    try {
+        // If DRF returned an object-like value (rare), pick .url
+        if (typeof url === 'object' && url !== null) {
+            if (url.url) url = url.url;
+        }
+        // Normalize to string and fix backslashes (Windows paths)
+        let s = String(url).replace(/\\/g, '/');
+        // If already absolute or root-relative, return as-is
+        if (s.startsWith('http://') || s.startsWith('https://') || s.startsWith('/')) {
+            return s;
+        }
+        // If starts with 'media/', just ensure leading slash
+        if (s.startsWith('media/')) {
+            return '/' + s;
+        }
+        // If the string contains '/media/' anywhere (e.g., absolute filesystem path),
+        // extract the portion after the last '/media/' occurrence
+        const mediaIdx = s.lastIndexOf('/media/');
+        if (mediaIdx !== -1) {
+            const tail = s.substring(mediaIdx + 7); // after '/media/'
+            return '/media/' + tail.replace(/^\/+/, '');
+        }
+        // Otherwise treat as relative storage path under MEDIA_URL
+        return '/media/' + s.replace(/^\/+/, '');
+    } catch (e) {
+        return url;
+    }
+}
+
 /**
  * Initialize the client profile page
  */
@@ -131,11 +172,19 @@ async function fetchClientProfile() {
             console.log('Trying alternative endpoints...');
             
             try {
-                // Try first alternative
-                // Get JWT access token
+                // Prefer the dedicated action that returns a single object
+                const altMyProfile = await fetchAPI('client-profile/my_profile/', 'GET');
+                if (altMyProfile && typeof altMyProfile === 'object' && altMyProfile.id) {
+                    return altMyProfile;
+                }
+            } catch (innerError) {
+                console.warn('my_profile endpoint fallback failed:', innerError);
+            }
+            
+            try {
+                // Fallback to direct fetch (non-APIBase) for debugging edge cases
                 const accessToken = localStorage.getItem('access_token');
                 const csrfToken = getCsrfToken();
-                
                 const altResponse = await fetch('/profiles/api/v1/client-profile/', {
                     headers: {
                         'Content-Type': 'application/json',
@@ -144,16 +193,15 @@ async function fetchClientProfile() {
                         ...(accessToken ? {'Authorization': `Bearer ${accessToken}`} : {})
                     }
                 });
-                
                 if (altResponse.ok) {
                     const data = await altResponse.json();
                     return data.results ? data.results[0] : (Array.isArray(data) ? data[0] : data);
                 }
-            } catch (innerError) {
-                console.error('First alternative failed:', innerError);
+            } catch (innerError2) {
+                console.error('List endpoint fallback failed:', innerError2);
             }
             
-            // If we get here, both attempts failed
+            // If we get here, all attempts failed
             throw new Error('No profile data found in any expected format');
             
         }
@@ -203,17 +251,14 @@ function populateProfileData(profile) {
     // Log the profile data structure to help debug
     console.log('Profile data structure:', profile);
     
-    // Get user data from profile, handling different API response formats
-    const user = profile.user || profile;
-    const firstName = user.first_name || user.firstName || '';
-    const lastName = user.last_name || user.lastName || '';
-    const email = user.email || '';
-    const username = user.username || `${firstName} ${lastName}`.trim() || 'User';
+    // Get user data from profile: serializer returns top-level username/email
+    const username = profile.username || 'User';
+    const email = profile.email || '';
     
     // Populate username if element exists
     const usernameElement = document.getElementById('username');
     if (usernameElement) {
-        usernameElement.textContent = `${firstName} ${lastName}`.trim() || username;
+        usernameElement.textContent = username;
     }
     
     // Populate email if element exists
@@ -225,11 +270,41 @@ function populateProfileData(profile) {
     // Populate avatar if container exists
     const avatarContainer = document.getElementById('avatar-container');
     if (avatarContainer) {
-        const avatar = profile.avatar || profile.profile_image || null;
-        if (avatar) {
-            avatarContainer.innerHTML = `<img src="${avatar}" alt="${username}" class="avatar-image shadow">`;
+        // Support multiple possible field names from different serializers
+        const avatarCandidates = [
+            profile.avatar,
+            profile.profile_image,
+            profile.profile_pic,
+            profile.avatar_url,
+            profile.avatarUrl
+        ];
+        console.log('Avatar candidates/raw:', avatarCandidates);
+        const firstNonEmpty = avatarCandidates.find(v => v);
+        const avatarUrl = resolveImageUrl(firstNonEmpty);
+        console.log('Resolved avatarUrl:', avatarUrl);
+        if (avatarUrl) {
+            const fallback = '/static/images/default-avatar.svg';
+            // Preload to avoid brief broken image
+            const img = new Image();
+            img.alt = username;
+            img.className = 'avatar-image shadow';
+            img.setAttribute('data-username', username);
+            img.onload = function() {
+                avatarContainer.innerHTML = '';
+                avatarContainer.appendChild(img);
+            };
+            img.onerror = function() {
+                console.warn('Avatar failed to load, using fallback:', avatarUrl);
+                this.onerror = null;
+                this.src = fallback;
+                avatarContainer.innerHTML = '';
+                avatarContainer.appendChild(img);
+            };
+            img.src = avatarUrl;
         } else {
-            avatarContainer.innerHTML = `<div class="default-avatar shadow"><i class="fas fa-user"></i></div>`;
+            // Fallback to static default
+            const fallback = '/static/images/default-avatar.svg';
+            avatarContainer.innerHTML = `<img src="${fallback}" alt="${username}" data-username="${username}" class="avatar-image shadow">`;
         }
         
         // Add hover effect class
@@ -243,8 +318,9 @@ function populateProfileData(profile) {
     const coverContainer = document.getElementById('cover-image-container');
     if (coverContainer) {
         const coverImage = profile.cover_image || profile.coverImage || null;
-        if (coverImage) {
-            coverContainer.innerHTML = `<img src="${coverImage}" alt="Cover Image" class="cover-image">`;
+        const coverUrl = resolveImageUrl(coverImage);
+        if (coverUrl) {
+            coverContainer.innerHTML = `<img src="${coverUrl}" alt="Cover Image" class="cover-image">`;
         } else {
             // Add a default gradient if no cover image
             coverContainer.classList.add('default-cover');
@@ -254,7 +330,7 @@ function populateProfileData(profile) {
     // Update profile name in header
     const profileNameElement = document.getElementById('profile-name');
     if (profileNameElement) {
-        profileNameElement.textContent = `${firstName} ${lastName}`.trim() || username;
+        profileNameElement.textContent = username;
     }
     
     // Populate client info
@@ -1667,14 +1743,19 @@ async function loadPlansAndSessions() {
             return;
         }
         
-        // Fetch plans and sessions data (using subscriptions as plans for now)
-        const [subscriptions, sessions] = await Promise.all([
-            fetchAPI('client-subscriptions/', 'GET'),
-            fetchAPI('client-sessions/', 'GET') // This endpoint may need to be created
-        ]);
+        // Fetch subscriptions data (sessions endpoint removed as it doesn't exist)
+        let subscriptions = [];
+        try {
+            const response = await fetchAPI('client-subscriptions/', 'GET');
+            if (response && Array.isArray(response)) {
+                subscriptions = response;
+            }
+        } catch (error) {
+            console.warn('Failed to load subscriptions:', error);
+        }
         
-        // Load Plans
-        if (subscriptions && subscriptions.length > 0) {
+        // Load Subscriptions (previously called Plans)
+        if (subscriptions.length > 0) {
             plansContainer.innerHTML = '';
             
             subscriptions.forEach(subscription => {

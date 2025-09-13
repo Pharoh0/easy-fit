@@ -13,13 +13,14 @@ User = get_user_model()
 class ClientProfileSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField()
     email = serializers.SerializerMethodField()
+    avatar_url = serializers.SerializerMethodField()
     
     class Meta:
         model = ClientProfile
         fields = [
             'id', 'username', 'email', 'age', 'gender', 'height', 'weight', 'bmi', 
             'body_fat_percentage', 'health_conditions', 'fitness_goals', 
-            'dietary_preferences', 'allergies', 'avatar', 'cover_image',
+            'dietary_preferences', 'allergies', 'avatar', 'avatar_url', 'cover_image',
             'instagram', 'facebook', 'twitter', 'activity_level',
             'last_measurement_date', 'created_at', 'updated_at',
         ]
@@ -34,6 +35,21 @@ class ClientProfileSerializer(serializers.ModelSerializer):
     
     def get_email(self, obj):
         return obj.user.email
+
+    def get_avatar_url(self, obj):
+        try:
+            if obj.avatar and hasattr(obj.avatar, 'url'):
+                url = obj.avatar.url
+                request = self.context.get('request') if hasattr(self, 'context') else None
+                if request is not None:
+                    try:
+                        return request.build_absolute_uri(url)
+                    except Exception:
+                        return url
+                return url
+        except Exception:
+            pass
+        return None
 
     def update(self, instance, validated_data):
         # Check if avatar is in the validated data

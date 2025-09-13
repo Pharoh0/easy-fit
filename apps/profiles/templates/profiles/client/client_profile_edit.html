@@ -3,7 +3,7 @@
 
 {% block title %}Edit Profile | Eazy Fit{% endblock %}
 
-{% block extra_head %}
+{% block extra_css %}
     <link rel="stylesheet" href="{% static 'profiles/css/client/client_profile_edit.css' %}">
 {% endblock %}
 
@@ -170,27 +170,6 @@
                                 <small class="form-text text-muted">Recommended size: 300x300 pixels. Maximum size: 2MB.</small>
                                 {% if errors.avatar %}
                                 <div class="text-danger">{{ errors.avatar.0 }}</div>
-                                {% endif %}
-                            </div>
-                        </div>
-                        
-                        <!-- Cover Image -->
-                        <div class="mb-4">
-                            <label class="form-label">Cover Image</label>
-                            <div class="cover-preview">
-                                {% if profile.cover_image %}
-                                    <img src="{{ profile.cover_image.url }}" alt="Cover image" class="current-cover" id="cover-preview">
-                                {% else %}
-                                    <div class="default-cover" id="cover-preview">
-                                        <i class="fas fa-image"></i>
-                                    </div>
-                                {% endif %}
-                            </div>
-                            <div class="mt-2">
-                                <input type="file" class="form-control" id="cover_image" name="cover_image" accept="image/*">
-                                <small class="form-text text-muted">Recommended size: 1200x300 pixels. Maximum size: 5MB.</small>
-                                {% if errors.cover_image %}
-                                <div class="text-danger">{{ errors.cover_image.0 }}</div>
                                 {% endif %}
                             </div>
                         </div>

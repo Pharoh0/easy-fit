@@ -84,8 +84,8 @@
     border: 1px solid #ced4da;
 }
 
-/* Avatar and Cover previews */
-.avatar-preview, .cover-preview {
+/* Avatar preview */
+.avatar-preview {
     margin-bottom: 15px;
     display: flex;
     justify-content: center;
@@ -109,23 +109,7 @@
     object-fit: cover;
 }
 
-.current-cover, .default-cover {
-    width: 100%;
-    height: 150px;
-    border-radius: 10px;
-    background-color: #f8f9fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 50px;
-    color: #6c757d;
-    border: 1px solid #ced4da;
-    overflow: hidden;
-}
-
-.current-cover {
-    object-fit: cover;
-}
+/* Cover styles removed */
 
 .form-text {
     display: block;
@@ -187,7 +171,7 @@
         margin-bottom: 10px;
     }
 
-    .avatar-preview, .cover-preview {
+    .avatar-preview {
         margin-bottom: 20px;
     }
 }
