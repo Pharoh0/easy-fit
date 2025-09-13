@@ -8,25 +8,319 @@
 <style>
   .status-badge { font-size: 0.85rem; }
   /* Filters bar styling */
-  .filters-bar { background: #f8f9fa; border-radius: .5rem; padding: .5rem .75rem; }
-  .filters-bar .form-select { min-width: 160px; }
+  .filters-bar { background: #f8f9fa; border-radius: .5rem; padding: .75rem 1rem; }
+  .filters-bar .form-select, .filters-bar .form-control { min-width: 160px; }
+  .filters-bar .form-check-input { cursor: pointer; }
+  .filters-bar .btn { white-space: nowrap; }
   /* DataTable polish */
   table.dataTable > thead > tr > th { white-space: nowrap; }
   table.dataTable td { vertical-align: middle; }
+  /* KPI cards */
+  .kpi-card .kpi-value { font-size: 1.5rem; font-weight: 600; }
+  .kpi-card .kpi-label { color: #6c757d; }
+  /* Chart containers */
+  .chart-container { position: relative; height: 280px; }
+  .card-header-actions { display: flex; gap: .5rem; align-items: center; }
+  .hero { background: linear-gradient(135deg, #0d6efd, #6610f2); border-radius: .75rem; color: #fff; }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid py-4">
-  <div class="d-flex justify-content-between align-items-center mb-3">
-    <div>
-      <h1 class="h4 mb-1">My Plans Dashboard</h1>
-      <div class="text-muted">Manage your subscriptions</div>
+  <!-- Hero -->
+  <div class="hero p-4 p-lg-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-start align-items-lg-center">
+      <div class="mb-3 mb-lg-0">
+        <h1 class="h3 mb-1">Welcome to your Dashboard</h1>
+        <div class="text-white-50">Track your progress, goals and plans in one place</div>
+      </div>
+      <div class="d-flex gap-2">
+        <button id="btnApplyFilters" class="btn btn-light"><i class="bi bi-check2-circle me-1"></i>Apply Filters</button>
+        <button id="btnResetFilters" class="btn btn-outline-light"><i class="bi bi-arrow-counterclockwise me-1"></i>Reset</button>
+        <a href="{% url 'plan_management:client_plan_browser' %}" class="btn btn-outline-light">
+          <i class="bi bi-search me-1"></i>Browse Plans
+        </a>
+      </div>
     </div>
-    <div class="d-flex gap-2">
-      <button id="reloadSubs" class="btn btn-outline-primary">
-        <i class="bi bi-arrow-clockwise me-1"></i> Reload
-      </button>
+  </div>
+
+  <!-- Measurements, Plan Stats, Recommendations -->
+  <div class="row g-3 mb-4">
+    <!-- Measurements Snapshot -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-0">Measurements snapshot</h6>
+            <small class="text-muted">Latest weight and body metrics</small>
+          </div>
+          <a href="{% url 'profiles:client_measurements' %}" class="btn btn-sm btn-outline-primary">View all</a>
+        </div>
+        <div class="card-body">
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <div class="text-muted">Weight</div>
+              <div id="mWeight" class="fw-bold">—</div>
+            </div>
+            <div class="col-6">
+              <div class="text-muted">Body fat %</div>
+              <div id="mBodyFat" class="fw-bold">—</div>
+            </div>
+            <div class="col-6">
+              <div class="text-muted">Waist</div>
+              <div id="mWaist" class="fw-bold">—</div>
+            </div>
+            <div class="col-6">
+              <div class="text-muted">Updated</div>
+              <div id="mUpdated" class="fw-bold">—</div>
+            </div>
+          </div>
+          <div class="chart-container" style="height:160px"><canvas id="measurementSparkline"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscription Status -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><h6 class="mb-0">Subscription status</h6></div>
+        <div class="card-body">
+          <div class="chart-container" style="height:200px"><canvas id="subsStatusChart"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recommended Plans/Coaches -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Recommended plans</h6>
+          <a href="{% url 'plan_management:client_plan_browser' %}" class="btn btn-sm btn-outline-secondary">Browse</a>
+        </div>
+        <div class="card-body">
+          <div id="recoContainer" class="vstack gap-3">
+            <div class="text-muted">Loading recommendations…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per-plan progress table -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h6 class="mb-0">Per-plan progress</h6>
+      <small class="text-muted">Quick view of progress across your plans</small>
+    </div>
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="progressTable" class="table table-sm table-striped table-hover w-100">
+          <thead>
+            <tr>
+              <th>Plan</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>Coach</th>
+              <th>Progress</th>
+              <th>Adherence</th>
+              <th>Subscribed On</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="card mb-3">
+    <div class="card-body filters-bar">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-4">
+          <label class="form-label">Date range</label>
+          <div class="d-flex gap-2">
+            <select id="presetRange" class="form-select form-select-sm">
+              <option value="30" selected>Last 30 days</option>
+              <option value="7">Last 7 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">This year</option>
+              <option value="custom">Custom</option>
+            </select>
+            <input type="date" id="dateFrom" class="form-control form-control-sm" disabled>
+            <input type="date" id="dateTo" class="form-control form-control-sm" disabled>
+          </div>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label">Plan type</label>
+          <select id="planTypeFilter" class="form-select form-select-sm">
+            <option value="">All</option>
+            <option value="workout">Workout</option>
+            <option value="diet">Nutrition</option>
+            <option value="hybrid">Hybrid</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Subscription</label>
+          <select id="subscriptionFilter" class="form-select form-select-sm">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <div class="form-check mt-4">
+            <input class="form-check-input" type="checkbox" id="activeOnly">
+            <label class="form-check-label" for="activeOnly">Active only</label>
+          </div>
+        </div>
+        <div class="col-md-1 text-end">
+          <div class="btn-group" role="group">
+            <button class="btn btn-outline-secondary btn-sm dropdown-toggle" data-bs-toggle="dropdown">
+              <i class="bi bi-download me-1"></i>Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              <li><a class="dropdown-item" href="#" id="btnExportExcel"><i class="bi bi-file-earmark-excel me-2"></i>Excel</a></li>
+              <li><a class="dropdown-item" href="#" id="btnExportPDF"><i class="bi bi-file-earmark-pdf me-2"></i>PDF</a></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Today at a glance -->
+  <div class="row g-3 mb-3">
+    <div class="col-lg-8">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div>
+            <h6 class="mb-0">Today at a glance</h6>
+            <small class="text-muted">What is scheduled for today and what you've completed so far</small>
+          </div>
+          <div class="card-header-actions">
+            <button id="btnAddDetails" class="btn btn-sm btn-outline-primary"><i class="bi bi-journal-plus me-1"></i>Add details</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Workouts</div>
+                <div id="todayWorkouts" class="fw-bold">0 / 0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Meals</div>
+                <div id="todayMeals" class="fw-bold">0 / 0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Calories</div>
+                <div id="todayCalories" class="fw-bold">0 / 0</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Water</div>
+                <div id="todayWater" class="fw-bold">0 / 0 L</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Mood</div>
+                <div id="todayMood" class="fw-bold">—</div>
+              </div>
+            </div>
+            <div class="col-6 col-md-3">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted">Energy</div>
+                <div id="todayEnergy" class="fw-bold">—</div>
+              </div>
+            </div>
+            <div class="col-12 col-md-6">
+              <div class="border rounded p-3 h-100">
+                <div class="text-muted mb-1">Next actions</div>
+                <ul id="todayNextActions" class="mb-0 ps-3 small text-muted">
+                  <li>All caught up for today!</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header">
+          <h6 class="mb-0">Last 7 days</h6>
+          <small class="text-muted">Quick summary of your recent consistency</small>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between"><span class="text-muted">Days</span><span id="weekDays">0 completed • 0 missed</span></div>
+          <div class="d-flex justify-content-between"><span class="text-muted">Adherence</span><span id="weekAdherence">0%</span></div>
+          <div class="d-flex justify-content-between"><span class="text-muted">Totals</span><span id="weekTotals">Meals 0 • Workouts 0</span></div>
+          <div class="d-flex justify-content-between"><span class="text-muted">Best streak</span><span id="weekBestStreak">0 days</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="row g-3 mb-3">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card kpi-card h-100"><div class="card-body">
+        <div class="kpi-label">Active subscriptions</div>
+        <div class="kpi-value" id="kpiActiveSubs">--</div>
+        <div class="small text-muted mt-1">Number of your plans currently active</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card kpi-card h-100"><div class="card-body">
+        <div class="kpi-label">Avg completion</div>
+        <div class="kpi-value" id="kpiCompletion">--%</div>
+        <div class="small text-muted mt-1">Average daily completion for the selected period</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card kpi-card h-100"><div class="card-body">
+        <div class="kpi-label">Adherence rate</div>
+        <div class="kpi-value" id="kpiAdherence">--%</div>
+        <div class="small text-muted mt-1">Consistency with scheduled meals and workouts</div>
+      </div></div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card kpi-card h-100"><div class="card-body">
+        <div class="kpi-label">Avg streak</div>
+        <div class="kpi-value" id="kpiStreak">--</div>
+        <div class="small text-muted mt-1">Average number of consecutive completed days</div>
+      </div></div>
+    </div>
+  </div>
+
+  <!-- Charts -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Progress over time</h6>
+        </div>
+        <div class="card-body"><div class="chart-container"><canvas id="progressChart"></canvas></div></div>
+      </div>
+    </div>
+    <div class="col-lg-5">
+      <div class="card h-100">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Completion distribution</h6>
+        </div>
+        <div class="card-body"><div class="chart-container"><canvas id="completionChart"></canvas></div></div>
+      </div>
+      <div class="card h-100 mt-3">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <h6 class="mb-0">Wellness trend</h6>
+        </div>
+        <div class="card-body"><div class="chart-container"><canvas id="wellnessChart"></canvas></div></div>
+      </div>
     </div>
   </div>
 
@@ -34,6 +328,41 @@
   <div id="subsLoading" class="text-center py-4" style="display:none;">
     <div class="spinner-border text-primary" role="status"></div>
     <div class="mt-2 text-muted">Loading subscriptions...</div>
+  </div>
+
+  <!-- Recent activity logs (collapsible) -->
+  <div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <div>
+        <h6 class="mb-0">Recent activity (details)</h6>
+        <small class="text-muted">Daily check-ins power KPIs, charts and reports. Use filters to change period or plan.</small>
+      </div>
+      <div class="card-header-actions">
+        <button id="btnLogToday" class="btn btn-sm btn-primary"><i class="bi bi-plus-circle me-1"></i>Log Today</button>
+        <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#logsCollapse">Toggle details</button>
+      </div>
+    </div>
+    <div id="logsCollapse" class="collapse show">
+      <div class="card-body">
+        <div class="table-responsive">
+          <table id="clientLogsTable" class="table table-striped table-hover w-100">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Plan</th>
+                <th>Completed</th>
+                <th>Meals</th>
+                <th>Workouts</th>
+                <th>Calories</th>
+                <th>Mood</th>
+                <th>Energy</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="card">
@@ -83,5 +412,6 @@
 <script src="{% static 'vendor/jquery/jquery-3.7.1.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
+<script src="{% static 'vendor/chartjs/chart.min.js' %}"></script>
 <script src="{% static 'js/plan_management/client_dashboard.js' %}"></script>
 {% endblock %}

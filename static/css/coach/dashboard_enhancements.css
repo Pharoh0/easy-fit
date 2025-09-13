@@ -339,12 +339,6 @@
     color: #5a5c69 !important;
     border: 1px solid #e3e6f0;
 }
-    height: 20px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--brand-blue);
-}
 
 .chart-subtitle {
     color: var(--gray-600);

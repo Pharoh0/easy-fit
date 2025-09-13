@@ -124,62 +124,10 @@ document.addEventListener('DOMContentLoaded', function() {
     if (navbarLogo) {
         navbarLogo.onerror = function() {
             this.onerror = null;
-            this.src = '/static/images/default-logo.png';
+            this.src = '/static/images/eazy-fit-logo.png';
         };
     }
 
-    // Dark mode toggle functionality
-    const darkModeToggle = document.getElementById('darkModeToggle');
-    const darkModeIcon = darkModeToggle ? darkModeToggle.querySelector('i') : null;
-    
-    const prefersDarkScheme = window.matchMedia('(prefers-color-scheme: dark)');
-    const storedTheme = localStorage.getItem('theme');
-    
-    function setTheme(isDark) {
-        if (isDark) {
-            document.body.classList.add('dark-mode');
-            if (darkModeIcon) {
-                darkModeIcon.classList.remove('bi-moon');
-                darkModeIcon.classList.add('bi-sun');
-            }
-        } else {
-            document.body.classList.remove('dark-mode');
-            if (darkModeIcon) {
-                darkModeIcon.classList.remove('bi-sun');
-                darkModeIcon.classList.add('bi-moon');
-            }
-        }
-    }
-    
-    // Set initial theme
-    if (storedTheme === 'dark' || (!storedTheme && prefersDarkScheme.matches)) {
-        setTheme(true);
-    }
-    
-    // Toggle dark mode when button is clicked
-    if (darkModeToggle) {
-        darkModeToggle.addEventListener('click', function() {
-            const isDark = !document.body.classList.contains('dark-mode');
-            setTheme(isDark);
-            localStorage.setItem('theme', isDark ? 'dark' : 'light');
-        });
-    }
-    
-    // Handle search functionality
-    const searchInput = document.querySelector('.navbar-search input');
-    if (searchInput) {
-        searchInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                const query = this.value.trim();
-                if (query) {
-                    console.log('Searching for:', query);
-                    // Here you would typically redirect to a search results page
-                    window.location.href = `/search/?q=${encodeURIComponent(query)}`;
-                }
-            }
-        });
-    }
-    
     // Handle notifications dropdown
     const notificationBell = document.querySelector('.nav-link[data-bs-toggle="dropdown"]');
     if (notificationBell) {
