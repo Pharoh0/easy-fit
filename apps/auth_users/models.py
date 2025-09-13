@@ -31,8 +31,23 @@
 #     # objects = CustomUserManager()
 
 #     def __str__(self):
+import os
+from uuid import uuid4
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
+
+def user_profile_image_path(instance, filename):
+    """Return upload path for a user's profile image under MEDIA_ROOT.
+
+    Path format: profiles/users/<username>/<uuid><ext>
+    - Uses username to avoid issues when instance.id isn't set yet.
+    - Normalizes extension to lowercase and generates unique filenames.
+    """
+    _root, ext = os.path.splitext(filename or "")
+    ext = (ext or "").lower() or ".jpg"
+    username = getattr(instance, "username", "user") or "user"
+    return f"profiles/users/{username}/{uuid4().hex}{ext}"
 
 class CustomUser(AbstractUser):
     USER_TYPE_CHOICES = (
@@ -66,6 +81,13 @@ class CustomUser(AbstractUser):
     blocked_at = models.DateTimeField(null=True, blank=True)
     blocked_by = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='blocked_users')
     staff_role = models.CharField(max_length=20, choices=STAFF_ROLE_CHOICES, null=True, blank=True)
+    # Profile image for the user
+    profile_image = models.ImageField(
+        upload_to=user_profile_image_path,
+        null=True,
+        blank=True,
+        help_text="User's profile picture",
+    )
 
     USERNAME_FIELD = "username"
     REQUIRED_FIELDS = ["email"]
