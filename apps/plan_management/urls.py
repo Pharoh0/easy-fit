@@ -89,6 +89,7 @@ urlpatterns = [
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),
     path('coach/plan/<int:plan_id>/view/', coach_views.view_plan, name='view_plan'),
     path('coach/plan/<int:plan_id>/edit/', coach_views.edit_plan, name='edit_plan'),
+    path('coach/plan/<int:plan_id>/delete/', coach_views.delete_plan, name='delete_plan'),
     
     # Coach measurement access templates
     path('coach/client-measurements/', views_coach_templates.coach_client_measurements_view, name='coach_client_measurements'),
@@ -101,6 +102,7 @@ urlpatterns = [
     
     # New coach plan management views
     path('coach/plan-management/', views_coach_templates.coach_plan_management_view, name='coach_plan_management'),
+    path('coach/plans/', views_coach_templates.coach_all_plans_view, name='coach_all_plans'),
     path('coach/plan-customization/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization'),
     path('coach/plan-customization/<int:plan_id>/', views_coach_templates.coach_plan_customization_view, name='coach_plan_customization_with_id'),
     path('coach/plan-analytics/', views_coach_templates.coach_plan_analytics, name='coach_plan_analytics'),

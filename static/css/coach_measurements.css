@@ -161,7 +161,9 @@
   color: white;
   box-shadow: var(--card-shadow);
   position: relative;
-  overflow: hidden;
+  /* Allow dropdowns to render outside the card bounds */
+  overflow: visible;
+  z-index: 10; /* ensure above following content */
   transition: var(--transition-normal);
 }
 
@@ -292,6 +294,15 @@
   box-shadow: 0 6px 15px rgba(246, 211, 101, 0.4);
 }
 
+/* Ensure dropdown appears above and is not clipped */
+.client-info-card .btn-group,
+.client-info-card .dropdown {
+  position: relative;
+}
+.client-info-card .dropdown-menu {
+  z-index: 1100;
+}
+
 .client-stats-container {
   text-align: center;
 }
@@ -310,6 +321,12 @@
   letter-spacing: 1px;
 }
 
+/* Large subscription lists: scroll within dropdown */
+#customizePlanDropdown {
+  max-height: 260px;
+  overflow-y: auto;
+}
+
 /* Measurement Cards */
 .measurement-card {
   background: white;
@@ -319,6 +336,8 @@
   border: none;
   margin-bottom: 2rem;
   overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .measurement-card:hover {

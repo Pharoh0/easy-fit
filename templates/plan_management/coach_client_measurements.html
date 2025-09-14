@@ -66,11 +66,11 @@
                 </div>
                 <div class="col-lg-6 col-md-5">
                     <h3 id="clientName" class="client-name"></h3>
-                    <p id="clientEmail" class="client-email"></p>
+                    <p id="clientEmail" class="client-email" style="display:none;"></p>
                     <div class="client-stats">
-                        <span class="client-badge" id="clientAge"></span>
-                        <span class="client-badge" id="clientGender"></span>
-                        <span class="client-badge" id="clientActivityLevel"></span>
+                        <span class="client-badge" id="clientAge">Age: &mdash;</span>
+                        <span class="client-badge" id="clientGender">Gender: &mdash;</span>
+                        <span class="client-badge" id="clientActivityLevel">Activity: &mdash;</span>
                     </div>
                     <!-- Action buttons -->
                     <div class="action-buttons">
@@ -85,10 +85,10 @@
                             <i class="fas fa-sliders-h me-1"></i> Customize Plan
                         </a>
                         <div class="btn-group ms-2" id="customizePlanGroup" style="display: none;">
-                            <button type="button" class="btn btn-warning-custom dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                            <button type="button" class="btn btn-warning-custom dropdown-toggle" data-bs-toggle="dropdown" data-bs-boundary="viewport" data-bs-offset="0,8" aria-expanded="false">
                                 <i class="fas fa-sliders-h me-1"></i> Customize Plan
                             </button>
-                            <ul class="dropdown-menu" id="customizePlanDropdown"></ul>
+                            <ul class="dropdown-menu dropdown-menu-end" id="customizePlanDropdown"></ul>
                         </div>
                     </div>
                 </div>
@@ -103,8 +103,8 @@
                             <p class="stat-label">Subscriptions</p>
                         </div>
                         <div class="col-4">
-                            <p class="stat-value" id="memberSince">-</p>
-                            <p class="stat-label">Member Since</p>
+                            <p class="stat-value" style="font-size:0.95rem; line-height:1.1;" id="memberSince">-</p>
+                            <p class="stat-label" style="font-size:0.75rem;">Member Since</p>
                         </div>
                     </div>
                 </div>
@@ -220,23 +220,19 @@
         <div class="card-header-custom d-flex flex-wrap gap-2 justify-content-between align-items-center">
             <h5 class="mb-0"><i class="fas fa-star me-2"></i>Client Reviews & Ratings</h5>
             <div class="d-flex align-items-center gap-2">
-                <label for="ratingsSubscriptionFilter" class="form-label mb-0">Filter by Subscription</label>
-                <select id="ratingsSubscriptionFilter" class="form-select form-select-sm" style="min-width:260px;">
+                <select id="ratingsSubscriptionFilter" class="form-select form-select-sm" style="min-width:220px;" aria-label="Filter by subscription" title="Filter by subscription">
                     <option value="">All subscriptions</option>
                 </select>
-                <label for="ratingsMinStars" class="form-label mb-0">Min Stars</label>
-                <select id="ratingsMinStars" class="form-select form-select-sm" style="width:90px;">
-                    <option value="">Any</option>
-                    <option value="1">1+</option>
-                    <option value="2">2+</option>
-                    <option value="3">3+</option>
-                    <option value="4">4+</option>
-                    <option value="5">5</option>
-                </select>
-                <div class="form-check form-switch">
-                    <input class="form-check-input" type="checkbox" id="ratingsVerifiedOnly">
-                    <label class="form-check-label" for="ratingsVerifiedOnly">Verified</label>
+                <div class="input-group input-group-sm" style="width:auto;">
+                    <span class="input-group-text" title="Minimum stars" aria-label="Minimum stars"><i class="fas fa-star text-warning"></i></span>
+                    <select id="ratingsMinStars" class="form-select form-select-sm" aria-label="Minimum stars">
+                        <option value="">Any</option>
+                        <option value="3">3+</option>
+                        <option value="4">4+</option>
+                        <option value="5">5</option>
+                    </select>
                 </div>
+                
             </div>
         </div>
         <div class="card-body-custom">
@@ -266,48 +262,42 @@
         </div>
         <div class="card-body-custom">
             <!-- Filters -->
-            <div class="row g-2 align-items-end mb-3" id="perDayFilters">
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterDayFrom">Day from</label>
-                    <input type="number" class="form-control form-control-sm" id="filterDayFrom" min="1" placeholder="1">
+            <div class="row g-2 align-items-end mb-2" id="perDayFilters">
+                <div class="col-12 col-md-3">
+                    <label class="form-label small visually-hidden" for="filterDateFrom">Date from</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="far fa-calendar"></i></span>
+                        <input type="date" class="form-control" id="filterDateFrom" placeholder="From date">
+                    </div>
+                </div>
+                <div class="col-12 col-md-3">
+                    <label class="form-label small visually-hidden" for="filterDateTo">Date to</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="far fa-calendar-check"></i></span>
+                        <input type="date" class="form-control" id="filterDateTo" placeholder="To date">
+                    </div>
                 </div>
                 <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterDayTo">Day to</label>
-                    <input type="number" class="form-control form-control-sm" id="filterDayTo" min="1" placeholder="">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterDateFrom">Date from</label>
-                    <input type="date" class="form-control form-control-sm" id="filterDateFrom">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterDateTo">Date to</label>
-                    <input type="date" class="form-control form-control-sm" id="filterDateTo">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterMinStars">Min stars</label>
-                    <select class="form-select form-select-sm" id="filterMinStars">
-                        <option value="">Any</option>
-                        <option value="1">1+</option>
-                        <option value="2">2+</option>
-                        <option value="3">3+</option>
-                        <option value="4">4+</option>
-                        <option value="5">5</option>
-                    </select>
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterMinEffort">Min effort</label>
-                    <input type="number" class="form-control form-control-sm" id="filterMinEffort" min="1" max="10" placeholder="1-10">
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label small" for="filterMinDifficulty">Min difficulty</label>
-                    <input type="number" class="form-control form-control-sm" id="filterMinDifficulty" min="1" max="10" placeholder="1-10">
+                    <label class="form-label small visually-hidden" for="filterMinStars">Min stars</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-star"></i></span>
+                        <select class="form-select" id="filterMinStars" aria-label="Min stars">
+                            <option value="">Any</option>
+                            <option value="3">3+</option>
+                            <option value="4">4+</option>
+                            <option value="5">5</option>
+                        </select>
+                    </div>
                 </div>
                 <div class="col-12 col-md">
-                    <label class="form-label small" for="filterText">Text search</label>
-                    <input type="text" class="form-control form-control-sm" id="filterText" placeholder="Search feedback, notes, names...">
+                    <label class="form-label small visually-hidden" for="filterText">Text search</label>
+                    <div class="input-group input-group-sm">
+                        <span class="input-group-text"><i class="fas fa-search"></i></span>
+                        <input type="text" class="form-control" id="filterText" placeholder="Search feedback, notes, names...">
+                    </div>
                 </div>
                 <div class="col-auto">
-                    <button class="btn btn-sm btn-outline-secondary w-100" id="filterResetBtn">Reset</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="filterResetBtn">Reset</button>
                 </div>
             </div>
             <!-- Tabs -->

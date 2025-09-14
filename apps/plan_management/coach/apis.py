@@ -222,6 +222,25 @@ class ProductPlanViewSet(viewsets.ModelViewSet):
         except Exception as e:
             # Log error but don't fail the plan creation
             print(f"Error creating plan structure: {str(e)}")
+
+    def _ensure_update_allowed(self, instance):
+        """Ensure the authenticated coach owns the plan and it has no subscriptions before allowing edits."""
+        # Ownership check
+        if not hasattr(self.request.user, 'coach_profile') or instance.coach != self.request.user.coach_profile:
+            raise PermissionDenied("You don't have permission to modify this plan.")
+        # Subscribers check (any status)
+        if instance.plan_subscriptions.exists():
+            raise ValidationError("Cannot edit a plan that already has subscribers. Create a new plan instead.")
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_update_allowed(instance)
+        return super().update(request, *args, **kwargs)
+
+    def partial_update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        self._ensure_update_allowed(instance)
+        return super().partial_update(request, *args, **kwargs)
     
     @action(detail=True, methods=['post'])
     def duplicate(self, request, pk=None):

@@ -43,3 +43,26 @@ def edit_plan(request, plan_id):
     
     # Redirect to plan creation page with plan ID for editing
     return redirect(f"/plan-management/coach/plan-creation/?plan_id={plan_id}")
+
+
+@login_required
+def delete_plan(request, plan_id):
+    """Delete a plan only if it has no subscriptions and belongs to the coach"""
+    if request.method != 'POST':
+        return redirect('plan_management:coach_plan_management')
+
+    plan = get_object_or_404(ProductPlan, id=plan_id)
+
+    # Ownership check
+    if not hasattr(request.user, 'coach_profile') or plan.coach != request.user.coach_profile:
+        messages.error(request, "You don't have permission to delete this plan.")
+        return redirect('plan_management:coach_plan_management')
+
+    # Do not allow delete if any subscription exists (any status)
+    if plan.plan_subscriptions.exists():
+        messages.error(request, 'Cannot delete a plan that has subscribers.')
+        return redirect('plan_management:coach_plan_management')
+
+    plan.delete()
+    messages.success(request, 'Plan deleted successfully.')
+    return redirect('plan_management:coach_plan_management')

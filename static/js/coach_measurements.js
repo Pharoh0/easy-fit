@@ -68,8 +68,7 @@ class CoachMeasurementsManager {
         }
 
         // Ratings extra filters
-        const ratingsMinStars = document.getElementById('ratingsMinStars');
-        const ratingsVerifiedOnly = document.getElementById('ratingsVerifiedOnly');
+    const ratingsMinStars = document.getElementById('ratingsMinStars');
         if (ratingsMinStars) {
             ratingsMinStars.addEventListener('change', () => {
                 const subId = (ratingsFilter && ratingsFilter.value) || '';
@@ -77,16 +76,10 @@ class CoachMeasurementsManager {
                 if (clientId) this.loadAndRenderRatings(clientId, subId);
             });
         }
-        if (ratingsVerifiedOnly) {
-            ratingsVerifiedOnly.addEventListener('change', () => {
-                const subId = (ratingsFilter && ratingsFilter.value) || '';
-                const clientId = this.currentClient && this.currentClient.id;
-                if (clientId) this.loadAndRenderRatings(clientId, subId);
-            });
-        }
+        // Verified-only filter removed from UI
 
-        // Per-day feedback filters
-        const perDayFilterIds = ['filterDayFrom','filterDayTo','filterDateFrom','filterDateTo','filterMinStars','filterMinEffort','filterMinDifficulty','filterText'];
+        // Per-day feedback filters (reduced set)
+        const perDayFilterIds = ['filterDateFrom','filterDateTo','filterMinStars','filterText'];
         perDayFilterIds.forEach(id => {
             const el = document.getElementById(id);
             if (el) {
@@ -111,6 +104,30 @@ class CoachMeasurementsManager {
         const photoFilter = document.getElementById('photoViewFilter');
         if (photoFilter) {
             photoFilter.addEventListener('change', (e) => this.filterProgressPhotos(e.target.value));
+        }
+
+        // Fix Customize Plan dropdown positioning in header
+        const customizeBtn = document.querySelector('#customizePlanGroup > .dropdown-toggle');
+        const customizeGroup = document.getElementById('customizePlanGroup');
+        if (customizeBtn && customizeGroup) {
+            // On show: ensure alignment and flip if not enough space below
+            customizeBtn.addEventListener('click', () => {
+                setTimeout(() => {
+                    const menu = document.getElementById('customizePlanDropdown');
+                    if (!menu) return;
+                    // Always keep right aligned
+                    menu.classList.add('dropdown-menu-end');
+                    // Flip to dropup when near bottom
+                    const rect = menu.getBoundingClientRect();
+                    const spaceBelow = window.innerHeight - rect.top;
+                    const desired = Math.min(260, menu.scrollHeight) + 24; // menu height + offset
+                    if (spaceBelow < desired) {
+                        customizeGroup.classList.add('dropup');
+                    } else {
+                        customizeGroup.classList.remove('dropup');
+                    }
+                }, 0);
+            });
         }
     }
     
@@ -230,10 +247,22 @@ class CoachMeasurementsManager {
 
     updateClientInfo(clientInfo, totalMeasurements) {
         const details = [
-            { el: document.getElementById('clientName'), val: clientInfo.full_name || clientInfo.username || '-' },
-            { el: document.getElementById('clientEmail'), val: clientInfo.email || '-' }
+            { el: document.getElementById('clientName'), val: clientInfo.full_name || clientInfo.username || '-' }
         ];
         details.forEach(x => { if (x.el) x.el.textContent = x.val; });
+
+        // Email: show only if present to avoid rendering a lone dash
+        const emailEl = document.getElementById('clientEmail');
+        if (emailEl) {
+            const email = clientInfo.email && String(clientInfo.email).trim();
+            if (email) {
+                emailEl.textContent = email;
+                emailEl.style.display = '';
+            } else {
+                emailEl.textContent = '';
+                emailEl.style.display = 'none';
+            }
+        }
 
         const avatarImg = document.getElementById('clientAvatar');
         if (avatarImg) {
@@ -254,7 +283,37 @@ class CoachMeasurementsManager {
         const totalEl = document.getElementById('totalMeasurements');
         if (totalEl) totalEl.textContent = totalMeasurements || 0;
         const memberEl = document.getElementById('memberSince');
-        if (memberEl) memberEl.textContent = clientInfo.date_joined ? this.formatDate(clientInfo.date_joined) : '-';
+        if (memberEl) {
+            // Prefer subscription start with this coach when available, else fallback to join/member_since
+            let since = null;
+            try {
+                const subsSummary = clientInfo.subscription_summary || (clientInfo.profile && clientInfo.profile.subscription_summary);
+                if (subsSummary && (subsSummary.first_subscription_with_coach || subsSummary.first_with_coach)) {
+                    since = subsSummary.first_subscription_with_coach || subsSummary.first_with_coach;
+                }
+            } catch(_) { /* ignore */ }
+            if (!since) since = clientInfo.date_joined || (clientInfo.profile && clientInfo.profile.member_since);
+            memberEl.textContent = since ? this.formatDate(since) : '-';
+        }
+
+        // Fill additional client badges when available
+        const profile = clientInfo.profile || {};
+        const ageEl = document.getElementById('clientAge');
+        if (ageEl) {
+            const age = profile.age || clientInfo.age;
+            ageEl.textContent = `Age: ${age ? age : '—'}`;
+        }
+        const genderEl = document.getElementById('clientGender');
+        if (genderEl) {
+            const g = (profile.gender || clientInfo.gender || '').toString();
+            const pretty = g ? (g.charAt(0).toUpperCase() + g.slice(1)) : '—';
+            genderEl.textContent = `Gender: ${pretty}`;
+        }
+        const activityEl = document.getElementById('clientActivityLevel');
+        if (activityEl) {
+            const lvl = profile.activity_level || clientInfo.activity_level;
+            activityEl.textContent = `Activity: ${lvl ? lvl : '—'}`;
+        }
 
         // Ensure chat button has the selected client info
         const chatBtn = document.getElementById('chatWithClientBtn');
@@ -400,6 +459,20 @@ class CoachMeasurementsManager {
             dt.rows.add(rows).draw();
             if (section) section.style.display = 'block';
 
+            // Update "Member Since" to reflect earliest subscription with this coach
+            try {
+                const dates = subs
+                    .map(s => s.subscribed_at)
+                    .filter(Boolean)
+                    .map(d => new Date(d))
+                    .filter(d => !isNaN(d.getTime()));
+                if (dates.length > 0) {
+                    const earliest = new Date(Math.min(...dates.map(d => d.getTime())));
+                    const memberEl = document.getElementById('memberSince');
+                    if (memberEl) memberEl.textContent = this.formatDate(earliest);
+                }
+            } catch (_) { /* ignore */ }
+
             // Populate ratings filter with these subscriptions
             this.populateRatingsSubscriptionFilter(subs);
         } catch (e) {
@@ -446,16 +519,45 @@ class CoachMeasurementsManager {
         // Restore previous selection if still present
         if (current && [...filter.options].some(o => String(o.value) === String(current))) {
             filter.value = current;
+            return; // honor user selection
         }
-        // If only one subscription, auto-select it and trigger loads
-        if (!current && subs.length === 1) {
-            filter.value = String(subs[0].id);
-            const selectedId = filter.value;
-            const clientId = this.currentClient && this.currentClient.id;
-            if (clientId) {
-                this.loadAndRenderRatings(clientId, selectedId);
+
+        // Try to honor deep link subscription_id if present
+        const deepLinkedSubId = this.getQueryParam('subscription_id');
+        if (deepLinkedSubId && [...filter.options].some(o => String(o.value) === String(deepLinkedSubId))) {
+            filter.value = String(deepLinkedSubId);
+        } else {
+            // Choose a sensible default when multiple exist: prefer latest active/pending, else latest by date
+            const allowed = new Set(['active', 'pending']);
+            const parseDate = (s) => {
+                const d = s.subscribed_at || s.start_date || s.created_at || s.updated_at || null;
+                const dt = d ? new Date(d) : null;
+                return (dt && !isNaN(dt.getTime())) ? dt.getTime() : 0;
+            };
+            let candidate = null;
+            const activeOrPending = subs.filter(s => allowed.has(String(s.status || '').toLowerCase()));
+            const pool = activeOrPending.length > 0 ? activeOrPending : subs;
+            pool.forEach(s => {
+                if (!candidate) { candidate = s; return; }
+                if (parseDate(s) > parseDate(candidate)) candidate = s;
+            });
+            if (candidate) {
+                filter.value = String(candidate.id);
+            } else if (subs.length === 1) {
+                filter.value = String(subs[0].id);
             }
+        }
+
+        // Trigger loads when a default was chosen
+        const selectedId = filter.value || '';
+        const clientId = this.currentClient && this.currentClient.id;
+        if (clientId) {
+            this.loadAndRenderRatings(clientId, selectedId);
+        }
+        if (selectedId) {
             this.loadAndRenderDayFeedback(selectedId);
+        } else {
+            this.loadAndRenderDayFeedback('');
         }
     }
 
@@ -466,11 +568,8 @@ class CoachMeasurementsManager {
             if (subscriptionId) url += `&subscription_id=${subscriptionId}`;
             // Ratings filters
             const minStarsEl = document.getElementById('ratingsMinStars');
-            const verifiedEl = document.getElementById('ratingsVerifiedOnly');
             const minStars = minStarsEl && minStarsEl.value ? parseInt(minStarsEl.value, 10) : null;
-            const verifiedOnly = !!(verifiedEl && verifiedEl.checked);
             if (minStars && minStars >= 1) url += `&min_rating=${minStars}`;
-            if (verifiedOnly) url += `&verified_only=true`;
             const resp = await this.authManager.apiCall(url, { method: 'GET' });
             if (!resp || !resp.success) {
                 if (section) section.style.display = 'none';
@@ -644,13 +743,9 @@ class CoachMeasurementsManager {
             const el = document.getElementById(id);
             return el ? el.value : '';
         };
-        const dayFrom = parseInt(getVal('filterDayFrom'), 10) || null;
-        const dayTo = parseInt(getVal('filterDayTo'), 10) || null;
         const dateFrom = getVal('filterDateFrom') || null;
         const dateTo = getVal('filterDateTo') || null;
         const minStars = parseInt(getVal('filterMinStars'), 10) || null;
-        const minEffort = parseInt(getVal('filterMinEffort'), 10) || null;
-        const minDifficulty = parseInt(getVal('filterMinDifficulty'), 10) || null;
         const text = (getVal('filterText') || '').toLowerCase();
 
         // Helpers
@@ -673,7 +768,6 @@ class CoachMeasurementsManager {
         // Day reviews
         if (this.dayReviewsTable && Array.isArray(this.dayReviewsData)) {
             const filtered = this.dayReviewsData.filter(r => {
-                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
                 if (!dateInRange((r.scheduled_date || '').toString())) return false;
                 if (minStars && (!r.rating || r.rating < minStars)) return false;
                 if (!includesText([r.feedback, r.scheduled_date])) return false;
@@ -686,8 +780,7 @@ class CoachMeasurementsManager {
         // Workout reviews
         if (this.workoutReviewsTable && Array.isArray(this.workoutReviewsData)) {
             const filtered = this.workoutReviewsData.filter(r => {
-                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
-                if (minEffort && (!r.effort_rating || parseInt(r.effort_rating, 10) < minEffort)) return false;
+                // day range and min effort removed
                 if (!includesText([r.session_name, r.workout_name, r.notes])) return false;
                 return true;
             });
@@ -698,7 +791,6 @@ class CoachMeasurementsManager {
         // Meal reviews
         if (this.mealReviewsTable && Array.isArray(this.mealReviewsData)) {
             const filtered = this.mealReviewsData.filter(r => {
-                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
                 if (minStars && (!r.rating || r.rating < minStars)) return false;
                 if (!includesText([r.plan_name, r.meal_name, r.notes])) return false;
                 return true;
@@ -710,8 +802,7 @@ class CoachMeasurementsManager {
         // Exercise reviews
         if (this.exerciseReviewsTable && Array.isArray(this.exerciseReviewsData)) {
             const filtered = this.exerciseReviewsData.filter(r => {
-                if (!inRange(parseInt(r.day_number, 10) || 0, dayFrom, dayTo)) return false;
-                if (minDifficulty && (!r.difficulty || parseInt(r.difficulty, 10) < minDifficulty)) return false;
+                // day range and min difficulty removed
                 if (!includesText([r.session_name, r.workout_name, r.block_name, r.exercise_name])) return false;
                 return true;
             });

@@ -127,14 +127,12 @@ function showToast(type, message, duration = 5000) {
             });
         } else {
             // Fallback if Bootstrap JS isn't available
-            console.warn('Bootstrap Toast not available; using alert fallback');
-            alert(message);
+            console.warn('Bootstrap Toast not available; toast UI disabled');
             // Remove element
             toast.remove();
         }
     } catch (e) {
-        console.error('showToast failed, falling back to alert', e);
-        alert(message);
+        console.error('showToast failed', e);
     }
 }
 
@@ -377,13 +375,16 @@ function publishPlan() {
         Publishing...
     `;
 
-    // Use APIBase directly to capture field-level errors
-    APIBase.request('/plan-management/api/v1/product-plans/', {
-        method: 'POST',
-        body: JSON.stringify(planData)
-    }).then((res) => {
+    // Create vs Update based on currentPlanId
+    const isEdit = !!currentPlanId;
+    const url = isEdit
+        ? `/plan-management/api/v1/product-plans/${currentPlanId}/`
+        : '/plan-management/api/v1/product-plans/';
+    const method = isEdit ? 'PATCH' : 'POST';
+
+    APIBase.request(url, { method, body: JSON.stringify(planData) }).then((res) => {
         if (res && res.success) {
-            showToast('success', 'Plan created successfully!');
+            showToast('success', isEdit ? 'Plan updated successfully!' : 'Plan created successfully!');
             sessionStorage.removeItem('planCreationFormData');
             setTimeout(() => { window.location.href = '/plan-management/coach/plan-management/'; }, 1200);
             return;
@@ -413,11 +414,11 @@ function publishPlan() {
                 messages.push(highlight(field, msg));
             });
         }
-        const fallback = (typeof res.error === 'string') ? res.error : 'Failed to create plan';
+        const fallback = (typeof res.error === 'string') ? res.error : (isEdit ? 'Failed to update plan' : 'Failed to create plan');
         showToast('warning', messages.length ? messages.join(' | ') : fallback);
     }).catch((err) => {
         console.error('Publish error', err);
-        showToast('error', err?.message || 'Failed to create plan');
+        showToast('error', err?.message || (isEdit ? 'Failed to update plan' : 'Failed to create plan'));
     }).finally(() => {
         publishBtn.disabled = false;
         publishBtn.innerHTML = originalBtnText;
@@ -459,9 +460,78 @@ document.addEventListener('DOMContentLoaded', function() {
         planTypeSelect.value = 'workout';
     }
     
-    // Retrieve plan ID from sessionStorage if it exists
-    currentPlanId = sessionStorage.getItem('currentPlanId');
-    console.log('Initialized with plan ID from sessionStorage:', currentPlanId);
+    // Detect edit mode from query params: ?plan_id=123
+    try {
+        const params = new URLSearchParams(window.location.search);
+        const pid = params.get('plan_id');
+        if (pid) {
+            currentPlanId = pid;
+            sessionStorage.setItem('currentPlanId', currentPlanId);
+        } else {
+            currentPlanId = sessionStorage.getItem('currentPlanId');
+        }
+        console.log('[PlanCreation] currentPlanId:', currentPlanId);
+    } catch (e) {
+        console.warn('Failed to parse plan_id from URL', e);
+    }
+
+    // If in edit mode, preload the plan and lock immutable fields
+    if (currentPlanId) {
+        // Fetch plan details
+        CoachPlanAPI.productPlans.getById(currentPlanId).then((plan) => {
+            if (!plan) return;
+            // Prefill fields from plan
+            const mapDiff = { beginner:'1', easy:'2', intermediate:'3', challenging:'4', advanced:'4', expert:'5', hard:'4' };
+            const safe = (v, d) => (v === null || v === undefined || v === '' ? d : v);
+            document.getElementById('planName').value = safe(plan.name, '');
+            document.getElementById('planDescription').value = safe(plan.description, '');
+            // Lock plan type in edit
+            const typeSel = document.getElementById('planType');
+            if (typeSel) {
+                typeSel.value = plan.plan_type || typeSel.value;
+                typeSel.disabled = true;
+            }
+            // Derive duration from dates if available
+            try {
+                if (plan.start_date && plan.end_date) {
+                    const sd = new Date(plan.start_date);
+                    const ed = new Date(plan.end_date);
+                    const ms = ed - sd;
+                    const days = Math.floor(ms / (1000*60*60*24)) + 1;
+                    if (days > 0) document.getElementById('planDuration').value = days;
+                } else if (plan.duration_days) {
+                    document.getElementById('planDuration').value = plan.duration_days;
+                }
+            } catch (e) { console.warn('duration calc failed', e); }
+            document.getElementById('planPrice').value = safe(plan.price, 0);
+            document.getElementById('difficultyLevel').value = mapDiff[String(plan.difficulty_level || '').toLowerCase()] || '3';
+            document.getElementById('maxClients').value = safe(plan.max_clients, '');
+            document.getElementById('renewalPeriod').value = safe(plan.renewal_period, 'monthly');
+            document.getElementById('isActive').checked = !!plan.is_active;
+            // Structure defaults
+            if (document.getElementById('workoutDaysPerWeek') && plan.workout_days_per_week != null) {
+                document.getElementById('workoutDaysPerWeek').value = plan.workout_days_per_week;
+                updateWorkoutDaysCalculation();
+            }
+            if (document.getElementById('mealsPerDay') && plan.meals_per_day != null) {
+                document.getElementById('mealsPerDay').value = plan.meals_per_day;
+            }
+            if (document.getElementById('snacksPerDay') && plan.snacks_per_day != null) {
+                document.getElementById('snacksPerDay').value = plan.snacks_per_day;
+            }
+            // Update headings/buttons in edit mode
+            const heroTitle = document.querySelector('.hero-gradient h1');
+            if (heroTitle) heroTitle.textContent = 'Edit Plan';
+            const heroDesc = document.querySelector('.hero-gradient p');
+            if (heroDesc) heroDesc.textContent = 'Update details for your existing plan';
+            const publishBtn = document.getElementById('publishPlanBtn');
+            if (publishBtn) publishBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Save Changes';
+            showToast('info', 'Editing existing plan. Some fields are locked.');
+        }).catch((err) => {
+            console.error('Failed to load plan for editing', err);
+            showToast('warning', 'Could not load plan details for editing');
+        });
+    }
     
     // Note: Removed delegated click handler to prevent double submissions
 
@@ -471,3 +541,4 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Expose for debugging
 window.publishPlan = publishPlan;
+window.showToast = showToast;

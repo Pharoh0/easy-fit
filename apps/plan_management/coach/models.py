@@ -48,8 +48,8 @@ class ProductPlan(models.Model):
         if self.start_date >= self.end_date:
             raise ValidationError("End date must be after the start date.")
 
-        # Ensure start_date is not in the past
-        if self.start_date < timezone.now().date():
+        # Ensure start_date is not in the past on creation. Allow edits of historical plans.
+        if self.pk is None and self.start_date < timezone.now().date():
             raise ValidationError("Start date cannot be in the past.")
 
     def save(self, *args, **kwargs):

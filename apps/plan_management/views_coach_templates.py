@@ -1,4 +1,5 @@
 from django.shortcuts import render, redirect, get_object_or_404
+from django.urls import reverse
 from django.http import HttpResponseForbidden, JsonResponse, HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth import get_user_model
@@ -323,47 +324,81 @@ def coach_plan_creation_view(request):
         })
     
     if request.method == 'POST':
-        # Handle plan creation
+        # Handle create or edit based on presence of plan_id
         try:
             from django.utils import timezone
             from datetime import timedelta
-            
-            # Calculate price per session based on price and duration
-            price = float(request.POST.get('price', 0))
-            duration = int(request.POST.get('duration', 30))
-            
-            # Use workout days per week to estimate session count, default to duration/7 if not provided
-            workout_days = int(request.POST.get('workout_days_per_week', 3))
-            session_count = max(1, (duration * workout_days) // 7)  # At least 1 session
-            
-            # Calculate price per session (avoid division by zero)
+
+            plan_id = request.POST.get('plan_id')
+            price = float(request.POST.get('price', 0) or 0)
+            duration = int(request.POST.get('duration', 30) or 30)
+            workout_days = int(request.POST.get('workout_days_per_week', 3) or 3)
+            session_count = max(1, (duration * workout_days) // 7)
             price_per_session = price / session_count if session_count > 0 else price
-            
-            # Create the product plan
-            plan = ProductPlan.objects.create(
-                coach=coach_profile,
-                name=request.POST.get('name'),
-                description=request.POST.get('description'),
-                plan_type=request.POST.get('plan_type'),
-                price=float(request.POST.get('price', 0)),
-                price_per_session=price_per_session,
-                session_count=session_count,
-                start_date=timezone.now().date(),
-                end_date=timezone.now().date() + timedelta(days=duration)
-            )
-            
-            return JsonResponse({
-                'success': True,
-                'message': 'Plan created successfully!',
-                'plan_id': plan.id,
-                'redirect_url': f'/plan-management/coach/plan-management/'
-            })
-            
+
+            common_fields = {
+                'name': request.POST.get('name'),
+                'description': request.POST.get('description'),
+                'plan_type': request.POST.get('plan_type'),
+                'price': price,
+                'price_per_session': price_per_session,
+                'session_count': session_count,
+                'difficulty_level': request.POST.get('difficulty_level') or 'intermediate',
+                'workout_days_per_week': int(request.POST.get('workout_days_per_week') or 0 or 0),
+                'rest_days_per_week': int(request.POST.get('rest_days_per_week') or 0 or 0),
+                'meals_per_day': int(request.POST.get('meals_per_day') or 3),
+                'snacks_per_day': int(request.POST.get('snacks_per_day') or 2),
+            }
+
+            if plan_id:
+                # Edit mode: ensure plan belongs to coach and has NO subscriptions
+                plan = get_object_or_404(ProductPlan, id=int(plan_id))
+                if plan.coach != coach_profile:
+                    return JsonResponse({'success': False, 'error': "You don't have permission to edit this plan."}, status=403)
+                if plan.plan_subscriptions.exists():
+                    return JsonResponse({'success': False, 'error': 'This plan has subscribers and cannot be edited.'}, status=400)
+
+                # Update fields
+                for k, v in common_fields.items():
+                    setattr(plan, k, v)
+                # Keep start date; adjust end date based on new duration
+                plan.end_date = plan.start_date + timedelta(days=duration)
+                plan.duration_days = duration
+                # Optional max_clients
+                max_clients_val = request.POST.get('max_clients')
+                plan.max_clients = int(max_clients_val) if max_clients_val else None
+                plan.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Plan updated successfully!',
+                    'plan_id': plan.id,
+                    'redirect_url': f'/plan-management/coach/plan-management/'
+                })
+            else:
+                # Create mode
+                plan = ProductPlan.objects.create(
+                    coach=coach_profile,
+                    start_date=timezone.now().date(),
+                    end_date=timezone.now().date() + timedelta(days=duration),
+                    duration_days=duration,
+                    **common_fields,
+                )
+                # Set max clients if provided
+                max_clients_val = request.POST.get('max_clients')
+                if max_clients_val:
+                    plan.max_clients = int(max_clients_val)
+                    plan.save()
+
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Plan created successfully!',
+                    'plan_id': plan.id,
+                    'redirect_url': f'/plan-management/coach/plan-management/'
+                })
+
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            }, status=400)
+            return JsonResponse({'success': False, 'error': str(e)}, status=400)
     
     # GET request - show the form
     # Get client ID from query params if creating plan for specific client
@@ -400,7 +435,20 @@ def coach_plan_creation_view(request):
             {'name': 'Create Plan', 'url': None}
         ]
     }
-    
+    # If editing, load plan and add to context for prefill
+    plan_id = request.GET.get('plan_id')
+    if plan_id:
+        try:
+            plan = ProductPlan.objects.get(id=int(plan_id), coach=coach_profile)
+            context['plan'] = plan
+            context['edit_mode'] = True
+            # Convenience: computed duration for display
+            context['plan_duration'] = (plan.end_date - plan.start_date).days
+            context['page_title'] = f'Edit Plan: {plan.name}'
+            context['breadcrumbs'][-1] = {'name': 'Edit Plan', 'url': None}
+        except (ProductPlan.DoesNotExist, ValueError):
+            pass
+
     return render(request, 'plan_management/coach_plan_creation.html', context)
 
 
@@ -1405,8 +1453,12 @@ def coach_plan_management_view(request):
     if not coach_profile:
         return redirect('dashboard:dashboard')
     
-    # Get all product plans created by this coach
-    product_plans = ProductPlan.objects.filter(coach=coach_profile)
+    # Get all product plans created by this coach (paginated)
+    product_plans_qs = ProductPlan.objects.filter(coach=coach_profile).order_by('-created_at')
+    from django.core.paginator import Paginator
+    page = request.GET.get('ppage', 1)
+    paginator = Paginator(product_plans_qs, 10)
+    product_plans = paginator.get_page(page)
     
     # Get all active subscriptions
     active_subscriptions = PlanSubscription.objects.filter(
@@ -1420,7 +1472,7 @@ def coach_plan_management_view(request):
     
     # Get subscription stats
     subscription_stats = {
-        'total_plans': product_plans.count(),
+        'total_plans': paginator.count,
         'active_subscriptions': active_subscriptions.count(),
         'clients_with_plans': active_subscriptions.values('client').distinct().count(),
         'total_plan_days': PlanDay.objects.filter(
@@ -1434,7 +1486,8 @@ def coach_plan_management_view(request):
     
     context = {
         'coach_profile': coach_profile,
-        'product_plans': product_plans,
+    'product_plans': product_plans,
+    'product_plans_paginator': paginator,
         'active_subscriptions': active_subscriptions,
         'subscription_stats': subscription_stats,
         'page_title': 'Plan Management',
@@ -1445,6 +1498,32 @@ def coach_plan_management_view(request):
     }
     
     return render(request, 'plan_management/coach_plan_management.html', context)
+
+
+@login_required
+def coach_all_plans_view(request):
+    """Separate page to browse all coach product plans as cards with pagination."""
+    coach_profile = getattr(request.user, 'coach_profile', None)
+    if not coach_profile:
+        return redirect('dashboard:dashboard')
+
+    qs = ProductPlan.objects.filter(coach=coach_profile).order_by('-created_at')
+    from django.core.paginator import Paginator
+    page = request.GET.get('page', 1)
+    paginator = Paginator(qs, 12)
+    page_obj = paginator.get_page(page)
+
+    context = {
+        'page_title': 'All Plans',
+        'coach_profile': coach_profile,
+        'plans': page_obj,
+        'paginator': paginator,
+        'breadcrumbs': [
+            {'name': 'Plan Management', 'url': reverse('plan_management:coach_plan_management')},
+            {'name': 'All Plans', 'url': None},
+        ],
+    }
+    return render(request, 'plan_management/coach_all_plans.html', context)
 
 
 @login_required
