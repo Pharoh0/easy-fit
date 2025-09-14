@@ -5,6 +5,18 @@ from .models import CoachProfile
 from ..forms import CoachProfileForm
 from django.contrib import messages
 from cities_light.models import Country, Region, City
+from apps.plan_management.ratings.models import PlanRating
+from apps.plan_management.coach.models import ProductPlan
+from django.http import Http404
+
+@login_required
+def coach_profile_current(request):
+    """View for current logged-in coach's profile"""
+    try:
+        coach_profile = request.user.coach_profile
+        return view_coach_profile(request, coach_profile.pk)
+    except CoachProfile.DoesNotExist:
+        raise Http404("Coach profile not found")
 
 # @login_required
 # def view_coach_profile(request):
@@ -13,7 +25,24 @@ from cities_light.models import Country, Region, City
 
 def view_coach_profile(request, pk):
     coach_profile = get_object_or_404(CoachProfile, pk=pk)
-    return render(request, 'profiles/coach/coach_profile_view.html', {'profile': coach_profile})
+    
+    # Get testimonials from plan ratings
+    testimonials = PlanRating.objects.filter(
+        coach=coach_profile,
+        is_public=True
+    ).select_related('client').order_by('-created_at')[:6]  # Get 6 most recent public testimonials
+    
+    # Get coach's active plans
+    plans = ProductPlan.objects.filter(
+        coach=coach_profile,
+        is_active=True
+    ).order_by('-created_at')[:6]  # Get 6 most recent active plans
+    
+    return render(request, 'profiles/coach/coach_profile_view.html', {
+        'profile': coach_profile,
+        'testimonials': testimonials,
+        'coach_plans': plans
+    })
 
 # @login_required
 # def edit_coach_profile(request):
@@ -70,7 +99,7 @@ from django.http import JsonResponse
 
 def edit_coach_profile(request):
     coach_profile = CoachProfile.objects.select_related('user', 'country', 'region', 'city').prefetch_related(
-        'certifications', 'client_pictures', 'coach_pictures', 'availabilities').get(user=request.user)
+        'certifications', 'client_pictures', 'coach_pictures').get(user=request.user)
 
     if request.method == 'POST':
         form = CoachProfileForm(request.POST, request.FILES, instance=coach_profile)

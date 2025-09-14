@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
+from .models import CoachProfile, Certification, ClientPicture, CoachPicture
 from cities_light.models import Country, Region, City
 
 from django.contrib.auth import get_user_model
@@ -54,20 +54,6 @@ class CoachPictureSerializer(serializers.ModelSerializer):
         if self.instance:
             # If the instance exists (we're updating), make the image field not required
             self.fields['image'].required = False
-
-class AvailabilitySerializer(serializers.ModelSerializer):
-    start_time_formatted = serializers.SerializerMethodField()
-    end_time_formatted = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Availability
-        fields = ['id', 'day_of_week', 'start_time', 'end_time', 'start_time_formatted', 'end_time_formatted']
-        
-    def get_start_time_formatted(self, obj):
-        return obj.start_time.strftime("%I:%M %p")
-
-    def get_end_time_formatted(self, obj):
-        return obj.end_time.strftime("%I:%M %p")
 
 
 
@@ -185,7 +171,6 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     certifications = CertificationSerializer(many=True, required=False)
     client_pictures = ClientPictureSerializer(many=True, required=False)
     coach_pictures = CoachPictureSerializer(many=True, required=False)
-    availabilities = AvailabilitySerializer(many=True, required=False)
     country = serializers.SerializerMethodField()
     region = serializers.SerializerMethodField()
     city = serializers.SerializerMethodField()
@@ -199,7 +184,7 @@ class CoachProfileSerializer(serializers.ModelSerializer):
             'locations', 'specialties', 'hourly_rate', 
             'facebook_profile_url', 'instagram_profile_url', 'twitter_profile_url', 
             'youtube_profile_url', 'tiktok_profilel_url', 'linkedin_profile_url', 
-            'certifications', 'client_pictures', 'coach_pictures', 'availabilities'
+            'certifications', 'client_pictures', 'coach_pictures'
         ]
         read_only_fields = ['user']
         
@@ -223,7 +208,6 @@ class CoachProfileSerializer(serializers.ModelSerializer):
         certifications_data = validated_data.pop('certifications', None)
         client_pictures_data = validated_data.pop('client_pictures', None)
         coach_pictures_data = validated_data.pop('coach_pictures', None)
-        availabilities_data = validated_data.pop('availabilities', None)
 
         coach_profile = CoachProfile.objects.create(**validated_data)
 
@@ -239,17 +223,12 @@ class CoachProfileSerializer(serializers.ModelSerializer):
             for pic_data in coach_pictures_data:
                 CoachPicture.objects.create(coach_profile=coach_profile, **pic_data)
 
-        if availabilities_data:
-            for avail_data in availabilities_data:
-                Availability.objects.create(coach_profile=coach_profile, **avail_data)
-
         return coach_profile
 
     def update(self, instance, validated_data):
         certifications_data = validated_data.pop('certifications', None)
         client_pictures_data = validated_data.pop('client_pictures', None)
         coach_pictures_data = validated_data.pop('coach_pictures', None)
-        availabilities_data = validated_data.pop('availabilities', None)
 
         instance = super().update(instance, validated_data)
 
@@ -267,11 +246,6 @@ class CoachProfileSerializer(serializers.ModelSerializer):
             instance.coach_pictures.all().delete()
             for pic_data in coach_pictures_data:
                 CoachPicture.objects.create(coach_profile=instance, **pic_data)
-
-        if availabilities_data is not None:
-            instance.availabilities.all().delete()
-            for avail_data in availabilities_data:
-                Availability.objects.create(coach_profile=instance, **avail_data)
 
         return instance
 

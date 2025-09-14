@@ -274,7 +274,41 @@ class ProductPlanViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"detail": f"Failed to duplicate plan: {str(e)}"}, status=status.HTTP_400_BAD_REQUEST)
 
+    @action(detail=True, methods=['get'])
+    def can_delete(self, request, pk=None):
+        """
+        Check if a plan can be safely deleted.
+        A plan can be deleted if it has no active subscriptions.
+        """
+        plan = self.get_object()
+        
+        # Ensure the user owns this plan
+        if not hasattr(request.user, 'coach_profile') or plan.coach != request.user.coach_profile:
+            raise PermissionDenied("You don't have permission to check this plan's deletion status.")
+        
+        # Check for active subscriptions
+        active_subscriptions = plan.plan_subscriptions.filter(status='active').count()
+        
+        return Response({
+            'can_delete': active_subscriptions == 0,
+            'active_subscriptions': active_subscriptions,
+            'message': 'Plan can be safely deleted' if active_subscriptions == 0 else f'Plan has {active_subscriptions} active subscription(s)'
+        })
 
+    def perform_destroy(self, instance):
+        """
+        Override destroy to add permission checks and subscription validation.
+        """
+        # Ensure the user owns this plan
+        if not hasattr(self.request.user, 'coach_profile') or instance.coach != self.request.user.coach_profile:
+            raise PermissionDenied("You don't have permission to delete this plan.")
+        
+        # Check for active subscriptions
+        active_subscriptions = instance.plan_subscriptions.filter(status='active').count()
+        if active_subscriptions > 0:
+            raise ValidationError(f"Cannot delete plan with {active_subscriptions} active subscription(s). Please deactivate the plan instead.")
+        
+        super().perform_destroy(instance)
 
 
 class PlanItemViewSet(viewsets.ModelViewSet):

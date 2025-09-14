@@ -30,6 +30,7 @@
 {% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container coach-profile-section">
     <div class="row">
         <!-- Left Sidebar -->
@@ -100,16 +101,6 @@
                                 <div class="stat-label">Experience</div>
                             </div>
                             
-                            <div class="stat-card" data-bs-toggle="tooltip" title="Average hourly coaching rate">
-                                <div class="stat-icon">
-                                    <i class="fas fa-dollar-sign"></i>
-                                </div>
-                                <div class="stat-value">
-                                    <span class="currency"></span>{{ profile.hourly_rate }}
-                                </div>
-                                <div class="stat-label">Rate/Hour</div>
-                            </div>
-                            
                             <div class="stat-card" data-bs-toggle="tooltip" title="Professional certifications earned">
                                 <div class="stat-icon">
                                     <i class="fas fa-certificate"></i>
@@ -162,43 +153,6 @@
                                     <i class="fab fa-tiktok"></i>
                                 </a>
                             {% endif %}
-                        </div>
-                    </div>
-
-                    <!-- Availability Card -->
-                    <div class="p-4 border-top">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <h6 class="stats-section-title mb-0">
-                                <i class="fas fa-calendar-check me-2"></i>Availability Schedule
-                            </h6>
-                            <div class="stats-badge" data-bs-toggle="tooltip" title="Coach's current schedule">
-                                <i class="fas fa-clock me-1"></i>Active
-                            </div>
-                        </div>
-                        <div class="availability-list">
-                            {% for availability in profile.availabilities.all %}
-                                <div class="availability-item">
-                                    <div class="availability-day">
-                                        <i class="fas fa-calendar-day"></i>
-                                        <span>{{ availability.day_of_week }}</span>
-                                    </div>
-                                    <div class="availability-time">
-                                        <span>{{ availability.start_time|date:"g:i A" }} - {{ availability.end_time|date:"g:i A" }}</span>
-                                    </div>
-                                </div>
-                            {% empty %}
-                                <div class="empty-state">
-                                    <div class="empty-state-icon">
-                                        <i class="fas fa-calendar-xmark"></i>
-                                    </div>
-                                    <p class="empty-state-text">No availability schedule set</p>
-                                    {% if request.user == profile.user %}
-                                        <a href="{% url 'profiles:edit_coach_profile' %}" class="btn btn-sm btn-light-primary">
-                                            <i class="fas fa-plus me-1"></i> Add Availability
-                                        </a>
-                                    {% endif %}
-                                </div>
-                            {% endfor %}
                         </div>
                     </div>
                 </div>
@@ -282,14 +236,14 @@
                     <div class="d-flex justify-content-between align-items-center mb-4">
                         <h6 class="section-title mb-0"><i class="fas fa-certificate me-2"></i>Certifications</h6>
                         {% if request.user == profile.user %}
-                            <a href="{% url 'profiles:view_coach_certifications' %}" class="btn btn-sm btn-light-primary">
+                            <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
                                 <i class="fas fa-plus me-1"></i> Add Certificate
-                            </a>
+                            </button>
                         {% endif %}
                     </div>
-                    <div class="row g-3">
+                    <div class="row g-3" id="certifications-container">
                         {% for certification in profile.certifications.all %}
-                            <div class="col-md-4">
+                            <div class="col-md-4" data-certification-id="{{ certification.id }}">
                                 <div class="certification-card">
                                     <div class="cert-icon">
                                         <i class="fas fa-award"></i>
@@ -297,17 +251,32 @@
                                     <div class="cert-info">
                                         <h6>{{ certification.description }}</h6>
                                         <div class="cert-actions">
-                                            <a href="{{ certification.file.url }}" target="_blank" class="btn btn-sm btn-light">
+                                            <a href="{{ certification.file.url }}" target="_blank" class="btn btn-sm btn-light me-2">
                                                 <i class="fas fa-eye me-1"></i> View
                                             </a>
+                                            {% if request.user == profile.user %}
+                                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editCertification({{ certification.id }}, '{{ certification.description|escapejs }}')">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCertification({{ certification.id }})">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% endif %}
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         {% empty %}
-                            <div class="col-12">
+                            <div class="col-12" id="no-certifications">
                                 <div class="alert alert-light text-center">
                                     <i class="fas fa-info-circle me-2"></i> No certifications added yet
+                                    {% if request.user == profile.user %}
+                                        <div class="mt-2">
+                                            <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
+                                                <i class="fas fa-plus me-1"></i> Add Your First Certificate
+                                            </button>
+                                        </div>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
@@ -330,26 +299,47 @@
                                         <div class="testimonial-card">
                                             <div class="testimonial-content">
                                                 <i class="fas fa-quote-left quote-icon"></i>
-                                                <p>{{ testimonial.content }}</p>
+                                                {% if testimonial.review_title %}
+                                                    <h6 class="testimonial-title">{{ testimonial.review_title }}</h6>
+                                                {% endif %}
+                                                <p>{{ testimonial.review_content|truncatewords:20 }}</p>
                                             </div>
                                             <div class="testimonial-author">
                                                 <div class="author-avatar">
-                                                    {% if testimonial.author.avatar %}
-                                                        <img src="{{ testimonial.author.avatar.url }}" alt="{{ testimonial.author.name }}">
+                                                    {% if testimonial.client.client_profile.avatar %}
+                                                        <img src="{{ testimonial.client.client_profile.avatar.url }}" alt="{{ testimonial.client.get_full_name }}">
                                                     {% else %}
-                                                        <div class="avatar-placeholder">{{ testimonial.author.name|first }}</div>
+                                                        <div class="avatar-placeholder">{{ testimonial.client.first_name|first|default:testimonial.client.username|first }}</div>
                                                     {% endif %}
                                                 </div>
                                                 <div class="author-info">
-                                                    <h6>{{ testimonial.author.name }}</h6>
+                                                    <h6>{{ testimonial.client.get_full_name|default:testimonial.client.username }}</h6>
                                                     <div class="rating">
                                                         {% for i in "12345" %}
-                                                            {% if forloop.counter <= testimonial.rating %}
+                                                            {% if forloop.counter <= testimonial.overall_rating %}
                                                                 <i class="fas fa-star"></i>
                                                             {% else %}
                                                                 <i class="far fa-star"></i>
                                                             {% endif %}
                                                         {% endfor %}
+                                                        <span class="rating-text ms-2">{{ testimonial.overall_rating }}/5</span>
+                                                    </div>
+                                                    <small class="text-muted">{{ testimonial.created_at|date:"M d, Y" }}</small>
+                                                </div>
+                                            </div>
+                                            <div class="testimonial-categories mt-2">
+                                                <div class="row text-center">
+                                                    <div class="col-4">
+                                                        <small class="text-muted d-block">Effectiveness</small>
+                                                        <strong>{{ testimonial.effectiveness_rating }}/5</strong>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted d-block">Communication</small>
+                                                        <strong>{{ testimonial.communication_rating }}/5</strong>
+                                                    </div>
+                                                    <div class="col-4">
+                                                        <small class="text-muted d-block">Value</small>
+                                                        <strong>{{ testimonial.value_for_money_rating }}/5</strong>
                                                     </div>
                                                 </div>
                                             </div>
@@ -385,13 +375,7 @@
                     <!-- Gallery Tabs -->
                     <ul class="nav nav-tabs gallery-tabs mb-4" id="galleryTabs" role="tablist">
                         <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="general-tab" data-bs-toggle="tab" data-bs-target="#general-gallery" type="button" role="tab">
-                                <i class="fas fa-images me-1"></i> General
-                                <span class="gallery-count">{% if gallery_items %}{{ gallery_items|length }}{% else %}0{% endif %}</span>
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="progress-tab" data-bs-toggle="tab" data-bs-target="#client-progress" type="button" role="tab">
+                            <button class="nav-link active" id="progress-tab" data-bs-toggle="tab" data-bs-target="#client-progress" type="button" role="tab">
                                 <i class="fas fa-chart-line me-1"></i> Client Progress
                                 <span class="gallery-count">{% if profile.client_pictures.exists %}{{ profile.client_pictures.count }}{% else %}0{% endif %}</span>
                             </button>
@@ -406,61 +390,44 @@
 
                     <!-- Gallery Tab Content -->
                     <div class="tab-content" id="galleryTabContent">
-                        <!-- General Gallery -->
-                        <div class="tab-pane fade show active" id="general-gallery" role="tabpanel">
-                            <div class="gallery-grid">
-                                {% if gallery_items %}
-                                    {% for item in gallery_items %}
-                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ item.image.url }}">
-                                            <img src="{{ item.image.url }}" alt="Gallery Image">
-                                            <div class="gallery-item-overlay">
-                                                <i class="fas fa-search-plus"></i>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                {% else %}
-                                    <div class="alert alert-light text-center">
-                                        <i class="fas fa-info-circle me-2"></i> No gallery images available yet.
-                                        {% if request.user == profile.user %}
-                                            <div class="mt-2">
-                                                <a href="#" class="btn btn-sm btn-light-primary">
-                                                    <i class="fas fa-plus me-1"></i> Add Your First Photo
-                                                </a>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                {% endif %}
-                            </div>
-                        </div>
-
                         <!-- Client Progress Gallery -->
-                        <div class="tab-pane fade" id="client-progress" role="tabpanel">
+                        <div class="tab-pane fade show active" id="client-progress" role="tabpanel">
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <p class="text-muted mb-0"><small>Showcase your clients' transformation journeys</small></p>
                                 {% if request.user == profile.user %}
-                                    <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                    <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addClientPictureModal">
                                         <i class="fas fa-plus me-1"></i> Add Client Photos
-                                    </a>
+                                    </button>
                                 {% endif %}
                             </div>
-                            <div class="gallery-grid">
+                            <div class="gallery-grid" id="client-pictures-grid">
                                 {% if profile.client_pictures.exists %}
                                     {% for picture in profile.client_pictures.all %}
-                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
-                                            <img src="{{ picture.image.url }}" alt="Client Progress">
+                                        <div class="gallery-item" data-picture-id="{{ picture.id }}" data-type="client">
+                                            <img src="{{ picture.image.url }}" alt="Client Progress" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
                                             <div class="gallery-item-overlay">
                                                 <i class="fas fa-search-plus"></i>
                                             </div>
+                                            {% if request.user == profile.user %}
+                                                <div class="gallery-item-actions">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="editClientPicture({{ picture.id }}, '{{ picture.description|escapejs }}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteClientPicture({{ picture.id }})">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div class="alert alert-light text-center">
+                                    <div class="alert alert-light text-center" id="no-client-pictures">
                                         <i class="fas fa-info-circle me-2"></i> No client progress images available yet.
                                         {% if request.user == profile.user %}
                                             <div class="mt-2">
-                                                <a href="{% url 'profiles:coach_client_view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                                <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addClientPictureModal">
                                                     <i class="fas fa-plus me-1"></i> Add Client Progress Photos
-                                                </a>
+                                                </button>
                                             </div>
                                         {% endif %}
                                     </div>
@@ -473,29 +440,39 @@
                             <div class="d-flex justify-content-between align-items-center mb-3">
                                 <p class="text-muted mb-0"><small>Share your personal fitness journey and milestones</small></p>
                                 {% if request.user == profile.user %}
-                                    <a href="{% url 'profiles:view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                    <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCoachPictureModal">
                                         <i class="fas fa-plus me-1"></i> Add Journey Photos
-                                    </a>
+                                    </button>
                                 {% endif %}
                             </div>
-                            <div class="gallery-grid">
+                            <div class="gallery-grid" id="coach-pictures-grid">
                                 {% if profile.coach_pictures.exists %}
                                     {% for picture in profile.coach_pictures.all %}
-                                        <div class="gallery-item" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
-                                            <img src="{{ picture.image.url }}" alt="Coach Journey">
+                                        <div class="gallery-item" data-picture-id="{{ picture.id }}" data-type="coach">
+                                            <img src="{{ picture.image.url }}" alt="Coach Journey" data-bs-toggle="modal" data-bs-target="#imageModal" data-src="{{ picture.image.url }}">
                                             <div class="gallery-item-overlay">
                                                 <i class="fas fa-search-plus"></i>
                                             </div>
+                                            {% if request.user == profile.user %}
+                                                <div class="gallery-item-actions">
+                                                    <button class="btn btn-sm btn-outline-primary" onclick="editCoachPicture({{ picture.id }}, '{{ picture.description|escapejs }}')">
+                                                        <i class="fas fa-edit"></i>
+                                                    </button>
+                                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteCoachPicture({{ picture.id }})">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            {% endif %}
                                         </div>
                                     {% endfor %}
                                 {% else %}
-                                    <div class="alert alert-light text-center">
+                                    <div class="alert alert-light text-center" id="no-coach-pictures">
                                         <i class="fas fa-info-circle me-2"></i> No journey photos available yet.
                                         {% if request.user == profile.user %}
                                             <div class="mt-2">
-                                                <a href="{% url 'profiles:view_pictures' %}" class="btn btn-sm btn-light-primary">
+                                                <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCoachPictureModal">
                                                     <i class="fas fa-plus me-1"></i> Add Your Journey Photos
-                                                </a>
+                                                </button>
                                             </div>
                                         {% endif %}
                                     </div>
@@ -521,7 +498,68 @@
                         {% endif %}
                     </div>
                     <div class="row g-3" id="plans-container">
-                        <!-- Plans will be dynamically loaded using JavaScript -->
+                        {% if coach_plans %}
+                            {% for plan in coach_plans %}
+                                <div class="col-md-6 col-lg-4">
+                                    <div class="card plan-card h-100">
+                                        {% if plan.image %}
+                                            <img src="{{ plan.image.url }}" class="card-img-top plan-image" alt="{{ plan.name }}">
+                                        {% else %}
+                                            <div class="plan-image-placeholder">
+                                                <i class="fas fa-dumbbell"></i>
+                                            </div>
+                                        {% endif %}
+                                        <div class="card-body d-flex flex-column">
+                                            <h6 class="card-title text-truncate">{{ plan.name }}</h6>
+                                            <p class="card-text text-muted small flex-grow-1">{{ plan.description|truncatewords:15 }}</p>
+                                            <div class="plan-details mb-3">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="badge bg-primary">{{ plan.get_plan_type_display }}</span>
+                                                    <span class="badge bg-secondary">{{ plan.get_difficulty_level_display }}</span>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <small class="text-muted">
+                                                        <i class="fas fa-calendar-alt me-1"></i>{{ plan.duration_days }} days
+                                                        <i class="fas fa-dollar-sign ms-2 me-1"></i>{{ plan.price }}
+                                                    </small>
+                                                </div>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center">
+                                                <small class="text-muted">{{ plan.workout_days_per_week }}×/week</small>
+                                                {% if request.user == profile.user %}
+                                                    <!-- Coach's own plans - show management options -->
+                                                    <div class="btn-group" role="group">
+                                                        <button class="btn btn-sm btn-outline-primary" onclick="viewPlan({{ plan.id }})" title="View Plan">
+                                                            <i class="fas fa-eye"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-warning" onclick="editPlan({{ plan.id }})" title="Edit Plan">
+                                                            <i class="fas fa-edit"></i>
+                                                        </button>
+                                                        <button class="btn btn-sm btn-outline-danger" onclick="deletePlan({{ plan.id }}, '{{ plan.name|escapejs }}')" title="Delete Plan">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                {% else %}
+                                                    <!-- Other users viewing - show view/subscribe option -->
+                                                    <a href="#" class="btn btn-sm btn-primary">View Plan</a>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12">
+                                <div class="alert alert-light text-center">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    {% if request.user == profile.user %}
+                                        No training plans created yet. <a href="{% url 'plan_management:coach_plan_creation' %}" class="alert-link">Create your first plan</a> to get started!
+                                    {% else %}
+                                        No available training plans found.
+                                    {% endif %}
+                                </div>
+                            </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -773,12 +811,524 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+<!-- Certification Modal -->
+{% if request.user == profile.user %}
+<div class="modal fade" id="addCertificationModal" tabindex="-1" aria-labelledby="addCertificationModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCertificationModalLabel">Add Certification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="certificationForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="certificationDescription" class="form-label">Certification Name</label>
+                        <input type="text" class="form-control" id="certificationDescription" name="description" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="certificationFile" class="form-label">Certificate File (PDF, Image)</label>
+                        <input type="file" class="form-control" id="certificationFile" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
+                        <div class="form-text">Upload a PDF or image file (max 5MB)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCertification">Save Certificate</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Client Picture Modal -->
+<div class="modal fade" id="addClientPictureModal" tabindex="-1" aria-labelledby="addClientPictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addClientPictureModalLabel">Add Client Progress Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="clientPictureForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="clientPictureDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="clientPictureDescription" name="description" placeholder="e.g., John's 3-month transformation" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="clientPictureImage" class="form-label">Progress Photo</label>
+                        <input type="file" class="form-control" id="clientPictureImage" name="image" accept=".jpg,.jpeg,.png" required>
+                        <div class="form-text">Upload an image file (max 5MB)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveClientPicture">Save Photo</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Coach Picture Modal -->
+<div class="modal fade" id="addCoachPictureModal" tabindex="-1" aria-labelledby="addCoachPictureModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addCoachPictureModalLabel">Add Journey Photo</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="coachPictureForm" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="coachPictureDescription" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="coachPictureDescription" name="description" placeholder="e.g., My competition day 2024" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="coachPictureImage" class="form-label">Journey Photo</label>
+                        <input type="file" class="form-control" id="coachPictureImage" name="image" accept=".jpg,.jpeg,.png" required>
+                        <div class="form-text">Upload an image file (max 5MB)</div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveCoachPicture">Save Photo</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <script>
     const profileId = "{{ profile.id }}";
+    
+    // Toast notification function
+    function showToast(message, type = 'info') {
+        // Create toast container if it doesn't exist
+        let toastContainer = document.getElementById('toast-container');
+        if (!toastContainer) {
+            toastContainer = document.createElement('div');
+            toastContainer.id = 'toast-container';
+            toastContainer.className = 'toast-container position-fixed top-0 end-0 p-3';
+            toastContainer.style.zIndex = '9999';
+            document.body.appendChild(toastContainer);
+        }
+        
+        // Create toast element
+        const toastId = 'toast-' + Date.now();
+        const toastHTML = `
+            <div id="${toastId}" class="toast align-items-center text-white bg-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">
+                        <i class="fas fa-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-circle' : 'info-circle'} me-2"></i>
+                        ${message}
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+            </div>
+        `;
+        
+        toastContainer.insertAdjacentHTML('beforeend', toastHTML);
+        
+        // Show the toast
+        const toast = new bootstrap.Toast(document.getElementById(toastId), {
+            autohide: true,
+            delay: 5000
+        });
+        toast.show();
+        
+        // Remove toast element after it's hidden
+        document.getElementById(toastId).addEventListener('hidden.bs.toast', function() {
+            this.remove();
+        });
+    }
+    
+    // Certification CRUD functions
+    {% if request.user == profile.user %}
+    function getCsrfToken() {
+        const token = document.querySelector('[name=csrfmiddlewaretoken]');
+        if (!token) {
+            console.error('CSRF token not found');
+            return '';
+        }
+        return token.value;
+    }
+    
+    // Add certification
+    document.getElementById('saveCertification').addEventListener('click', function() {
+        const form = document.getElementById('certificationForm');
+        const formData = new FormData(form);
+        const isEditing = this.dataset.editingId;
+        
+        const url = isEditing ? 
+            `/profiles/api/v1/coach-certifications/${isEditing}/` : 
+            '/profiles/api/v1/coach-certifications/';
+        
+        const method = isEditing ? 'PUT' : 'POST';
+        
+        console.log('Attempting to save certification:', {
+            url: url,
+            method: method,
+            isEditing: isEditing,
+            csrfToken: getCsrfToken() ? 'Found' : 'Missing'
+        });
+        
+        fetch(url, {
+            method: method,
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.id) {
+                showToast('Certification saved successfully!', 'success');
+                // Close the modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addCertificationModal'));
+                if (modal) modal.hide();
+                // Refresh page to show new certification
+                setTimeout(() => location.reload(), 500);
+            } else {
+                console.error('API returned data without id:', data);
+                showToast('Error saving certification. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast(`Error saving certification: ${error.message}`, 'error');
+        });
+    });
+    
+    // Edit certification
+    function editCertification(id, description) {
+        document.getElementById('addCertificationModalLabel').textContent = 'Edit Certification';
+        document.getElementById('certificationDescription').value = description;
+        document.getElementById('certificationFile').required = false;
+        document.getElementById('saveCertification').textContent = 'Update Certificate';
+        document.getElementById('saveCertification').dataset.editingId = id;
+        
+        new bootstrap.Modal(document.getElementById('addCertificationModal')).show();
+    }
+    
+    // Delete certification
+    function deleteCertification(id) {
+        if (confirm('Are you sure you want to delete this certification?')) {
+            fetch(`/profiles/api/v1/coach-certifications/${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.querySelector(`[data-certification-id="${id}"]`).remove();
+                    showToast('Certification deleted successfully!', 'success');
+                    // Show no certifications message if all are deleted
+                    if (document.querySelectorAll('[data-certification-id]').length === 0) {
+                        document.getElementById('certifications-container').innerHTML = `
+                            <div class="col-12" id="no-certifications">
+                                <div class="alert alert-light text-center">
+                                    <i class="fas fa-info-circle me-2"></i> No certifications added yet
+                                    <div class="mt-2">
+                                        <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
+                                            <i class="fas fa-plus me-1"></i> Add Your First Certificate
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    showToast('Error deleting certification. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting certification. Please try again.', 'error');
+            });
+        }
+    }
+    
+    // Reset modal when it's closed
+    document.getElementById('addCertificationModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('addCertificationModalLabel').textContent = 'Add Certification';
+        document.getElementById('certificationForm').reset();
+        document.getElementById('certificationFile').required = true;
+        document.getElementById('saveCertification').textContent = 'Save Certificate';
+        delete document.getElementById('saveCertification').dataset.editingId;
+    });
+    
+    // Client Picture Functions
+    document.getElementById('saveClientPicture').addEventListener('click', function() {
+        const form = document.getElementById('clientPictureForm');
+        const formData = new FormData(form);
+        const isEditing = this.dataset.editingId;
+        
+        const url = isEditing ? 
+            `/profiles/api/v1/coach-client-pictures/${isEditing}/` : 
+            '/profiles/api/v1/coach-client-pictures/';
+        
+        const method = isEditing ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                showToast('Client photo saved successfully!', 'success');
+                location.reload(); // Refresh page to show new picture
+            } else {
+                showToast('Error saving picture. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error saving picture. Please try again.', 'error');
+        });
+    });
+    
+    function editClientPicture(id, description) {
+        document.getElementById('addClientPictureModalLabel').textContent = 'Edit Client Photo';
+        document.getElementById('clientPictureDescription').value = description;
+        document.getElementById('clientPictureImage').required = false;
+        document.getElementById('saveClientPicture').textContent = 'Update Photo';
+        document.getElementById('saveClientPicture').dataset.editingId = id;
+        
+        new bootstrap.Modal(document.getElementById('addClientPictureModal')).show();
+    }
+    
+    function deleteClientPicture(id) {
+        if (confirm('Are you sure you want to delete this client photo?')) {
+            fetch(`/profiles/api/v1/coach-client-pictures/${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.querySelector(`[data-picture-id="${id}"][data-type="client"]`).remove();
+                    showToast('Client photo deleted successfully!', 'success');
+                    updateClientPictureCount();
+                } else {
+                    showToast('Error deleting picture. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting picture. Please try again.', 'error');
+            });
+        }
+    }
+    
+    // Coach Picture Functions
+    document.getElementById('saveCoachPicture').addEventListener('click', function() {
+        const form = document.getElementById('coachPictureForm');
+        const formData = new FormData(form);
+        const isEditing = this.dataset.editingId;
+        
+        const url = isEditing ? 
+            `/profiles/api/v1/coach-pictures/${isEditing}/` : 
+            '/profiles/api/v1/coach-pictures/';
+        
+        const method = isEditing ? 'PUT' : 'POST';
+        
+        fetch(url, {
+            method: method,
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.id) {
+                showToast('Journey photo saved successfully!', 'success');
+                location.reload(); // Refresh page to show new picture
+            } else {
+                showToast('Error saving picture. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error saving picture. Please try again.', 'error');
+        });
+    });
+    
+    function editCoachPicture(id, description) {
+        document.getElementById('addCoachPictureModalLabel').textContent = 'Edit Journey Photo';
+        document.getElementById('coachPictureDescription').value = description;
+        document.getElementById('coachPictureImage').required = false;
+        document.getElementById('saveCoachPicture').textContent = 'Update Photo';
+        document.getElementById('saveCoachPicture').dataset.editingId = id;
+        
+        new bootstrap.Modal(document.getElementById('addCoachPictureModal')).show();
+    }
+    
+    function deleteCoachPicture(id) {
+        if (confirm('Are you sure you want to delete this journey photo?')) {
+            fetch(`/profiles/api/v1/coach-pictures/${id}/`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': getCsrfToken()
+                }
+            })
+            .then(response => {
+                if (response.ok) {
+                    document.querySelector(`[data-picture-id="${id}"][data-type="coach"]`).remove();
+                    showToast('Journey photo deleted successfully!', 'success');
+                    updateCoachPictureCount();
+                } else {
+                    showToast('Error deleting picture. Please try again.', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error deleting picture. Please try again.', 'error');
+            });
+        }
+    }
+    
+    // Helper functions to update picture counts and show empty states
+    function updateClientPictureCount() {
+        const remaining = document.querySelectorAll('[data-picture-id][data-type="client"]').length;
+        document.querySelector('#progress-tab .gallery-count').textContent = remaining;
+        if (remaining === 0) {
+            document.getElementById('client-pictures-grid').innerHTML = `
+                <div class="alert alert-light text-center" id="no-client-pictures">
+                    <i class="fas fa-info-circle me-2"></i> No client progress images available yet.
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addClientPictureModal">
+                            <i class="fas fa-plus me-1"></i> Add Client Progress Photos
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    function updateCoachPictureCount() {
+        const remaining = document.querySelectorAll('[data-picture-id][data-type="coach"]').length;
+        document.querySelector('#journey-tab .gallery-count').textContent = remaining;
+        if (remaining === 0) {
+            document.getElementById('coach-pictures-grid').innerHTML = `
+                <div class="alert alert-light text-center" id="no-coach-pictures">
+                    <i class="fas fa-info-circle me-2"></i> No journey photos available yet.
+                    <div class="mt-2">
+                        <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCoachPictureModal">
+                            <i class="fas fa-plus me-1"></i> Add Your Journey Photos
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    }
+    
+    // Reset picture modals when closed
+    document.getElementById('addClientPictureModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('addClientPictureModalLabel').textContent = 'Add Client Progress Photo';
+        document.getElementById('clientPictureForm').reset();
+        document.getElementById('clientPictureImage').required = true;
+        document.getElementById('saveClientPicture').textContent = 'Save Photo';
+        delete document.getElementById('saveClientPicture').dataset.editingId;
+    });
+    
+    document.getElementById('addCoachPictureModal').addEventListener('hidden.bs.modal', function() {
+        document.getElementById('addCoachPictureModalLabel').textContent = 'Add Journey Photo';
+        document.getElementById('coachPictureForm').reset();
+        document.getElementById('coachPictureImage').required = true;
+        document.getElementById('saveCoachPicture').textContent = 'Save Photo';
+        delete document.getElementById('saveCoachPicture').dataset.editingId;
+    });
+
+    // Plan Management Functions
+    window.viewPlan = function(planId) {
+        // Navigate to plan detail view
+        window.location.href = `/plan-management/coach/plan/${planId}/view/`;
+    };
+
+    window.editPlan = function(planId) {
+        // Navigate to plan edit page
+        window.location.href = `/plan-management/coach/plan/${planId}/edit/`;
+    };
+
+    window.deletePlan = function(planId, planName) {
+        // Show confirmation modal and handle deletion
+        showConfirmModal({
+            title: 'Delete Plan',
+            message: `Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`,
+            confirmText: 'Delete Plan',
+            confirmClass: 'btn-danger',
+            onConfirm: function() {
+                // Check if plan has active subscriptions first
+                fetch(`/plan-management/api/v1/product-plans/${planId}/can_delete/`, {
+                    method: 'GET',
+                    headers: {
+                        'Accept': 'application/json',
+                        'X-CSRFToken': getCsrfToken(),
+                    },
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.can_delete) {
+                        // Safe to delete
+                        deletePlanConfirmed(planId, planName);
+                    } else {
+                        showToast(`Cannot delete "${planName}" because it has active subscriptions. You can deactivate it instead.`, 'warning');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error checking plan deletion status:', error);
+                    // Proceed with deletion attempt anyway
+                    deletePlanConfirmed(planId, planName);
+                });
+            }
+        });
+    };
+
+    function deletePlanConfirmed(planId, planName) {
+        fetch(`/plan-management/api/v1/product-plans/${planId}/`, {
+            method: 'DELETE',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                showToast(`Plan "${planName}" deleted successfully!`, 'success');
+                // Remove the plan card from the page
+                location.reload(); // Simple approach - reload to refresh the plans
+            } else {
+                return response.json().then(data => {
+                    throw new Error(data.detail || 'Failed to delete plan');
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Error deleting plan:', error);
+            showToast(`Error deleting plan: ${error.message}`, 'danger');
+        });
+    }
+
+    {% endif %}
 </script>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{% static 'profiles/js/coach/coach_profile_views.js' %}"></script>
-<script src="{% static 'js/coach/view_coach_product_plans.js' %}"></script>
+<!-- <script src="{% static 'js/coach/view_coach_product_plans.js' %}"></script> -->
+<!-- Temporarily disabled to prevent interference with Django-rendered plans -->
 {% endblock %}

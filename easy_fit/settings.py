@@ -64,7 +64,7 @@ THIRD_PARTIES_INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     'cities_light',
     'django_filters',
-    'channels',
+    # 'channels',  # Temporarily disabled
 ]
 
 INSTALLED_APPS = BASE_INSTALLED_APPS + LOCAL_INSTALLED_APPS + THIRD_PARTIES_INSTALLED_APPS
@@ -101,7 +101,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'easy_fit.wsgi.application'
-ASGI_APPLICATION = 'easy_fit.asgi.application'
+# ASGI_APPLICATION = 'easy_fit.asgi.application'  # Temporarily disabled
 
 
 # Database
@@ -169,6 +169,7 @@ REST_FRAMEWORK = {
 "EXCEPTION_HANDLER": "drf_standardized_errors.handler.exception_handler",
 
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "rest_framework.authentication.SessionAuthentication",
         "rest_framework_simplejwt.authentication.JWTAuthentication",
         # other authentication classes
     ],

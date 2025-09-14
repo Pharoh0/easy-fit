@@ -1,0 +1,319 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Edit Profile{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_edit.css' %}">
+<link rel="stylesheet" href="{% static 'vendor/fontawesome/css/all.min.css' %}">
+{% endblock %}
+
+{% block content %}
+<div class="edit-profile">
+    <div class="edit-profile__container">
+        <!-- Header -->
+        <div class="edit-profile__header">
+            <div class="header-icon">
+                <i class="fas fa-user-edit"></i>
+            </div>
+            <h1>Edit Your Profile</h1>
+            <p>Customize your professional information and settings</p>
+            <div class="edit-profile__nav">
+                <ul class="nav nav-pills nav-fill">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="#basic-info">
+                            <i class="fas fa-user me-md-2"></i>
+                            <span>Basic Info</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#location-info">
+                            <i class="fas fa-location-dot me-md-2"></i>
+                            <span>Location</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#social-info">
+                            <i class="fas fa-share-nodes me-md-2"></i>
+                            <span>Social Media</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'profiles:view_coach_certifications' %}">
+                            <i class="fas fa-certificate me-md-2"></i>
+                            <span>Certifications</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'profiles:view_coach_profile' user.id %}">
+                            <i class="fas fa-eye me-md-2"></i>
+                            <span>View Profile</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <form method="post" enctype="multipart/form-data" class="edit-profile__form">
+            {% csrf_token %}
+
+            <!-- Avatar Card -->
+            <div class="profile-card">
+                <div class="profile-card__avatar">
+                    {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Profile Picture">
+                    {% else %}
+                        <img src="{% static 'img/default-avatar.png' %}" alt="Default Avatar">
+                    {% endif %}
+                    <div class="profile-card__avatar-upload">
+                        <label for="avatar" class="btn-upload">
+                            <i class="fas fa-camera"></i>
+                            <span>Change Photo</span>
+                        </label>
+                        <input type="file" id="avatar" name="avatar" accept="image/*" class="hidden-input">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Basic Info Card -->
+            <div class="edit-card" id="basic-info">
+                <div class="edit-card__header">
+                    <h2><i class="fas fa-user"></i>Basic Information</h2>
+                </div>
+                <div class="edit-card__body">
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="years_of_experience">Years of Experience</label>
+                            <div class="input-group">
+                                <span class="input-icon"><i class="fas fa-briefcase"></i></span>
+                                <input type="number" id="years_of_experience" name="years_of_experience" 
+                                       value="{{ profile.years_of_experience }}" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="hourly_rate">Hourly Rate ($)</label>
+                            <div class="input-group">
+                                <span class="input-icon"><i class="fas fa-dollar-sign"></i></span>
+                                <input type="number" id="hourly_rate" name="hourly_rate" 
+                                       value="{{ profile.hourly_rate }}" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="bio">Bio</label>
+                        <textarea id="bio" name="bio" rows="3" class="form-control" 
+                                  placeholder="Tell us about yourself...">{{ profile.bio }}</textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="specialties">Specialties</label>
+                        <textarea id="specialties" name="specialties" rows="2" class="form-control" 
+                                  placeholder="e.g., Weight Training, Cardio, Nutrition">{{ profile.specialties }}</textarea>
+                        <small>Separate specialties with commas</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Location Card -->
+            <div class="edit-card" id="location-info">
+                <div class="edit-card__header">
+                    <h2><i class="fas fa-location-dot"></i>Location</h2>
+                </div>
+                <div class="edit-card__body">
+                    <div class="form-row">
+                        <div class="form-group col-md-4">
+                            <label for="country">Country</label>
+                            <select id="country" name="country" class="form-control">
+                                <option value="">Select Country</option>
+                                {% for country in countries %}
+                                    <option value="{{ country.id }}" {% if profile.country.id == country.id %}selected{% endif %}>
+                                        {{ country.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="region">Region</label>
+                            <select id="region" name="region" class="form-control">
+                                <option value="">Select Region</option>
+                                {% for region in regions %}
+                                    <option value="{{ region.id }}" {% if profile.region.id == region.id %}selected{% endif %}>
+                                        {{ region.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="form-group col-md-4">
+                            <label for="city">City</label>
+                            <select id="city" name="city" class="form-control">
+                                <option value="">Select City</option>
+                                {% for city in cities %}
+                                    <option value="{{ city.id }}" {% if profile.city.id == city.id %}selected{% endif %}>
+                                        {{ city.name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Social Media Card -->
+            <div class="edit-card" id="social-info">
+                <div class="edit-card__header">
+                    <h2><i class="fas fa-share-nodes"></i>Social Media</h2>
+                </div>
+                <div class="edit-card__body">
+                    <div class="social-links">
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon facebook"><i class="fab fa-facebook-f"></i></span>
+                                <input type="url" name="facebook_profile_url" value="{{ profile.facebook_profile_url }}"
+                                       class="form-control" placeholder="Facebook Profile URL">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon instagram"><i class="fab fa-instagram"></i></span>
+                                <input type="url" name="instagram_profile_url" value="{{ profile.instagram_profile_url }}"
+                                       class="form-control" placeholder="Instagram Profile URL">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon twitter"><i class="fab fa-twitter"></i></span>
+                                <input type="url" name="twitter_profile_url" value="{{ profile.twitter_profile_url }}"
+                                       class="form-control" placeholder="Twitter Profile URL">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon youtube"><i class="fab fa-youtube"></i></span>
+                                <input type="url" name="youtube_profile_url" value="{{ profile.youtube_profile_url }}"
+                                       class="form-control" placeholder="YouTube Profile URL">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon tiktok"><i class="fab fa-tiktok"></i></span>
+                                <input type="url" name="tiktok_profile_url" value="{{ profile.tiktok_profile_url }}"
+                                       class="form-control" placeholder="TikTok Profile URL">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div class="input-group">
+                                <span class="input-icon linkedin"><i class="fab fa-linkedin-in"></i></span>
+                                <input type="url" name="linkedin_profile_url" value="{{ profile.linkedin_profile_url }}"
+                                       class="form-control" placeholder="LinkedIn Profile URL">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="form-actions">
+                <button type="submit" class="btn-submit">
+                    <i class="fas fa-save"></i>
+                    Save Changes
+                </button>
+                <a href="{% url 'profiles:view_coach_profile' user.id %}" class="btn-cancel">
+                    <i class="fas fa-times"></i>
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'profiles/js/coach/coach_profile_edit.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Smooth scroll for navigation links
+    document.querySelectorAll('.edit-profile__nav .nav-link').forEach(link => {
+        if (link.getAttribute('href').startsWith('#')) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                
+                if (targetElement) {
+                    window.scrollTo({
+                        top: targetElement.offsetTop - 20,
+                        behavior: 'smooth'
+                    });
+                    
+                    // Update active class
+                    document.querySelectorAll('.edit-profile__nav .nav-link').forEach(navLink => {
+                        navLink.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                }
+            });
+        }
+    });
+    
+    // Highlight active section on scroll
+    window.addEventListener('scroll', function() {
+        const scrollPosition = window.scrollY;
+        
+        document.querySelectorAll('.edit-card[id]').forEach(section => {
+            const sectionTop = section.offsetTop - 100;
+            const sectionBottom = sectionTop + section.offsetHeight;
+            
+            if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
+                const id = section.getAttribute('id');
+                document.querySelectorAll('.edit-profile__nav .nav-link').forEach(link => {
+                    link.classList.remove('active');
+                    if (link.getAttribute('href') === '#' + id) {
+                        link.classList.add('active');
+                    }
+                });
+            }
+        });
+    });
+    
+    // Form validation feedback
+    const form = document.querySelector('.edit-profile__form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            const requiredFields = form.querySelectorAll('[required]');
+            let isValid = true;
+            
+            requiredFields.forEach(field => {
+                if (!field.value.trim()) {
+                    isValid = false;
+                    field.classList.add('is-invalid');
+                    
+                    // Create feedback message if it doesn't exist
+                    let feedback = field.nextElementSibling;
+                    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
+                        feedback = document.createElement('div');
+                        feedback.className = 'invalid-feedback';
+                        feedback.textContent = 'This field is required';
+                        field.parentNode.insertBefore(feedback, field.nextSibling);
+                    }
+                } else {
+                    field.classList.remove('is-invalid');
+                    const feedback = field.nextElementSibling;
+                    if (feedback && feedback.classList.contains('invalid-feedback')) {
+                        feedback.remove();
+                    }
+                }
+            });
+            
+            if (!isValid) {
+                e.preventDefault();
+                // Scroll to first invalid field
+                const firstInvalid = form.querySelector('.is-invalid');
+                if (firstInvalid) {
+                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    firstInvalid.focus();
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

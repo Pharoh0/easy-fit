@@ -87,6 +87,8 @@ urlpatterns = [
     path('api/v1/coach-plan-customization/subscription_reviews/', views_coach_api.get_subscription_reviews, name='subscription_reviews_api'),
     
     path('coach/product-plans/', coach_views.manage_product_plans, name='manage_product_plans'),
+    path('coach/plan/<int:plan_id>/view/', coach_views.view_plan, name='view_plan'),
+    path('coach/plan/<int:plan_id>/edit/', coach_views.edit_plan, name='edit_plan'),
     
     # Coach measurement access templates
     path('coach/client-measurements/', views_coach_templates.coach_client_measurements_view, name='coach_client_measurements'),

@@ -3,8 +3,8 @@ from rest_framework import generics
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.decorators import action
-from .models import CoachProfile, Availability, Certification, ClientPicture, CoachPicture
-from .serializers import CoachProfileSerializer, AvailabilitySerializer, CertificationSerializer, ClientPictureSerializer, CoachPictureSerializer
+from .models import CoachProfile, Certification, ClientPicture, CoachPicture
+from .serializers import CoachProfileSerializer, CertificationSerializer, ClientPictureSerializer, CoachPictureSerializer
 from cities_light.models import Country, Region, City
 from .serializers import CountrySerializer, RegionSerializer, CitySerializer
 from django_filters import rest_framework as filters
@@ -15,6 +15,7 @@ from django.shortcuts import get_object_or_404
 class CoachProfileViewSet(viewsets.ModelViewSet):
     queryset = CoachProfile.objects.all()
     serializer_class = CoachProfileSerializer
+    permission_classes = [IsAuthenticated]
     # filter_backends = (filters.DjangoFilterBackend,)
     # filterset_class = CoachProfileFilter
 
@@ -38,32 +39,10 @@ class CoachProfileViewSet(viewsets.ModelViewSet):
             return Response({"detail": "Coach profile not found"}, status=404)
         
 
-class AvailabilityViewSet(viewsets.ModelViewSet):
-    queryset = Availability.objects.all()
-    serializer_class = AvailabilitySerializer
-    
-    def get_queryset(self):
-        # Get the currently authenticated user's coach profile
-        coach_profile = self.request.user.coach_profile
-        # Return only the availabilities related to the user's coach profile
-        return Availability.objects.filter(coach_profile=coach_profile)
-
-    # def perform_create(self, serializer):
-    #     # Automatically associate the new availability with the user's coach profile
-    #     serializer.save(coach_profile=self.request.user.coach_profile)
-        
-    def perform_create(self, serializer):
-        try:
-            # Automatically associate the new availability with the user's coach profile
-            serializer.save(coach_profile=self.request.user.coach_profile)
-            print("Data saved successfully")
-        except Exception as e:
-            print(f"Error saving data: {str(e)}")
-    
-
 class CertificationViewSet(viewsets.ModelViewSet):
     queryset = Certification.objects.all()
     serializer_class = CertificationSerializer
+    permission_classes = [IsAuthenticated]
 
     
     def get_queryset(self):
@@ -81,6 +60,7 @@ class CertificationViewSet(viewsets.ModelViewSet):
 class ClientPictureViewSet(viewsets.ModelViewSet):
     queryset = ClientPicture.objects.all()
     serializer_class = ClientPictureSerializer
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         # Get the currently authenticated user's coach profile
@@ -101,6 +81,7 @@ class ClientPictureViewSet(viewsets.ModelViewSet):
 class CoachPictureViewSet(viewsets.ModelViewSet):
     queryset = CoachPicture.objects.all()
     serializer_class = CoachPictureSerializer
+    permission_classes = [IsAuthenticated]
     
     def get_queryset(self):
         # Get the currently authenticated user's coach profile

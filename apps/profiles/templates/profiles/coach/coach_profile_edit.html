@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Edit Profile{% endblock %}
+{% block title %}Edit Coach Profile{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{% static 'profiles/css/coach/coach_profile_edit.css' %}">
@@ -9,219 +9,542 @@
 {% endblock %}
 
 {% block content %}
-<div class="edit-profile">
-    <div class="edit-profile__container">
-        <!-- Header -->
-        <div class="edit-profile__header">
-            <div class="header-icon">
-                <i class="fas fa-user-edit"></i>
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-lg-12">
+            <!-- Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h2 class="mb-1">
+                                <i class="fas fa-user-edit text-primary me-2"></i>
+                                Edit Your Profile
+                            </h2>
+                            <p class="text-muted mb-0">Update your professional information and settings</p>
+                        </div>
+                        <div>
+                            <a href="{% url 'profiles:view_coach_profile' profile.id %}" class="btn btn-outline-primary">
+                                <i class="fas fa-eye me-1"></i>View Profile
+                            </a>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <h1>Edit Your Profile</h1>
-            <p>Customize your professional information and settings</p>
-            <div class="edit-profile__nav">
-                <ul class="nav nav-pills nav-fill">
-                    <li class="nav-item">
-                        <a class="nav-link active" href="#basic-info">
-                            <i class="fas fa-user me-md-2"></i>
-                            <span>Basic Info</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#location-info">
-                            <i class="fas fa-location-dot me-md-2"></i>
-                            <span>Location</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#social-info">
-                            <i class="fas fa-share-nodes me-md-2"></i>
-                            <span>Social Media</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'profiles:view_coach_certifications' %}">
-                            <i class="fas fa-certificate me-md-2"></i>
-                            <span>Certifications</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'profiles:view_coach_profile' user.id %}">
-                            <i class="fas fa-eye me-md-2"></i>
-                            <span>View Profile</span>
-                        </a>
-                    </li>
-                </ul>
+
+            <form method="post" enctype="multipart/form-data" id="coach-profile-form">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <div class="col-lg-8">
+                        <!-- Basic Information -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-user text-primary me-2"></i>
+                                    Basic Information
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.years_of_experience.id_for_label }}" class="form-label">
+                                            <i class="fas fa-briefcase text-muted me-1"></i>
+                                            Years of Experience
+                                        </label>
+                                        {{ form.years_of_experience }}
+                                        {% if form.years_of_experience.errors %}
+                                            <div class="text-danger small">{{ form.years_of_experience.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.hourly_rate.id_for_label }}" class="form-label">
+                                            <i class="fas fa-dollar-sign text-muted me-1"></i>
+                                            Hourly Rate ($)
+                                        </label>
+                                        {{ form.hourly_rate }}
+                                        {% if form.hourly_rate.errors %}
+                                            <div class="text-danger small">{{ form.hourly_rate.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.bio.id_for_label }}" class="form-label">
+                                        <i class="fas fa-align-left text-muted me-1"></i>
+                                        Bio
+                                    </label>
+                                    {{ form.bio }}
+                                    {% if form.bio.errors %}
+                                        <div class="text-danger small">{{ form.bio.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.specialties.id_for_label }}" class="form-label">
+                                        <i class="fas fa-star text-muted me-1"></i>
+                                        Specialties
+                                    </label>
+                                    {{ form.specialties }}
+                                    {% if form.specialties.errors %}
+                                        <div class="text-danger small">{{ form.specialties.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">List your fitness specialties (e.g., Weight Loss, Muscle Building, Yoga)</small>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="{{ form.locations.id_for_label }}" class="form-label">
+                                        <i class="fas fa-map-marker-alt text-muted me-1"></i>
+                                        Service Locations
+                                    </label>
+                                    {{ form.locations }}
+                                    {% if form.locations.errors %}
+                                        <div class="text-danger small">{{ form.locations.errors.0 }}</div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">Where do you provide your services? (e.g., Online, Gym Name, City areas)</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Location Information -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-location-dot text-primary me-2"></i>
+                                    Location Information
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-4 mb-3">
+                                        <label for="{{ form.country.id_for_label }}" class="form-label">Country</label>
+                                        {{ form.country }}
+                                        {% if form.country.errors %}
+                                            <div class="text-danger small">{{ form.country.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="{{ form.region.id_for_label }}" class="form-label">Region/State</label>
+                                        {{ form.region }}
+                                        {% if form.region.errors %}
+                                            <div class="text-danger small">{{ form.region.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-4 mb-3">
+                                        <label for="{{ form.city.id_for_label }}" class="form-label">City</label>
+                                        {{ form.city }}
+                                        {% if form.city.errors %}
+                                            <div class="text-danger small">{{ form.city.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Social Media -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-share-nodes text-primary me-2"></i>
+                                    Social Media Profiles
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.facebook_profile_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-facebook text-primary me-1"></i>
+                                            Facebook
+                                        </label>
+                                        {{ form.facebook_profile_url }}
+                                        {% if form.facebook_profile_url.errors %}
+                                            <div class="text-danger small">{{ form.facebook_profile_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.instagram_profile_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-instagram text-danger me-1"></i>
+                                            Instagram
+                                        </label>
+                                        {{ form.instagram_profile_url }}
+                                        {% if form.instagram_profile_url.errors %}
+                                            <div class="text-danger small">{{ form.instagram_profile_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.twitter_profile_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-twitter text-info me-1"></i>
+                                            Twitter
+                                        </label>
+                                        {{ form.twitter_profile_url }}
+                                        {% if form.twitter_profile_url.errors %}
+                                            <div class="text-danger small">{{ form.twitter_profile_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.youtube_profile_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-youtube text-danger me-1"></i>
+                                            YouTube
+                                        </label>
+                                        {{ form.youtube_profile_url }}
+                                        {% if form.youtube_profile_url.errors %}
+                                            <div class="text-danger small">{{ form.youtube_profile_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.tiktok_profilel_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-tiktok text-dark me-1"></i>
+                                            TikTok
+                                        </label>
+                                        {{ form.tiktok_profilel_url }}
+                                        {% if form.tiktok_profilel_url.errors %}
+                                            <div class="text-danger small">{{ form.tiktok_profilel_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
+                                        <label for="{{ form.linkedin_profile_url.id_for_label }}" class="form-label">
+                                            <i class="fab fa-linkedin text-primary me-1"></i>
+                                            LinkedIn
+                                        </label>
+                                        {{ form.linkedin_profile_url }}
+                                        {% if form.linkedin_profile_url.errors %}
+                                            <div class="text-danger small">{{ form.linkedin_profile_url.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-4">
+                        <!-- Profile Picture -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-camera text-primary me-2"></i>
+                                    Profile Picture
+                                </h5>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="avatar-upload mb-3">
+                                    <div class="avatar-preview">
+                                        <div id="imagePreview" style="background-image: url('{{ profile.avatar.url|default:'/static/img/default-avatar.png' }}');">
+                                        </div>
+                                    </div>
+                                    <div class="avatar-edit">
+                                        <input type="file" id="imageUpload" name="avatar" accept=".png, .jpg, .jpeg" />
+                                        <label for="imageUpload">
+                                            <i class="fas fa-pencil-alt"></i>
+                                        </label>
+                                    </div>
+                                </div>
+                                {% if form.avatar.errors %}
+                                    <div class="text-danger small">{{ form.avatar.errors.0 }}</div>
+                                {% endif %}
+                                <small class="text-muted">Recommended: 400x400px, max 5MB</small>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="card mb-4">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-tools text-primary me-2"></i>
+                                    Quick Actions
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <a href="#certifications-section" class="btn btn-outline-primary">
+                                        <i class="fas fa-certificate me-1"></i>
+                                        Manage Certifications
+                                    </a>
+                                    <a href="#gallery-section" class="btn btn-outline-primary">
+                                        <i class="fas fa-images me-1"></i>
+                                        Manage Gallery
+                                    </a>
+                                    <a href="{% url 'profiles:view_coach_profile' profile.id %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-eye me-1"></i>
+                                        Preview Profile
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Save Actions -->
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save me-2"></i>
+                                        Save Changes
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="window.history.back()">
+                                        <i class="fas fa-times me-2"></i>
+                                        Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Certifications Management Section -->
+            <div class="row mt-5" id="certifications-section">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-certificate text-primary me-2"></i>
+                                    Certifications
+                                </h5>
+                                <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
+                                    <i class="fas fa-plus me-1"></i>Add Certification
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div id="certifications-list" class="row">
+                                {% for certification in profile.certifications.all %}
+                                    <div class="col-md-6 col-lg-4 mb-3">
+                                        <div class="certification-item border rounded p-3">
+                                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ certification.description|default:"Certification" }}</h6>
+                                                    <small class="text-muted">Status: 
+                                                        <span class="badge bg-{{ certification.status|yesno:'success,warning,danger' }}">
+                                                            {{ certification.get_status_display }}
+                                                        </span>
+                                                    </small>
+                                                </div>
+                                                <div class="dropdown">
+                                                    <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                                        <i class="fas fa-ellipsis-v"></i>
+                                                    </button>
+                                                    <ul class="dropdown-menu">
+                                                        <li><a class="dropdown-item" href="{{ certification.file.url }}" target="_blank">
+                                                            <i class="fas fa-eye me-1"></i>View
+                                                        </a></li>
+                                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteCertification({{ certification.id }})">
+                                                            <i class="fas fa-trash me-1"></i>Delete
+                                                        </a></li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% empty %}
+                                    <div class="col-12">
+                                        <div class="text-center py-4">
+                                            <i class="fas fa-certificate fa-3x text-muted mb-3"></i>
+                                            <p class="text-muted">No certifications added yet.</p>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Gallery Management Section -->
+            <div class="row mt-4" id="gallery-section">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-images text-primary me-2"></i>
+                                    Gallery Management
+                                </h5>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <!-- Gallery Tabs -->
+                            <ul class="nav nav-tabs mb-4" id="galleryTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active" id="client-pictures-tab" data-bs-toggle="tab" data-bs-target="#client-pictures" type="button" role="tab">
+                                        <i class="fas fa-users me-1"></i>Client Progress ({{ profile.client_pictures.count }})
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link" id="coach-pictures-tab" data-bs-toggle="tab" data-bs-target="#coach-pictures" type="button" role="tab">
+                                        <i class="fas fa-user me-1"></i>My Journey ({{ profile.coach_pictures.count }})
+                                    </button>
+                                </li>
+                            </ul>
+
+                            <!-- Gallery Tab Content -->
+                            <div class="tab-content" id="galleryTabContent">
+                                <!-- Client Pictures -->
+                                <div class="tab-pane fade show active" id="client-pictures" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <p class="text-muted mb-0">Showcase your clients' progress and transformations</p>
+                                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addClientPictureModal">
+                                            <i class="fas fa-plus me-1"></i>Add Picture
+                                        </button>
+                                    </div>
+                                    <div class="row" id="client-pictures-list">
+                                        {% for picture in profile.client_pictures.all %}
+                                            <div class="col-md-4 col-lg-3 mb-3">
+                                                <div class="gallery-item">
+                                                    <img src="{{ picture.image.url }}" class="img-fluid rounded" alt="{{ picture.description }}">
+                                                    <div class="gallery-item-overlay">
+                                                        <button class="btn btn-sm btn-light" onclick="deleteClientPicture({{ picture.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                    {% if picture.description %}
+                                                        <small class="text-muted d-block mt-1">{{ picture.description }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% empty %}
+                                            <div class="col-12">
+                                                <div class="text-center py-4">
+                                                    <i class="fas fa-images fa-3x text-muted mb-3"></i>
+                                                    <p class="text-muted">No client pictures added yet.</p>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+
+                                <!-- Coach Pictures -->
+                                <div class="tab-pane fade" id="coach-pictures" role="tabpanel">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <p class="text-muted mb-0">Share your fitness journey and lifestyle</p>
+                                        <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addCoachPictureModal">
+                                            <i class="fas fa-plus me-1"></i>Add Picture
+                                        </button>
+                                    </div>
+                                    <div class="row" id="coach-pictures-list">
+                                        {% for picture in profile.coach_pictures.all %}
+                                            <div class="col-md-4 col-lg-3 mb-3">
+                                                <div class="gallery-item">
+                                                    <img src="{{ picture.image.url }}" class="img-fluid rounded" alt="{{ picture.description }}">
+                                                    <div class="gallery-item-overlay">
+                                                        <button class="btn btn-sm btn-light" onclick="deleteCoachPicture({{ picture.id }})">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                    {% if picture.description %}
+                                                        <small class="text-muted d-block mt-1">{{ picture.description }}</small>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        {% empty %}
+                                            <div class="col-12">
+                                                <div class="text-center py-4">
+                                                    <i class="fas fa-images fa-3x text-muted mb-3"></i>
+                                                    <p class="text-muted">No personal pictures added yet.</p>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </div>
+</div>
 
-        <form method="post" enctype="multipart/form-data" class="edit-profile__form">
-            {% csrf_token %}
-
-            <!-- Avatar Card -->
-            <div class="profile-card">
-                <div class="profile-card__avatar">
-                    {% if profile.avatar %}
-                        <img src="{{ profile.avatar.url }}" alt="Profile Picture">
-                    {% else %}
-                        <img src="{% static 'img/default-avatar.png' %}" alt="Default Avatar">
-                    {% endif %}
-                    <div class="profile-card__avatar-upload">
-                        <label for="avatar" class="btn-upload">
-                            <i class="fas fa-camera"></i>
-                            <span>Change Photo</span>
-                        </label>
-                        <input type="file" id="avatar" name="avatar" accept="image/*" class="hidden-input">
-                    </div>
-                </div>
+<!-- Modals -->
+<!-- Add Certification Modal -->
+<div class="modal fade" id="addCertificationModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Certification</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+            <form id="certification-form" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="cert-file" class="form-label">Certification File</label>
+                        <input type="file" class="form-control" id="cert-file" name="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" required>
+                        <small class="form-text text-muted">Accepted formats: PDF, JPG, PNG, DOC, DOCX (max 10MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="cert-description" class="form-label">Description</label>
+                        <input type="text" class="form-control" id="cert-description" name="description" placeholder="e.g., NASM Certified Personal Trainer">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>Upload Certification
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-            <!-- Basic Info Card -->
-            <div class="edit-card" id="basic-info">
-                <div class="edit-card__header">
-                    <h2><i class="fas fa-user"></i>Basic Information</h2>
-                </div>
-                <div class="edit-card__body">
-                    <div class="form-row">
-                        <div class="form-group col-md-6">
-                            <label for="years_of_experience">Years of Experience</label>
-                            <div class="input-group">
-                                <span class="input-icon"><i class="fas fa-briefcase"></i></span>
-                                <input type="number" id="years_of_experience" name="years_of_experience" 
-                                       value="{{ profile.years_of_experience }}" class="form-control">
-                            </div>
-                        </div>
-                        <div class="form-group col-md-6">
-                            <label for="hourly_rate">Hourly Rate ($)</label>
-                            <div class="input-group">
-                                <span class="input-icon"><i class="fas fa-dollar-sign"></i></span>
-                                <input type="number" id="hourly_rate" name="hourly_rate" 
-                                       value="{{ profile.hourly_rate }}" class="form-control">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="bio">Bio</label>
-                        <textarea id="bio" name="bio" rows="3" class="form-control" 
-                                  placeholder="Tell us about yourself...">{{ profile.bio }}</textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="specialties">Specialties</label>
-                        <textarea id="specialties" name="specialties" rows="2" class="form-control" 
-                                  placeholder="e.g., Weight Training, Cardio, Nutrition">{{ profile.specialties }}</textarea>
-                        <small>Separate specialties with commas</small>
-                    </div>
-                </div>
+<!-- Add Client Picture Modal -->
+<div class="modal fade" id="addClientPictureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Client Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
+            <form id="client-picture-form" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="client-picture-file" class="form-label">Picture</label>
+                        <input type="file" class="form-control" id="client-picture-file" name="image" accept="image/*" required>
+                        <small class="form-text text-muted">Accepted formats: JPG, PNG, GIF (max 5MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="client-picture-description" class="form-label">Description (Optional)</label>
+                        <input type="text" class="form-control" id="client-picture-description" name="description" placeholder="Brief description of the progress shown">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>Add Picture
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 
-            <!-- Location Card -->
-            <div class="edit-card" id="location-info">
-                <div class="edit-card__header">
-                    <h2><i class="fas fa-location-dot"></i>Location</h2>
-                </div>
-                <div class="edit-card__body">
-                    <div class="form-row">
-                        <div class="form-group col-md-4">
-                            <label for="country">Country</label>
-                            <select id="country" name="country" class="form-control">
-                                <option value="">Select Country</option>
-                                {% for country in countries %}
-                                    <option value="{{ country.id }}" {% if profile.country.id == country.id %}selected{% endif %}>
-                                        {{ country.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="region">Region</label>
-                            <select id="region" name="region" class="form-control">
-                                <option value="">Select Region</option>
-                                {% for region in regions %}
-                                    <option value="{{ region.id }}" {% if profile.region.id == region.id %}selected{% endif %}>
-                                        {{ region.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
-                        <div class="form-group col-md-4">
-                            <label for="city">City</label>
-                            <select id="city" name="city" class="form-control">
-                                <option value="">Select City</option>
-                                {% for city in cities %}
-                                    <option value="{{ city.id }}" {% if profile.city.id == city.id %}selected{% endif %}>
-                                        {{ city.name }}
-                                    </option>
-                                {% endfor %}
-                            </select>
-                        </div>
+<!-- Add Coach Picture Modal -->
+<div class="modal fade" id="addCoachPictureModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add Personal Picture</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="coach-picture-form" enctype="multipart/form-data">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="coach-picture-file" class="form-label">Picture</label>
+                        <input type="file" class="form-control" id="coach-picture-file" name="image" accept="image/*" required>
+                        <small class="form-text text-muted">Accepted formats: JPG, PNG, GIF (max 5MB)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label for="coach-picture-description" class="form-label">Description (Optional)</label>
+                        <input type="text" class="form-control" id="coach-picture-description" name="description" placeholder="Brief description of the picture">
                     </div>
                 </div>
-            </div>
-
-            <!-- Social Media Card -->
-            <div class="edit-card" id="social-info">
-                <div class="edit-card__header">
-                    <h2><i class="fas fa-share-nodes"></i>Social Media</h2>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-upload me-1"></i>Add Picture
+                    </button>
                 </div>
-                <div class="edit-card__body">
-                    <div class="social-links">
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon facebook"><i class="fab fa-facebook-f"></i></span>
-                                <input type="url" name="facebook_profile_url" value="{{ profile.facebook_profile_url }}"
-                                       class="form-control" placeholder="Facebook Profile URL">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon instagram"><i class="fab fa-instagram"></i></span>
-                                <input type="url" name="instagram_profile_url" value="{{ profile.instagram_profile_url }}"
-                                       class="form-control" placeholder="Instagram Profile URL">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon twitter"><i class="fab fa-twitter"></i></span>
-                                <input type="url" name="twitter_profile_url" value="{{ profile.twitter_profile_url }}"
-                                       class="form-control" placeholder="Twitter Profile URL">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon youtube"><i class="fab fa-youtube"></i></span>
-                                <input type="url" name="youtube_profile_url" value="{{ profile.youtube_profile_url }}"
-                                       class="form-control" placeholder="YouTube Profile URL">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon tiktok"><i class="fab fa-tiktok"></i></span>
-                                <input type="url" name="tiktok_profile_url" value="{{ profile.tiktok_profile_url }}"
-                                       class="form-control" placeholder="TikTok Profile URL">
-                            </div>
-                        </div>
-                        <div class="form-group">
-                            <div class="input-group">
-                                <span class="input-icon linkedin"><i class="fab fa-linkedin-in"></i></span>
-                                <input type="url" name="linkedin_profile_url" value="{{ profile.linkedin_profile_url }}"
-                                       class="form-control" placeholder="LinkedIn Profile URL">
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Submit Button -->
-            <div class="form-actions">
-                <button type="submit" class="btn-submit">
-                    <i class="fas fa-save"></i>
-                    Save Changes
-                </button>
-                <a href="{% url 'profiles:view_coach_profile' user.id %}" class="btn-cancel">
-                    <i class="fas fa-times"></i>
-                    Cancel
-                </a>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
 </div>
 {% endblock %}
@@ -229,91 +552,67 @@
 {% block extra_js %}
 <script src="{% static 'profiles/js/coach/coach_profile_edit.js' %}"></script>
 <script>
+// Initialize location cascading dropdowns
 document.addEventListener('DOMContentLoaded', function() {
-    // Smooth scroll for navigation links
-    document.querySelectorAll('.edit-profile__nav .nav-link').forEach(link => {
-        if (link.getAttribute('href').startsWith('#')) {
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                const targetId = this.getAttribute('href');
-                const targetElement = document.querySelector(targetId);
-                
-                if (targetElement) {
-                    window.scrollTo({
-                        top: targetElement.offsetTop - 20,
-                        behavior: 'smooth'
-                    });
-                    
-                    // Update active class
-                    document.querySelectorAll('.edit-profile__nav .nav-link').forEach(navLink => {
-                        navLink.classList.remove('active');
-                    });
-                    this.classList.add('active');
-                }
-            });
-        }
-    });
-    
-    // Highlight active section on scroll
-    window.addEventListener('scroll', function() {
-        const scrollPosition = window.scrollY;
-        
-        document.querySelectorAll('.edit-card[id]').forEach(section => {
-            const sectionTop = section.offsetTop - 100;
-            const sectionBottom = sectionTop + section.offsetHeight;
-            
-            if (scrollPosition >= sectionTop && scrollPosition < sectionBottom) {
-                const id = section.getAttribute('id');
-                document.querySelectorAll('.edit-profile__nav .nav-link').forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === '#' + id) {
-                        link.classList.add('active');
-                    }
-                });
-            }
+    const countrySelect = document.getElementById('id_country');
+    const regionSelect = document.getElementById('id_region');
+    const citySelect = document.getElementById('id_city');
+
+    if (countrySelect) {
+        countrySelect.addEventListener('change', function() {
+            const countryId = this.value;
+            updateRegions(countryId);
         });
-    });
-    
-    // Form validation feedback
-    const form = document.querySelector('.edit-profile__form');
-    if (form) {
-        form.addEventListener('submit', function(e) {
-            const requiredFields = form.querySelectorAll('[required]');
-            let isValid = true;
-            
-            requiredFields.forEach(field => {
-                if (!field.value.trim()) {
-                    isValid = false;
-                    field.classList.add('is-invalid');
-                    
-                    // Create feedback message if it doesn't exist
-                    let feedback = field.nextElementSibling;
-                    if (!feedback || !feedback.classList.contains('invalid-feedback')) {
-                        feedback = document.createElement('div');
-                        feedback.className = 'invalid-feedback';
-                        feedback.textContent = 'This field is required';
-                        field.parentNode.insertBefore(feedback, field.nextSibling);
-                    }
-                } else {
-                    field.classList.remove('is-invalid');
-                    const feedback = field.nextElementSibling;
-                    if (feedback && feedback.classList.contains('invalid-feedback')) {
-                        feedback.remove();
-                    }
-                }
-            });
-            
-            if (!isValid) {
-                e.preventDefault();
-                // Scroll to first invalid field
-                const firstInvalid = form.querySelector('.is-invalid');
-                if (firstInvalid) {
-                    firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                    firstInvalid.focus();
-                }
+    }
+
+    if (regionSelect) {
+        regionSelect.addEventListener('change', function() {
+            const regionId = this.value;
+            updateCities(regionId);
+        });
+    }
+
+    // Avatar upload preview
+    const imageUpload = document.getElementById('imageUpload');
+    if (imageUpload) {
+        imageUpload.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('imagePreview').style.backgroundImage = `url(${e.target.result})`;
+                };
+                reader.readAsDataURL(file);
             }
         });
     }
 });
+
+function updateRegions(countryId) {
+    // Implementation for updating regions based on country
+}
+
+function updateCities(regionId) {
+    // Implementation for updating cities based on region
+}
+
+// Gallery management functions
+function deleteCertification(certId) {
+    if (confirm('Are you sure you want to delete this certification?')) {
+        // Implementation for deleting certification
+    }
+}
+
+function deleteClientPicture(pictureId) {
+    if (confirm('Are you sure you want to delete this picture?')) {
+        // Implementation for deleting client picture
+    }
+}
+
+function deleteCoachPicture(pictureId) {
+    if (confirm('Are you sure you want to delete this picture?')) {
+        // Implementation for deleting coach picture
+    }
+}
 </script>
 {% endblock %}

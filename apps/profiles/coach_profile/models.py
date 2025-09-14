@@ -1,6 +1,6 @@
 from django.db import models
 from apps.auth_users.models import CustomUser
-from ..choices  import DAYS_OF_WEEK, GENDER_CHOICES
+from ..choices import GENDER_CHOICES
 from cities_light.models import Country, City, Region
 from django.contrib.auth import get_user_model
 
@@ -41,15 +41,6 @@ class CoachProfile(models.Model):
         return f"{self.id}: {self.user}"
 
 
-
-class Availability(models.Model):
-    coach_profile = models.ForeignKey(CoachProfile, on_delete=models.CASCADE, related_name='availabilities')
-    day_of_week = models.CharField(max_length=10, choices=DAYS_OF_WEEK)
-    start_time = models.TimeField()
-    end_time = models.TimeField()
-
-    def __str__(self):
-        return f"{self.day_of_week}: {self.start_time} - {self.end_time}"
 
 
 class Certification(models.Model):

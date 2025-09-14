@@ -1,6 +1,6 @@
 from django.urls import re_path
 from channels.routing import ProtocolTypeRouter, URLRouter
-from channels.auth import AuthMiddlewareStack
+# from channels.auth import AuthMiddlewareStack  # Temporarily disabled
 from apps.messaging import routing as messaging_routing
 from apps.plan_management.notifications import routing as notification_routing
 from apps.plan_management.notifications.middleware import JWTAuthMiddlewareStack

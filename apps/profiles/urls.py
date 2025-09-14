@@ -4,7 +4,7 @@ from .client_profile import apis as client_apis
 from .coach_profile import apis as coach_apis
 from . import views
 from .coach_profile import views_coach
-from .coach_profile import views_availability, views_coach_picture, views_client_picture, views_certification
+from .coach_profile import views_coach_picture, views_client_picture, views_certification
 from .client_profile import views_api as client_views_api
 # Old client views have been removed in favor of API-driven approach
 
@@ -22,7 +22,6 @@ router.register(r'client-progress-reports', client_apis.ProgressReportViewSet, b
 
 # Coach API routes
 router.register(r'coach-profiles', coach_apis.CoachProfileViewSet, basename='coach-profile')
-router.register(r'coach-availabilities', coach_apis.AvailabilityViewSet, basename='availability')
 router.register(r'coach-certifications', coach_apis.CertificationViewSet, basename='certification')
 router.register(r'coach-client-pictures', coach_apis.ClientPictureViewSet, basename='client-picture')
 router.register(r'coach-pictures', coach_apis.CoachPictureViewSet, basename='coach-picture')
@@ -65,11 +64,9 @@ urlpatterns = [
     path('client/progress-reports/report/<int:pk>/', client_views_api.view_progress_report, name='view_progress_report'),
     
     # Coach profile URLs
+    path('coach/', views_coach.coach_profile_current, name='coach_profile'),
     path('coach-profile/<int:pk>/', views_coach.view_coach_profile, name='view_coach_profile'),
     path('coach-profile/edit/', views_coach.edit_coach_profile, name='edit_coach_profile'),
-    
-    # coach availabilty
-    path('coach-profile/availabilities/', views_availability.view_availabilities, name='view_availabilities'),
 
     # coach picture
     path('coach-profile/pictures/', views_coach_picture.view_pictures, name='view_pictures'),

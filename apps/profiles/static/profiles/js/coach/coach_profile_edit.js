@@ -1,140 +1,543 @@
-// document.getElementById('profile-form').addEventListener('submit', function(event) {
-//     event.preventDefault();
+// Coach Profile Edit JavaScript
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize the coach profile editor
+    initializeCoachProfileEditor();
+});
 
-//     const form = event.target;
-//     const formData = new FormData(form);
-//     const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-//     const url = form.getAttribute('data-url');  // Get the correct URL from the data attribute
+function initializeCoachProfileEditor() {
+    setupFormHandlers();
+    setupLocationCascading();
+    setupAvatarPreview();
+    setupGalleryManagement();
+    setupCertificationManagement();
+}
 
-//     // Check if a new avatar file has been selected
-//     const avatarInput = form.querySelector('input[name="avatar"]');
-//     if (avatarInput && avatarInput.files.length === 0) {
-//         formData.delete('avatar');  // Remove the avatar field from formData if no new file is selected
-//     }
-
-//     // Get the access token from local storage
-//     const accessToken = localStorage.getItem('access_token');
-
-//     fetch(url, {
-//         method: 'PATCH',  // Use PATCH for partial updates
-//         body: formData,
-//         headers: {
-//             'X-CSRFToken': csrfToken,
-//             'Accept': 'application/json',
-//             'Authorization': `Bearer ${accessToken}`,  // Include the access token in the header
-//         }
-//     })
-//     .then(response => {
-//         if (response.ok) {
-//             return response.json();  // Parse JSON if response is OK
-//         } else {
-//             return response.json().then(data => {
-//                 // Handle validation errors
-//                 throw data;
-//             });
-//         }
-//     })
-//     .then(data => {
-//         alert("Profile updated successfully!");
-//         window.location.reload();  // Optionally reload the page or update the DOM
-//     })
-//     .catch(errorData => {
-//         if (errorData.errors) {
-//             // Clear any previous error messages
-//             document.querySelectorAll('.error-message').forEach(el => el.remove());
-
-//             // Loop through each error and display it
-//             for (let field in errorData.errors) {
-//                 const fieldElement = document.querySelector(`[name=${field}]`);
-//                 if (fieldElement) {
-//                     const errorElement = document.createElement('div');
-//                     errorElement.className = 'error-message';
-//                     errorElement.style.color = 'red';
-//                     errorElement.textContent = errorData.errors[field];
-//                     fieldElement.parentNode.insertBefore(errorElement, fieldElement.nextSibling);
-//                 }
-//             }
-//         } else {
-//             console.error('Unexpected error:', errorData);
-//             document.getElementById('error-messages').innerHTML = `<p>An unexpected error occurred. Please try again.</p>`;
-//         }
-//     });
-// });
-
-document.getElementById('profile-form').addEventListener('submit', function(event) {
-    event.preventDefault();
-
-    const form = event.target;
-    const formData = new FormData(form);
-    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-    const url = form.getAttribute('data-url');  // Get the correct URL from the data attribute
-
-    // Check if a new avatar file has been selected
-    const avatarInput = form.querySelector('input[name="avatar"]');
-    if (avatarInput && avatarInput.files.length === 0) {
-        formData.delete('avatar');  // Remove the avatar field from formData if no new file is selected
+// Main form submission handler
+function setupFormHandlers() {
+    const mainForm = document.getElementById('coach-profile-form');
+    if (mainForm) {
+        mainForm.addEventListener('submit', handleMainFormSubmit);
     }
 
-    // Get the access token from local storage
-    const accessToken = localStorage.getItem('access_token');
+    // Modal form handlers
+    const certForm = document.getElementById('certification-form');
+    if (certForm) {
+        certForm.addEventListener('submit', handleCertificationSubmit);
+    }
 
-    fetch(url, {
-        method: 'PATCH',  // Use PATCH for partial updates
-        body: formData,
-        headers: {
-            'X-CSRFToken': csrfToken,
-            'Accept': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,  // Include the access token in the header
-        }
-    })
-    .then(response => {
-        if (response.ok) {
-            return response.json();  // Parse JSON if response is OK
-        } else {
-            return response.json().then(data => {
-                // Handle validation errors
-                throw data;
-            });
-        }
-    })
-    .then(data => {
-        // Display a success message using Bootstrap alerts
-        const successMessage = `
-            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                Profile updated successfully!
-                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-            </div>`;
-        document.getElementById('messages').innerHTML = successMessage;
-        
-        // Optionally reload the page or update the DOM
-        setTimeout(() => {
-            window.location.reload();
-        }, 2000);
-    })
-    .catch(errorData => {
-        // Clear any previous error messages
-        document.querySelectorAll('.error-message').forEach(el => el.remove());
+    const clientPictureForm = document.getElementById('client-picture-form');
+    if (clientPictureForm) {
+        clientPictureForm.addEventListener('submit', handleClientPictureSubmit);
+    }
 
-        // Display form validation errors using Bootstrap alert-danger classes
-        if (errorData.errors) {
-            for (let field in errorData.errors) {
-                const fieldElement = document.querySelector(`[name=${field}]`);
-                if (fieldElement) {
-                    const errorElement = document.createElement('div');
-                    errorElement.className = 'error-message text-danger mt-2';
-                    errorElement.textContent = errorData.errors[field];
-                    fieldElement.classList.add('is-invalid');  // Add Bootstrap 'is-invalid' class for styling
-                    fieldElement.parentNode.insertBefore(errorElement, fieldElement.nextSibling);
-                }
+    const coachPictureForm = document.getElementById('coach-picture-form');
+    if (coachPictureForm) {
+        coachPictureForm.addEventListener('submit', handleCoachPictureSubmit);
+    }
+}
+
+// Handle main profile form submission
+async function handleMainFormSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    // Show loading state
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Saving...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch(form.action || window.location.href, {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
             }
+        });
+
+        if (response.ok) {
+            showSuccessMessage('Profile updated successfully!');
+            // Optionally redirect or reload
+            setTimeout(() => {
+                window.location.reload();
+            }, 1500);
         } else {
-            // Display a general error message if there's no field-specific errors
-            const errorMessage = `
-                <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                    An unexpected error occurred. Please try again.
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>`;
-            document.getElementById('messages').innerHTML = errorMessage;
+            const errorData = await response.json();
+            handleFormErrors(errorData);
+        }
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        showErrorMessage('An error occurred while updating your profile. Please try again.');
+    } finally {
+        // Reset button state
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+// Location cascading dropdowns
+function setupLocationCascading() {
+    const countrySelect = document.getElementById('id_country');
+    const regionSelect = document.getElementById('id_region');
+    const citySelect = document.getElementById('id_city');
+
+    if (countrySelect) {
+        countrySelect.addEventListener('change', function() {
+            const countryId = this.value;
+            updateRegions(countryId, regionSelect, citySelect);
+        });
+    }
+
+    if (regionSelect) {
+        regionSelect.addEventListener('change', function() {
+            const regionId = this.value;
+            updateCities(regionId, citySelect);
+        });
+    }
+}
+
+async function updateRegions(countryId, regionSelect, citySelect) {
+    if (!countryId) {
+        clearSelect(regionSelect, 'Select a region');
+        clearSelect(citySelect, 'Select a city');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/profiles/api/v1/regions/?country=${countryId}`);
+        const regions = await response.json();
+        
+        populateSelect(regionSelect, regions, 'Select a region');
+        clearSelect(citySelect, 'Select a city');
+    } catch (error) {
+        console.error('Error fetching regions:', error);
+    }
+}
+
+async function updateCities(regionId, citySelect) {
+    if (!regionId) {
+        clearSelect(citySelect, 'Select a city');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/profiles/api/v1/cities/?region=${regionId}`);
+        const cities = await response.json();
+        
+        populateSelect(citySelect, cities, 'Select a city');
+    } catch (error) {
+        console.error('Error fetching cities:', error);
+    }
+}
+
+function clearSelect(selectElement, placeholder) {
+    selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+}
+
+function populateSelect(selectElement, items, placeholder) {
+    selectElement.innerHTML = `<option value="">${placeholder}</option>`;
+    items.forEach(item => {
+        const option = document.createElement('option');
+        option.value = item.id;
+        option.textContent = item.name;
+        selectElement.appendChild(option);
+    });
+}
+
+// Avatar preview functionality
+function setupAvatarPreview() {
+    const imageUpload = document.getElementById('imageUpload');
+    const imagePreview = document.getElementById('imagePreview');
+
+    if (imageUpload && imagePreview) {
+        imageUpload.addEventListener('change', function() {
+            const file = this.files[0];
+            if (file) {
+                if (file.size > 5 * 1024 * 1024) { // 5MB limit
+                    showErrorMessage('Image file size must be less than 5MB');
+                    this.value = '';
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    imagePreview.style.backgroundImage = `url(${e.target.result})`;
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+}
+
+// Certification management
+function setupCertificationManagement() {
+    // Already handled in form submission
+}
+
+async function handleCertificationSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    // Show loading state
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/profiles/api/v1/coach-certifications/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            const certification = await response.json();
+            addCertificationToList(certification);
+            bootstrap.Modal.getInstance(document.getElementById('addCertificationModal')).hide();
+            form.reset();
+            showSuccessMessage('Certification added successfully!');
+        } else {
+            const errorData = await response.json();
+            handleFormErrors(errorData, form);
+        }
+    } catch (error) {
+        console.error('Error adding certification:', error);
+        showErrorMessage('An error occurred while adding the certification.');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+async function deleteCertification(certId) {
+    if (!confirm('Are you sure you want to delete this certification?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/profiles/api/v1/coach-certifications/${certId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            document.querySelector(`[data-cert-id="${certId}"]`).remove();
+            showSuccessMessage('Certification deleted successfully!');
+        } else {
+            showErrorMessage('Failed to delete certification.');
+        }
+    } catch (error) {
+        console.error('Error deleting certification:', error);
+        showErrorMessage('An error occurred while deleting the certification.');
+    }
+}
+
+// Gallery management
+function setupGalleryManagement() {
+    // Already handled in form submissions
+}
+
+async function handleClientPictureSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/profiles/api/v1/coach-client-pictures/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            const picture = await response.json();
+            addClientPictureToGallery(picture);
+            bootstrap.Modal.getInstance(document.getElementById('addClientPictureModal')).hide();
+            form.reset();
+            showSuccessMessage('Picture added successfully!');
+        } else {
+            const errorData = await response.json();
+            handleFormErrors(errorData, form);
+        }
+    } catch (error) {
+        console.error('Error adding picture:', error);
+        showErrorMessage('An error occurred while adding the picture.');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+async function handleCoachPictureSubmit(event) {
+    event.preventDefault();
+    
+    const form = event.target;
+    const formData = new FormData(form);
+    const submitBtn = form.querySelector('button[type="submit"]');
+    
+    const originalText = submitBtn.innerHTML;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Uploading...';
+    submitBtn.disabled = true;
+
+    try {
+        const response = await fetch('/profiles/api/v1/coach-pictures/', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            const picture = await response.json();
+            addCoachPictureToGallery(picture);
+            bootstrap.Modal.getInstance(document.getElementById('addCoachPictureModal')).hide();
+            form.reset();
+            showSuccessMessage('Picture added successfully!');
+        } else {
+            const errorData = await response.json();
+            handleFormErrors(errorData, form);
+        }
+    } catch (error) {
+        console.error('Error adding picture:', error);
+        showErrorMessage('An error occurred while adding the picture.');
+    } finally {
+        submitBtn.innerHTML = originalText;
+        submitBtn.disabled = false;
+    }
+}
+
+async function deleteClientPicture(pictureId) {
+    if (!confirm('Are you sure you want to delete this picture?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/profiles/api/v1/coach-client-pictures/${pictureId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            document.querySelector(`[data-client-picture-id="${pictureId}"]`).remove();
+            showSuccessMessage('Picture deleted successfully!');
+        } else {
+            showErrorMessage('Failed to delete picture.');
+        }
+    } catch (error) {
+        console.error('Error deleting picture:', error);
+        showErrorMessage('An error occurred while deleting the picture.');
+    }
+}
+
+async function deleteCoachPicture(pictureId) {
+    if (!confirm('Are you sure you want to delete this picture?')) {
+        return;
+    }
+
+    try {
+        const response = await fetch(`/profiles/api/v1/coach-pictures/${pictureId}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken(),
+                'Authorization': `Bearer ${getAccessToken()}`,
+            }
+        });
+
+        if (response.ok) {
+            document.querySelector(`[data-coach-picture-id="${pictureId}"]`).remove();
+            showSuccessMessage('Picture deleted successfully!');
+        } else {
+            showErrorMessage('Failed to delete picture.');
+        }
+    } catch (error) {
+        console.error('Error deleting picture:', error);
+        showErrorMessage('An error occurred while deleting the picture.');
+    }
+}
+
+// Helper functions
+function addCertificationToList(certification) {
+    const certList = document.getElementById('certifications-list');
+    if (certList) {
+        const certHtml = `
+            <div class="col-md-6 col-lg-4 mb-3" data-cert-id="${certification.id}">
+                <div class="certification-item border rounded p-3">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <div class="flex-grow-1">
+                            <h6 class="mb-1">${certification.description || 'Certification'}</h6>
+                            <small class="text-muted">Status: 
+                                <span class="badge bg-warning">Pending</span>
+                            </small>
+                        </div>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v"></i>
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" href="${certification.file}" target="_blank">
+                                    <i class="fas fa-eye me-1"></i>View
+                                </a></li>
+                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteCertification(${certification.id})">
+                                    <i class="fas fa-trash me-1"></i>Delete
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Remove empty state if exists
+        const emptyState = certList.querySelector('.text-center.py-4');
+        if (emptyState) {
+            emptyState.parentElement.remove();
+        }
+        
+        certList.insertAdjacentHTML('beforeend', certHtml);
+    }
+}
+
+function addClientPictureToGallery(picture) {
+    const gallery = document.getElementById('client-pictures-list');
+    if (gallery) {
+        const pictureHtml = `
+            <div class="col-md-4 col-lg-3 mb-3" data-client-picture-id="${picture.id}">
+                <div class="gallery-item">
+                    <img src="${picture.image}" class="img-fluid rounded" alt="${picture.description || ''}">
+                    <div class="gallery-item-overlay">
+                        <button class="btn btn-sm btn-light" onclick="deleteClientPicture(${picture.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    ${picture.description ? `<small class="text-muted d-block mt-1">${picture.description}</small>` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Remove empty state if exists
+        const emptyState = gallery.querySelector('.text-center.py-4');
+        if (emptyState) {
+            emptyState.parentElement.remove();
+        }
+        
+        gallery.insertAdjacentHTML('beforeend', pictureHtml);
+    }
+}
+
+function addCoachPictureToGallery(picture) {
+    const gallery = document.getElementById('coach-pictures-list');
+    if (gallery) {
+        const pictureHtml = `
+            <div class="col-md-4 col-lg-3 mb-3" data-coach-picture-id="${picture.id}">
+                <div class="gallery-item">
+                    <img src="${picture.image}" class="img-fluid rounded" alt="${picture.description || ''}">
+                    <div class="gallery-item-overlay">
+                        <button class="btn btn-sm btn-light" onclick="deleteCoachPicture(${picture.id})">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                    ${picture.description ? `<small class="text-muted d-block mt-1">${picture.description}</small>` : ''}
+                </div>
+            </div>
+        `;
+        
+        // Remove empty state if exists
+        const emptyState = gallery.querySelector('.text-center.py-4');
+        if (emptyState) {
+            emptyState.parentElement.remove();
+        }
+        
+        gallery.insertAdjacentHTML('beforeend', pictureHtml);
+    }
+}
+
+function handleFormErrors(errorData, form = null) {
+    // Clear previous errors
+    document.querySelectorAll('.text-danger.small').forEach(el => {
+        if (el.textContent.includes('This field') || el.textContent.includes('Error:')) {
+            el.remove();
         }
     });
-});
+
+    if (errorData.errors) {
+        for (const [field, errors] of Object.entries(errorData.errors)) {
+            const fieldElement = form ? 
+                form.querySelector(`[name="${field}"]`) : 
+                document.querySelector(`[name="${field}"]`);
+            
+            if (fieldElement) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'text-danger small';
+                errorDiv.textContent = Array.isArray(errors) ? errors[0] : errors;
+                fieldElement.parentElement.appendChild(errorDiv);
+            }
+        }
+    }
+}
+
+function showSuccessMessage(message) {
+    showToast(message, 'success');
+}
+
+function showErrorMessage(message) {
+    showToast(message, 'error');
+}
+
+function showToast(message, type = 'info') {
+    // Create a simple toast notification
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} alert-dismissible position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+    toast.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentElement) {
+            toast.remove();
+        }
+    }, 5000);
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+
+function getAccessToken() {
+    return localStorage.getItem('access_token') || '';
+}
+
+// Make functions available globally
+window.deleteCertification = deleteCertification;
+window.deleteClientPicture = deleteClientPicture;
+window.deleteCoachPicture = deleteCoachPicture;
