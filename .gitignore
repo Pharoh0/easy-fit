@@ -173,6 +173,26 @@ db.sqlite3-journal
 staticfiles/
 media
 
+# Django secret files
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+secrets.json
+local_settings.py
+
+# Django development
+*.sqlite3-wal
+*.sqlite3-shm
+celerybeat-schedule
+celerybeat.pid
+
+# Django static files
+/static/
+staticfiles/
+staticfiles/**
+
 ### Django.Python Stack ###
 *.py[cod]
 *$py.class
@@ -382,6 +402,74 @@ pip-selfcheck.json
 # Ignore all local history of files
 .history
 .ionide
+
+### Windsurf IDE ###
+# Windsurf configuration and cache files
+.windsurf/
+*.windsurf
+.windsurf/**
+windsurf.json
+windsurf-*.json
+
+# Windsurf AI assistant files
+.windsurf-chat/
+.windsurf-assistant/
+.windsurf-rules/
+.windsurf-context/
+
+# Windsurf project specific files
+windsurf.config.json
+windsurf.workspace.json
+
+### Other IDEs and Editors ###
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Atom
+.atom/
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Nano
+*.save
+
+### Development and AI Assistant Files ###
+# AI assistant conversations and context
+.ai-context/
+.assistant-chat/
+ai-conversations/
+*.ai-conversation
+*.ai-context
+
+# Development notes and temporary files
+.dev-notes/
+.scratch/
+.temp/
+temp/
+scratch/
+notes.md
+TODO.md
+NOTES.md
 
 ### Windows ###
 # Windows thumbnail cache files
