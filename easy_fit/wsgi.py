@@ -1,5 +1,5 @@
 """
-WSGI config for ezay_fit project.
+WSGI config for easy_fit project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'ezay_fit.settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'easy_fit.settings')
 
 application = get_wsgi_application()

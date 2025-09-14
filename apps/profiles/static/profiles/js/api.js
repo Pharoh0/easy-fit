@@ -1,10 +1,10 @@
 /**
- * API Utility functions for Eazy Fit application
+ * API Utility functions for Easy Fit application
  */
 
 // Check if the API has already been loaded to prevent duplicate declarations
-if (typeof window.EazyFitAPILoaded === 'undefined') {
-    window.EazyFitAPILoaded = true;
+if (typeof window.EasyFitAPILoaded === 'undefined') {
+    window.EasyFitAPILoaded = true;
     
     // CSRF token utility function
     function getCsrfToken() {

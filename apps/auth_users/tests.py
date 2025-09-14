@@ -28,7 +28,7 @@ class PasswordResetFlowTests(TestCase):
 		self.assertRedirects(resp, reverse('auth_users:password_reset_done'))
 		# Email should be sent
 		self.assertEqual(len(mail.outbox), 1)
-		self.assertIn('Reset your Eazy Fit password', mail.outbox[0].subject)
+		self.assertIn('Reset your Easy Fit password', mail.outbox[0].subject)
 		self.assertIn(self.user_email, mail.outbox[0].to)
 
 	def test_password_reset_confirm_changes_password(self):

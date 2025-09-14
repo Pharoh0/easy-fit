@@ -42,7 +42,7 @@ def send_plan_notification(subscription, notification_type, additional_context=N
             'plan_link': f"{getattr(settings, 'SITE_URL', 'http://localhost:8000')}/plans/view/{access_token}/",
             'subscription': subscription,
             'notification': notification,
-            'site_name': getattr(settings, 'SITE_NAME', 'Eazy Fit'),
+            'site_name': getattr(settings, 'SITE_NAME', 'Easy Fit'),
         }
         
         if additional_context:
@@ -119,7 +119,7 @@ def send_plan_notification_email(subscription, notification_type, additional_con
                 'coach': coach,
                 'client': client,
                 'plan_request': plan_request,
-                'site_name': getattr(settings, 'SITE_NAME', 'Eazy Fit'),
+                'site_name': getattr(settings, 'SITE_NAME', 'Easy Fit'),
             }
             try:
                 subject = render_to_string('plan_management/emails/plan_request_received_subject.txt', template_ctx).strip()
@@ -145,7 +145,7 @@ def send_plan_notification_email(subscription, notification_type, additional_con
                 subject=subject,
                 message='',
                 html_message=html_content,
-                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@eazyfit.com'),
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@easyfit.com'),
                 recipient_list=[coach_email],
                 fail_silently=True,
             )

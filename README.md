@@ -101,7 +101,7 @@ easy-fit/
 │   ├── staff/                     # Staff management
 │   └── user_friendship/           # Social features
 ├── docs/                          # Documentation
-├── ezay_fit/                      # Main Django project settings
+├── easy_fit/                      # Main Django project settings
 ├── media/                         # User uploaded files
 ├── static/                        # Static files (CSS, JS, images)
 ├── templates/                     # HTML templates

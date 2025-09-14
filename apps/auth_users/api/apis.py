@@ -26,7 +26,7 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.urls import reverse
 from rest_framework import status, generics, serializers
-from ezay_fit import settings
+from easy_fit import settings
 from rest_framework.generics import GenericAPIView
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
@@ -65,7 +65,7 @@ def _build_verification_link(request, user: User) -> str:
 
 def _send_verification_email(request, user: User, code: str) -> None:
     """Send verification email with code and verification link."""
-    subject = 'Verify your Eazy Fit account'
+    subject = 'Verify your Easy Fit account'
     link = _build_verification_link(request, user)
     
     # Debug output in development
@@ -85,7 +85,7 @@ def _send_verification_email(request, user: User, code: str) -> None:
         'verification_code': code,
         'verification_link': link,
         'expiry_minutes': VERIFICATION_CODE_EXPIRY_MINUTES,
-        'site_name': getattr(settings, 'SITE_NAME', 'Eazy Fit'),
+        'site_name': getattr(settings, 'SITE_NAME', 'Easy Fit'),
         'site_url': getattr(settings, 'SITE_URL', 'http://localhost:8000'),
     }
     

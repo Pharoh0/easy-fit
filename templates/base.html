@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Eazy Fit{% endblock %}</title>
+    <title>{% block title %}Easy Fit{% endblock %}</title>
     <!-- Favicon -->
     <link rel="icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
     <link rel="shortcut icon" href="{% static 'favicon.ico' %}" type="image/x-icon">
@@ -138,7 +138,7 @@
                     },
                     getUser() {
                         try {
-                            const legacy = localStorage.getItem('eazyfit_user') || sessionStorage.getItem('eazyfit_user');
+                            const legacy = localStorage.getItem('easyfit_user') || sessionStorage.getItem('easyfit_user');
                             if (legacy) return JSON.parse(legacy);
                         } catch (e) { /* ignore */ }
 

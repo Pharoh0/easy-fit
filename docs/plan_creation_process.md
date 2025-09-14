@@ -1,8 +1,8 @@
-# EazyFit Coach Plan Creation Process Documentation
+# Easy Fit Coach Plan Creation Process Documentation
 
 ## Overview
 
-The EazyFit plan creation system allows coaches to create comprehensive fitness and meal plans for their clients. The process is divided into several logical steps with a clean separation between workout and meal template creation.
+The Easy Fit plan creation system allows coaches to create comprehensive fitness and meal plans for their clients. The process is divided into several logical steps with a clean separation between workout and meal template creation.
 
 ## Architecture
 
