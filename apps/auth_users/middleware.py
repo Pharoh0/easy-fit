@@ -55,8 +55,15 @@ class StaffPageAccessMiddleware:
                 from django.urls import reverse
                 return redirect(f"{reverse('auth_users:user-login')}?next={request.path}")
             
-            # IMPORTANT: Check user_type is exactly 'staff' (strict string comparison) or superuser
-            is_staff = user.user_type == 'staff' if hasattr(user, 'user_type') else False
+            # IMPORTANT: Check staff via model helper or user_type and allow superuser
+            is_staff = False
+            try:
+                # Prefer property from CustomUser
+                is_staff = bool(getattr(user, 'is_staff_member', False))
+                if not is_staff and hasattr(user, 'user_type'):
+                    is_staff = (user.user_type == 'staff')
+            except Exception:
+                is_staff = (getattr(user, 'user_type', None) == 'staff')
             is_superuser = user.is_superuser if hasattr(user, 'is_superuser') else False
             
             # If not staff or superuser, deny access

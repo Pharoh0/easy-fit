@@ -18,13 +18,11 @@ function loadTemplates() {
         CoachPlanAPI.workoutTemplates.getAll().then(data => {
             workoutTemplates = data.results || [];
             renderWorkoutTemplatesList();
-            renderWorkoutTemplatesDropdown();
         }),
         // Load meal templates
         CoachPlanAPI.mealTemplates.getAll().then(data => {
             mealTemplates = data.results || [];
             renderMealTemplatesList();
-            renderMealTemplatesDropdown();
         })
     ]).catch(error => {
         console.error('Error loading templates:', error);
@@ -100,21 +98,8 @@ function renderWorkoutTemplatesList() {
         
         container.appendChild(templateItem);
     });
-
-    // Bind delegated handlers once for reliability
-    if (!container.dataset.handlersBound) {
-        container.addEventListener('click', (e) => {
-            const item = e.target.closest('.template-list-item');
-            if (!item || !container.contains(item)) return;
-            const tid = item.dataset.templateId;
-            if (e.target.closest('.apply-template-btn')) {
-                if (tid) applyWorkoutTemplate(tid);
-            } else if (e.target.closest('.preview-template-btn')) {
-                if (tid) previewWorkoutTemplate(tid);
-            }
-        });
-        container.dataset.handlersBound = '1';
-    }
+    // Note: We intentionally avoid a delegated container handler here to prevent
+    // duplicate event firing alongside the per-item listeners above.
 }
 
 /**
@@ -252,20 +237,8 @@ function renderWorkoutTemplatesDropdown() {
     if (dividers.length > 0) {
         dividers[dividers.length - 1].remove();
     }
-
-    // Bind delegated click handler once
-    if (!container.dataset.handlerBound) {
-        container.addEventListener('click', (e) => {
-            const link = e.target.closest('a.dropdown-item');
-            if (!link || !container.contains(link)) return;
-            e.preventDefault();
-            const tid = link.dataset.templateId;
-            if (tid) {
-                applyWorkoutTemplate(tid);
-            }
-        });
-        container.dataset.handlerBound = '1';
-    }
+    // Note: We rely on per-link listeners above; no delegated container handler
+    // to avoid duplicate apply calls when events bubble.
 }
 
 /**

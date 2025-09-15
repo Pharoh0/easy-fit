@@ -11,11 +11,10 @@ const PlanCustomizationData = (() => {
     let currentDayId = null;
     let planDays = [];
     let planData = null;
-    let clientData = null;
     // Track current selected session containers (first by default)
     let currentWorkoutPlanId = null;
     let currentNutritionPlanId = null;
-    
+
     /**
      * Initialize data from URL parameters
      */
@@ -516,92 +515,92 @@ const PlanCustomizationData = (() => {
             return;
         }
 
-        // Determine selected session
+        // Sessions summary and per-session cards
         const sessions = dayData.workouts;
-        let workout = sessions.find(w => w.id === currentWorkoutPlanId) || sessions[0];
-        currentWorkoutPlanId = workout.id;
+        const first = sessions[0];
+        currentWorkoutPlanId = first.id;
         emptyState.style.display = 'none';
         content.style.display = '';
-        if (nameEl) nameEl.textContent = workout.name || 'Workout';
-        if (typeEl) typeEl.textContent = workout.type || '';
-        if (durationEl) durationEl.textContent = workout.duration || '';
-        if (intensityEl) intensityEl.textContent = workout.intensity || '';
+    if (nameEl) nameEl.textContent = first.name || 'Workout';
+    if (typeEl) typeEl.textContent = first.type || '';
+    if (durationEl) durationEl.textContent = first.duration || '';
+    if (intensityEl) intensityEl.textContent = first.intensity || '';
+    // Hide the legacy workout summary row to avoid duplication with cards
+    const workoutHeader = document.querySelector('#workoutContent .workout-header');
+    if (workoutHeader) workoutHeader.style.display = 'none';
 
-        // Render session selector in header
-        const headerRow = document.querySelector('#workoutContent .workout-header .row');
-        if (headerRow) {
-            let selWrap = document.getElementById('workoutSessionSelectWrap');
-            if (!selWrap) {
-                selWrap = document.createElement('div');
-                selWrap.id = 'workoutSessionSelectWrap';
-                selWrap.className = 'col-auto';
-                headerRow.appendChild(selWrap);
-            }
-            selWrap.innerHTML = `
-                <label class="form-label small mb-1">Workout Sessions</label>
-                <select class="form-select form-select-sm" id="workoutSessionSelect"></select>
-            `;
-            const selectEl = document.getElementById('workoutSessionSelect');
-            if (selectEl) {
-                selectEl.innerHTML = sessions.map((s, idx) => `<option value="${s.id}" ${s.id===currentWorkoutPlanId?'selected':''}>${s.session_name || ('Session ' + (idx+1))} - ${s.name || ''}</option>`).join('');
-                selectEl.onchange = () => {
-                    currentWorkoutPlanId = parseInt(selectEl.value, 10);
-                    renderWorkoutsSection(dayData);
-                };
-            }
-        }
+        // Remove session selector (no dropdown UX)
+        const wpSelectWrap2 = document.getElementById('workoutSessionSelectWrap');
+        if (wpSelectWrap2 && wpSelectWrap2.parentNode) wpSelectWrap2.parentNode.removeChild(wpSelectWrap2);
 
         if (blocksContainer) {
             blocksContainer.innerHTML = '';
-            // Media row under header
-            let mediaRow = document.getElementById('workoutMediaRow');
-            if (!mediaRow) {
-                mediaRow = document.createElement('div');
-                mediaRow.id = 'workoutMediaRow';
-                mediaRow.className = 'mb-3';
-                const header = document.querySelector('#workoutContent .workout-header');
-                if (header && header.parentNode) {
-                    header.parentNode.insertBefore(mediaRow, header.nextSibling);
-                } else {
-                    blocksContainer.parentNode.insertBefore(mediaRow, blocksContainer);
-                }
-            }
-            mediaRow.innerHTML = '';
-            if (workout.image || workout.video_url) {
-                let html = '<div class="row g-2">';
-                if (workout.image) {
-                    html += `<div class="col-auto"><img src="${workout.image}" class="img-thumbnail" style="max-height:120px" alt="Workout"></div>`;
-                }
-                if (workout.video_url) {
-                    html += `<div class="col-auto align-self-center"><a href="${workout.video_url}" target="_blank" class="btn btn-sm btn-outline-secondary"><i class="bi bi-play-circle me-1"></i>Watch Video</a></div>`;
-                }
-                html += '</div>';
-                mediaRow.innerHTML = html;
-            }
-
-            (workout.exercises || []).forEach(exercise => {
-                const block = document.createElement('div');
-                block.className = 'exercise-block';
-                block.innerHTML = `
-                    <div class="exercise-block-header d-flex justify-content-between">
-                        <h6>${exercise.name}</h6>
-                    </div>
-                    <div class="exercise-details p-2">
-                        <div class="row">
-                            <div class="col-md-3"><strong>Sets:</strong> ${exercise.sets || '-'}</div>
-                            <div class="col-md-3"><strong>Reps:</strong> ${exercise.reps || '-'}</div>
-                            <div class="col-md-3"><strong>Weight:</strong> ${exercise.weight || '-'}</div>
-                            <div class="col-md-3"><strong>Rest:</strong> ${exercise.rest || '-'}</div>
+            sessions.forEach((wp, idx) => {
+                const card = document.createElement('div');
+                card.className = 'card mb-3';
+                const meta = [wp.type || '', wp.duration ? (wp.duration + ' min') : '', wp.intensity || '']
+                    .filter(Boolean).join(' · ');
+                card.innerHTML = `
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="fw-semibold">${wp.session_name || ('Session ' + (idx+1))} - ${wp.name || 'Workout'}</div>
+                            ${meta ? `<div class="text-muted small">${meta}</div>` : ''}
                         </div>
-                        ${(exercise.demo_image || exercise.demo_video_url || exercise.demo_video) ? `
-                        <div class="mt-2">
-                            ${exercise.demo_image ? `<img src="${exercise.demo_image}" class="img-fluid rounded" style="max-height:120px" alt="Demo">` : ''}
-                            ${exercise.demo_video_url ? `<div class="mt-1"><a href="${exercise.demo_video_url}" target="_blank" class="link-secondary"><i class="bi bi-play-circle me-1"></i>Exercise Video</a></div>` : ''}
-                            ${exercise.demo_video ? `<div class="mt-1"><a href="${exercise.demo_video}" target="_blank" class="link-secondary"><i class="bi bi-play-circle me-1"></i>Exercise Video</a></div>` : ''}
-                        </div>` : ''}
-                        ${exercise.notes ? `<div class="mt-2"><strong>Notes:</strong> ${exercise.notes}</div>` : ''}
+                        <button class="btn btn-sm btn-outline-danger" data-wp-id="${wp.id}"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="card-body py-2">
+                        ${(wp.exercises || []).length ? `
+                        <div class="table-responsive">
+                            <table class="table table-sm mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Exercise</th>
+                                        <th>Sets</th>
+                                        <th>Reps/Time</th>
+                                        <th>Rest</th>
+                                        <th class="d-none d-md-table-cell">Block</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${(wp.exercises || []).map(ex => `
+                                        <tr>
+                                            <td>${ex.name}</td>
+                                            <td>${ex.sets || '-'}</td>
+                                            <td>${ex.reps || '-'}</td>
+                                            <td>${ex.rest || '-'}</td>
+                                            <td class="d-none d-md-table-cell">${ex.block_name || ''}</td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>` : `
+                        <div class="text-muted small">No exercises found</div>
+                        `}
                     </div>`;
-                blocksContainer.appendChild(block);
+                const btn = card.querySelector('button[data-wp-id]');
+                if (btn) {
+                    btn.addEventListener('click', async () => {
+                        try {
+                            btn.disabled = true;
+                            const res = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/remove_workout/`, {
+                                method: 'POST',
+                                body: JSON.stringify({ workout_plan_id: wp.id })
+                            });
+                            if (res && res.success) {
+                                showToast('success', 'Workout session removed');
+                                await selectDay(currentDayId, true);
+                            } else {
+                                throw new Error((res && res.error) || 'Failed to remove workout');
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            showToast('danger', 'Failed to remove workout session');
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                }
+                blocksContainer.appendChild(card);
             });
         }
 
@@ -640,51 +639,77 @@ const PlanCustomizationData = (() => {
         currentNutritionPlanId = nutrition.id;
         emptyState.style.display = 'none';
         content.style.display = '';
-        if (nameEl) nameEl.textContent = nutrition.name || 'Nutrition Plan';
-        if (typeEl) typeEl.textContent = nutrition.type || '';
-        if (caloriesEl) caloriesEl.textContent = nutrition.nutrition?.calories || nutrition.total_calories || '-';
-        if (proteinEl) proteinEl.textContent = nutrition.nutrition?.protein || nutrition.protein_grams || '-';
-        if (carbsEl) carbsEl.textContent = nutrition.nutrition?.carbs || nutrition.carbs_grams || '-';
-        if (fatsEl) fatsEl.textContent = nutrition.nutrition?.fats || nutrition.fats_grams || '-';
-
-        // Render plan selector in header
-        const summaryRow = document.querySelector('#mealContent .nutrition-summary .row');
-        if (summaryRow) {
-            let selWrap = document.getElementById('nutritionPlanSelectWrap');
-            if (!selWrap) {
-                selWrap = document.createElement('div');
-                selWrap.id = 'nutritionPlanSelectWrap';
-                selWrap.className = 'col-auto';
-                summaryRow.appendChild(selWrap);
-            }
-            selWrap.innerHTML = `
-                <label class="form-label small mb-1">Nutrition Plans</label>
-                <select class="form-select form-select-sm" id="nutritionPlanSelect"></select>
-            `;
-            const selectEl = document.getElementById('nutritionPlanSelect');
-            if (selectEl) {
-                selectEl.innerHTML = plans.map((p, idx) => `<option value="${p.id}" ${p.id===currentNutritionPlanId?'selected':''}>${p.name || ('Plan ' + (idx+1))}</option>`).join('');
-                selectEl.onchange = () => {
-                    currentNutritionPlanId = parseInt(selectEl.value, 10);
-                    renderMealsSection(dayData);
-                };
-            }
+        // Show a friendly plan name; hide raw default like 'Nutrition Plan 1'
+        if (nameEl) {
+            const rawName = nutrition.name || '';
+            const isDefault = /^\s*Nutrition\s+Plan(\s*\d+)?\s*$/i.test(rawName);
+            const fallback = nutrition.items && nutrition.items.length ? `${nutrition.items[0].name}` : 'Nutrition Plan';
+            nameEl.textContent = isDefault ? fallback : rawName;
         }
+    if (typeEl) typeEl.textContent = nutrition.type || '';
+    if (caloriesEl) caloriesEl.textContent = nutrition.nutrition?.calories || nutrition.total_calories || '-';
+    if (proteinEl) proteinEl.textContent = nutrition.nutrition?.protein || nutrition.protein_grams || '-';
+    if (carbsEl) carbsEl.textContent = nutrition.nutrition?.carbs || nutrition.carbs_grams || '-';
+    if (fatsEl) fatsEl.textContent = nutrition.nutrition?.fats || nutrition.fats_grams || '-';
+    // Hide the legacy nutrition summary row to avoid duplication with meal cards
+    const nutritionSummary = document.querySelector('#mealContent .nutrition-summary');
+    if (nutritionSummary) nutritionSummary.style.display = 'none';
+
+        // Remove nutrition plan selector dropdown (show header only)
+        const selWrapOld = document.getElementById('nutritionPlanSelectWrap');
+        if (selWrapOld && selWrapOld.parentNode) selWrapOld.parentNode.removeChild(selWrapOld);
 
         if (mealsContainer) {
             mealsContainer.innerHTML = '';
             (nutrition.items || []).forEach(meal => {
-                const el = document.createElement('div');
-                el.className = 'meal-item p-2 border-bottom';
-                const subtitle = [meal.meal_time, meal.nutrition?.calories ? (meal.nutrition.calories + ' kcal') : '']
+                const card = document.createElement('div');
+                card.className = 'card mb-2';
+                const cals = (meal.nutrition && (meal.nutrition.calories ?? meal.nutrition.kcal)) ?? meal.calories ?? '-';
+                const prot = (meal.nutrition && meal.nutrition.protein) ?? meal.protein ?? '-';
+                const carbs = (meal.nutrition && meal.nutrition.carbs) ?? meal.carbs ?? '-';
+                const fats = (meal.nutrition && meal.nutrition.fats) ?? meal.fats ?? '-';
+                const subtitle = [meal.meal_time, cals !== '-' ? (cals + ' kcal') : '']
                     .filter(Boolean).join(' · ');
-                el.innerHTML = `
-                    <div class="d-flex justify-content-between">
+                card.innerHTML = `
+                    <div class="card-header d-flex justify-content-between align-items-center py-2">
                         <div>
-                            <strong>${meal.name}</strong> ${subtitle ? `<span class="text-muted"> - ${subtitle}</span>` : ''}
+                            <div class="fw-semibold">${meal.name}</div>
+                            ${subtitle ? `<div class="text-muted small">${subtitle}</div>` : ''}
+                        </div>
+                        <button class="btn btn-sm btn-outline-danger" data-meal-id="${meal.id}"><i class="bi bi-trash"></i></button>
+                    </div>
+                    <div class="card-body py-2">
+                        <div class="row text-center small g-0">
+                            <div class="col"><div class="text-uppercase text-muted">Calories</div><div class="fw-semibold">${cals !== '-' ? cals : '-'}</div></div>
+                            <div class="col"><div class="text-uppercase text-muted">Protein</div><div class="fw-semibold">${prot !== '-' ? prot : '-'}</div></div>
+                            <div class="col"><div class="text-uppercase text-muted">Carbs</div><div class="fw-semibold">${carbs !== '-' ? carbs : '-'}</div></div>
+                            <div class="col"><div class="text-uppercase text-muted">Fats</div><div class="fw-semibold">${fats !== '-' ? fats : '-'}</div></div>
                         </div>
                     </div>`;
-                mealsContainer.appendChild(el);
+                const btn = card.querySelector('button[data-meal-id]');
+                if (btn) {
+                    btn.addEventListener('click', async () => {
+                        try {
+                            btn.disabled = true;
+                            const res = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/remove_meal/`, {
+                                method: 'POST',
+                                body: JSON.stringify({ meal_id: meal.id })
+                            });
+                            if (res && res.success) {
+                                showToast('success', 'Meal removed');
+                                await selectDay(currentDayId, true);
+                            } else {
+                                throw new Error((res && res.error) || 'Failed to remove meal');
+                            }
+                        } catch (e) {
+                            console.error(e);
+                            showToast('danger', 'Failed to remove meal');
+                        } finally {
+                            btn.disabled = false;
+                        }
+                    });
+                }
+                mealsContainer.appendChild(card);
             });
         }
 
@@ -775,11 +800,17 @@ const PlanCustomizationData = (() => {
     /**
      * Apply template to current day
      */
+    let applyingTemplate = false; // guard against double submissions
     async function applyTemplate(templateType, templateId, replace = false) {
         if (!currentDayId || !templateType || !templateId) {
             showError('Missing required information to apply template');
             return false;
         }
+        if (applyingTemplate) {
+            // Debounce duplicate clicks
+            return false;
+        }
+        applyingTemplate = true;
         
         try {
             showLoading(true, 'applyTemplate');
@@ -789,10 +820,12 @@ const PlanCustomizationData = (() => {
                 template_id: templateId,
                 replace: !!replace
             };
-            if (replace && templateType === 'workout' && currentWorkoutPlanId) {
+            if (templateType === 'workout' && replace && currentWorkoutPlanId) {
                 payload.workout_plan_id = currentWorkoutPlanId;
             }
-            if (replace && templateType === 'meal' && currentNutritionPlanId) {
+            // For meals: always target the current nutrition plan if available so
+            // multiple templates add additional meals to the same plan/day.
+            if (templateType === 'meal' && currentNutritionPlanId) {
                 payload.nutrition_plan_id = currentNutritionPlanId;
             }
             const response = await APIBase.request(`/plan-management/api/v1/coach-plan-customization/plan_days/${currentDayId}/apply_template/`, {
@@ -814,6 +847,9 @@ const PlanCustomizationData = (() => {
             showError('Failed to apply template: ' + error.message);
             showLoading(false, 'applyTemplate');
             return false;
+        }
+        finally {
+            applyingTemplate = false;
         }
     }
     

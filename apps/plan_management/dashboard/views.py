@@ -182,7 +182,22 @@ class PlanProgressViewSet(viewsets.ModelViewSet):
         to_create = []
         for s in subs_qs:
             if s.id not in existing_progress:
-                to_create.append(PlanProgress(subscription=s))
+                # Ensure required fields are populated on creation
+                days_count = 0
+                try:
+                    # Prefer existing generated plan days if available
+                    days_count = s.plan_days.count()
+                except Exception:
+                    days_count = 0
+                if not days_count:
+                    # Fallback to compute from product plan date range
+                    plan = getattr(s, 'product_plan', None)
+                    start = getattr(plan, 'start_date', None)
+                    end = getattr(plan, 'end_date', None)
+                    if start and end and end >= start:
+                        days_count = (end - start).days + 1
+                # As a last resort, default to 0 (valid for PositiveIntegerField)
+                to_create.append(PlanProgress(subscription=s, total_days=days_count or 0))
         if to_create:
             PlanProgress.objects.bulk_create(to_create, ignore_conflicts=True)
 

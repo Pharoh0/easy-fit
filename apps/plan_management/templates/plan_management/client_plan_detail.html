@@ -10,6 +10,24 @@
   .progress-circle::before { content: ''; width: 84px; height: 84px; border-radius: 50%; background: #fff; position: absolute; }
   .progress-text { position: relative; z-index: 1; font-weight: 700; font-size: 1.1rem; }
   .status-badge { font-size: .85rem; }
+
+  /* Day Details polish */
+  #dayDetailsModal .card { border-radius: .6rem; }
+  #dayDetailsModal .card-header { background: #fff; border-bottom: 1px solid #eef1f4; }
+  #dayDetailsModal .list-group-flush .list-group-item { border: 0; border-bottom: 1px solid #f1f3f5; padding-left: 0; padding-right: 0; }
+  #dayDetailsModal .list-group-flush .list-group-item:last-child { border-bottom: 0; }
+  #dayDetailsModal .bg-light { background: #f7f9fb !important; }
+  #dayDetailsModal .small.text-muted { color: #6c757d !important; }
+
+  /* Media thumbnails */
+  #dayDetailsModal [data-media-group] { transition: transform .15s ease, box-shadow .15s ease; }
+  #dayDetailsModal [data-media-group]:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,.08); }
+  #dayDetailsModal .ratio iframe, 
+  #dayDetailsModal .ratio video { border-radius: .5rem; }
+
+  /* Media viewer modal */
+  #mediaViewerModal .modal-content { border-radius: .75rem; }
+  #mediaViewerModal .carousel-item img { max-height: 78vh; object-fit: contain; }
 </style>
 {% endblock %}
 
@@ -135,6 +153,43 @@
       </div>
     </div>
   </div>
+</div>
+
+<!-- Media Viewer Modal -->
+<div class="modal fade" id="mediaViewerModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content bg-dark text-white border-0">
+      <div class="modal-header border-0">
+        <h6 class="modal-title">Media Viewer</h6>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <div id="mediaViewerCarousel" class="carousel slide" data-bs-ride="false">
+          <div class="carousel-inner" id="mediaViewerInner">
+            <!-- Slides injected by JS -->
+          </div>
+          <button class="carousel-control-prev" type="button" data-bs-target="#mediaViewerCarousel" data-bs-slide="prev">
+            <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Previous</span>
+          </button>
+          <button class="carousel-control-next" type="button" data-bs-target="#mediaViewerCarousel" data-bs-slide="next">
+            <span class="carousel-control-next-icon" aria-hidden="true"></span>
+            <span class="visually-hidden">Next</span>
+          </button>
+        </div>
+      </div>
+      <div class="modal-footer justify-content-between align-items-center border-0">
+        <div class="d-flex flex-column">
+          <div class="small text-white-50" id="mediaViewerCaption"></div>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+          <div class="small text-white-50" id="mediaViewerCounter"></div>
+          <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  
 </div>
 
 <!-- Removed Skip/Reschedule modals: actions are simplified to View + Mark Complete + Rating -->

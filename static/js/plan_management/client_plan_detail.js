@@ -10,6 +10,8 @@ class ClientPlanDetailManager {
         this.subscriptionId = this.getSubscriptionIdFromUrl();
         this.planDaysTable = null;
         this.progressChart = null;
+        // media viewer state
+        this.mediaGroups = {}; // { groupKey: [ {type:'image'|'video'|'iframe', src, alt} ] }
         this.init();
     }
 
@@ -461,6 +463,18 @@ class ClientPlanDetailManager {
         if (!workoutPlans.length) return '<div class="text-muted">No workouts planned.</div>';
         let html = '';
         workoutPlans.forEach((wp, wIdx) => {
+            // register workout media group
+            const groupKey = `workout_${wp.id}`;
+            this.mediaGroups[groupKey] = [];
+            if (wp.workout_image_url) {
+                this.mediaGroups[groupKey].push({ type: 'image', src: wp.workout_image_url, alt: wp.workout_name || 'Workout image' });
+            }
+            if (wp.workout_video_file_url) {
+                this.mediaGroups[groupKey].push({ type: 'video', src: wp.workout_video_file_url });
+            } else if (wp.workout_video_url) {
+                const isEmbed = wp.workout_video_url.includes('youtube') || wp.workout_video_url.includes('vimeo');
+                this.mediaGroups[groupKey].push({ type: isEmbed ? 'iframe' : 'video', src: wp.workout_video_url });
+            }
             html += `
                 <div class="mb-3 p-2 border rounded">
                     <div class="d-flex align-items-start justify-content-between flex-wrap gap-2">
@@ -468,15 +482,16 @@ class ClientPlanDetailManager {
                             <div class="fw-semibold">${wp.session_name || 'Session ' + (wIdx+1)} ${wp.workout_name ? '— ' + wp.workout_name : ''}</div>
                             <div class="text-muted small">Type: ${wp.workout_type || '-'} • Intensity: ${wp.intensity_level || '-'} • Duration: ${wp.total_duration_minutes || 0} min • Target kcal: ${wp.target_calories_burn || 0}</div>
                         </div>
-                        ${wp.workout_image_url ? `<img src="${wp.workout_image_url}" class="rounded" style="max-height:60px">` : ''}
+                        ${wp.workout_image_url ? `<img src="${wp.workout_image_url}" class="rounded cursor-pointer" style="max-height:60px" data-media-group="${groupKey}" data-media-index="0" title="Open media">` : ''}
                     </div>
-                    ${wp.workout_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${wp.workout_video_url}" title="Workout Video" allowfullscreen></iframe></div>` : ''}
+                    ${this.renderInlineFirstMedia(groupKey)}
                     ${this.buildBlocksHtml(wp.exercise_blocks || [])}
                     <div class="mt-2 p-2 bg-light rounded">
                         <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
                             <div class="small text-muted">Workout rating:</div>
                             ${this.renderStars(5, wp.client_effort_rating ? Math.round((parseInt(wp.client_effort_rating)||0)/2) : 0, 'workout', wp.id)}
                         </div>
+                        ${this.mediaGroups[groupKey].length > 0 ? `<button class="btn btn-sm btn-outline-secondary me-2" data-open-media="${groupKey}"><i class="fas fa-expand me-1"></i>View media</button>` : ''}
                         <textarea id="workoutNotes_${wp.id}" class="form-control" rows="2" placeholder="Notes about this workout (optional)">${wp.client_notes || ''}</textarea>
                         <div class="text-end mt-2">
                             <button class="btn btn-sm btn-outline-primary save-workout-review" data-workout-id="${wp.id}">Save Workout Review</button>
@@ -516,23 +531,34 @@ class ClientPlanDetailManager {
         if (!exercises.length) return '<div class="text-muted small">No exercises.</div>';
         let html = '<div class="list-group list-group-flush">';
         exercises.forEach(ex => {
+            const groupKey = `exercise_${ex.id}`;
+            this.mediaGroups[groupKey] = [];
+            if (ex.demonstration_image_url) this.mediaGroups[groupKey].push({ type: 'image', src: ex.demonstration_image_url, alt: ex.exercise_name });
+            if (ex.demonstration_video_url) {
+                const isEmbed = ex.demonstration_video_url.includes('youtube') || ex.demonstration_video_url.includes('vimeo');
+                this.mediaGroups[groupKey].push({ type: isEmbed ? 'iframe' : 'video', src: ex.demonstration_video_url });
+            }
+            if (Array.isArray(ex.secondary_images_urls)) {
+                ex.secondary_images_urls.forEach(u => this.mediaGroups[groupKey].push({ type: 'image', src: u, alt: ex.exercise_name }));
+            }
             html += `
                 <div class="list-group-item">
                     <div class="d-flex gap-3 align-items-start flex-wrap">
-                        ${ex.demonstration_image_url ? `<img src="${ex.demonstration_image_url}" class="rounded" style="width:64px;height:64px;object-fit:cover">` : ''}
+                        ${ex.demonstration_image_url ? `<img src="${ex.demonstration_image_url}" class="rounded cursor-pointer" style="width:64px;height:64px;object-fit:cover" data-media-group="${groupKey}" data-media-index="0" title="Open media">` : ''}
                         <div class="flex-grow-1">
                             <div class="fw-semibold">${ex.exercise_name}</div>
                             <div class="text-muted small">
                                 Sets: ${ex.sets_count || '-'} · ${ex.reps_per_set ? `Reps: ${ex.reps_per_set}` : (ex.duration_seconds ? `Duration: ${ex.duration_seconds}s` : '')} · Rest: ${ex.rest_between_sets_seconds || 0}s
                             </div>
                             ${ex.form_instructions ? `<div class="small mt-1">${ex.form_instructions}</div>` : ''}
-                            ${ex.demonstration_video_url ? `<div class="ratio ratio-16x9 mt-2"><iframe src="${ex.demonstration_video_url}" title="Exercise Video" allowfullscreen></iframe></div>` : ''}
-                            ${(ex.secondary_images_urls && ex.secondary_images_urls.length) ? `<div class="mt-2 d-flex flex-wrap gap-2">${ex.secondary_images_urls.map(u => `<img src="${u}" class="rounded" style="width:56px;height:56px;object-fit:cover">`).join('')}</div>` : ''}
+                            ${this.renderInlineFirstMedia(groupKey)}
+                            ${(ex.secondary_images_urls && ex.secondary_images_urls.length) ? `<div class="mt-2 d-flex flex-wrap gap-2">${ex.secondary_images_urls.map((u, idx) => `<img src="${u}" class="rounded cursor-pointer" style="width:56px;height:56px;object-fit:cover" data-media-group="${groupKey}" data-media-index="${Math.max(0, this.mediaGroups[groupKey].findIndex(m => m.src === u))}" title="Open media">`).join('')}</div>` : ''}
                             <div class="mt-2 p-2 bg-light rounded">
                                 <div class="d-flex align-items-center flex-wrap gap-3 mb-2">
                                     <div class="small text-muted">Difficulty:</div>
                                     ${this.renderStars(5, ex.perceived_difficulty ? Math.round((parseInt(ex.perceived_difficulty)||0)/2) : 0, 'exercise', ex.id)}
                                 </div>
+                                ${this.mediaGroups[groupKey].length > 0 ? `<button class="btn btn-sm btn-outline-secondary me-2" data-open-media="${groupKey}"><i class="fas fa-expand me-1"></i>Open media</button>` : ''}
                                 <div class="text-end">
                                     <button class="btn btn-sm btn-outline-primary save-exercise-rating" data-exercise-id="${ex.id}">Save Exercise Rating</button>
                                 </div>
@@ -566,11 +592,20 @@ class ClientPlanDetailManager {
         let html = '<div class="list-group list-group-flush mt-2">';
         meals.forEach(m => {
             const collapseId = `meal_${m.id}`;
+            const groupKey = `meal_${m.id}`;
+            this.mediaGroups[groupKey] = [];
+            if (m.meal_image_url) this.mediaGroups[groupKey].push({ type: 'image', src: m.meal_image_url, alt: m.meal_name });
+            if (Array.isArray(m.additional_images_urls)) m.additional_images_urls.forEach(u => this.mediaGroups[groupKey].push({ type: 'image', src: u, alt: m.meal_name }));
+            if (m.recipe_video_file_url) this.mediaGroups[groupKey].push({ type: 'video', src: m.recipe_video_file_url });
+            else if (m.recipe_video_url) {
+                const isEmbed = m.recipe_video_url.includes('youtube') || m.recipe_video_url.includes('vimeo');
+                this.mediaGroups[groupKey].push({ type: isEmbed ? 'iframe' : 'video', src: m.recipe_video_url });
+            }
             html += `
                 <div class="list-group-item">
                     <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
                         <div class="d-flex gap-3 align-items-start">
-                            ${m.meal_image_url ? `<img src="${m.meal_image_url}" class="rounded" style="width:64px;height:64px;object-fit:cover">` : ''}
+                            ${m.meal_image_url ? `<img src="${m.meal_image_url}" class="rounded cursor-pointer" style="width:64px;height:64px;object-fit:cover" data-media-group="${groupKey}" data-media-index="0" title="Open media">` : ''}
                             <div>
                                 <div class="fw-semibold">${m.meal_name || 'Meal'} <span class="text-muted">(${(m.meal_type || '').toString().replace('_',' ')})</span></div>
                                 <div class="text-muted small">${m.calories_per_serving || 0} kcal · P: ${m.protein_grams || 0}g · C: ${m.carbs_grams || 0}g · F: ${m.fats_grams || 0}g</div>
@@ -582,14 +617,15 @@ class ClientPlanDetailManager {
                         <div class="small">
                             ${m.meal_description ? `<div class=\"mb-2\"><strong>Description:</strong> ${m.meal_description}</div>` : ''}
                             ${m.recipe_instructions ? `<div class=\"mb-2\"><strong>Recipe:</strong> ${m.recipe_instructions}</div>` : ''}
-                            ${m.recipe_video_file_url ? `<div class=\"ratio ratio-16x9 mt-2\"><video controls src=\"${m.recipe_video_file_url}\"></video></div>` : (m.recipe_video_url ? `<div class=\"ratio ratio-16x9 mt-2\"><iframe src=\"${m.recipe_video_url}\" title=\"Recipe Video\" allowfullscreen></iframe></div>` : '')}
+                            ${this.renderInlineFirstMedia(groupKey)}
                             ${this.buildIngredientsHtml(m.ingredients || [])}
-                            ${(m.additional_images_urls && m.additional_images_urls.length) ? `<div class=\"mt-2 d-flex flex-wrap gap-2\">${m.additional_images_urls.map(u => `<img src=\"${u}\" class=\"rounded\" style=\"width:72px;height:72px;object-fit:cover\">`).join('')}</div>` : ''}
+                            ${(m.additional_images_urls && m.additional_images_urls.length) ? `<div class=\"mt-2 d-flex flex-wrap gap-2\">${m.additional_images_urls.map((u, idx) => `<img src=\"${u}\" class=\"rounded cursor-pointer\" style=\"width:72px;height:72px;object-fit:cover\" data-media-group=\"${groupKey}\" data-media-index=\"${Math.max(0, this.mediaGroups[groupKey].findIndex(mo => mo.src === u))}\" title=\"Open media\">`).join('')}</div>` : ''}
                             <div class=\"mt-2 p-2 bg-light rounded\">
                                 <div class=\"d-flex align-items-center flex-wrap gap-3 mb-2\">
                                     <div class=\"small text-muted\">Meal rating:</div>
                                     ${this.renderStars(5, m.client_rating || 0, 'meal', m.id)}
                                 </div>
+                                ${this.mediaGroups[groupKey].length > 0 ? `<button class=\"btn btn-sm btn-outline-secondary me-2\" data-open-media=\"${groupKey}\"><i class=\"fas fa-expand me-1\"></i>View media</button>` : ''}
                                 <textarea id=\"mealNotes_${m.id}\" class=\"form-control\" rows=\"2\" placeholder=\"Notes about this meal (optional)\">${m.client_notes || ''}</textarea>
                                 <div class=\"text-end mt-2\">
                                     <button class=\"btn btn-sm btn-outline-primary save-meal-review\" data-meal-id=\"${m.id}\">Save Meal Review</button>
@@ -602,6 +638,53 @@ class ClientPlanDetailManager {
         });
         html += '</div>';
         return html;
+    }
+
+    // Render the first media item inline to keep card compact; prefer image > iframe > video
+    renderInlineFirstMedia(groupKey) {
+        const items = this.mediaGroups[groupKey] || [];
+        if (!items.length) return '';
+        const first = items[0];
+        if (first.type === 'image') return `<div class="mt-2"><img src="${first.src}" class="img-fluid rounded cursor-pointer" data-media-group="${groupKey}" data-media-index="0" title="Open media"></div>`;
+        if (first.type === 'iframe') return `<div class="ratio ratio-16x9 mt-2"><iframe src="${first.src}" allowfullscreen></iframe></div>`;
+        if (first.type === 'video') return `<div class="ratio ratio-16x9 mt-2"><video controls src="${first.src}"></video></div>`;
+        return '';
+    }
+
+    // Open the fullscreen media viewer for a group and optional starting index
+    openMediaViewer(groupKey, startIndex = 0) {
+        const items = this.mediaGroups[groupKey] || [];
+        if (!items.length) return;
+        const inner = document.getElementById('mediaViewerInner');
+        if (!inner) return;
+        inner.innerHTML = items.map((m, idx) => {
+            const active = idx === startIndex ? 'active' : '';
+            if (m.type === 'image') {
+                return `<div class="carousel-item ${active}"><div class="d-flex justify-content-center align-items-center" style="min-height:70vh;background:#000"><img src="${m.src}" class="img-fluid" alt="${m.alt || ''}"></div></div>`;
+            }
+            if (m.type === 'video') {
+                return `<div class="carousel-item ${active}"><div class="ratio ratio-16x9"><video controls src="${m.src}" style="background:#000"></video></div></div>`;
+            }
+            // iframe (YouTube/Vimeo)
+            return `<div class="carousel-item ${active}"><div class="ratio ratio-16x9"><iframe src="${m.src}" allowfullscreen style="background:#000"></iframe></div></div>`;
+        }).join('');
+        const counter = document.getElementById('mediaViewerCounter');
+        const caption = document.getElementById('mediaViewerCaption');
+        if (counter) counter.textContent = `${startIndex + 1} / ${items.length}`;
+        if (caption) caption.textContent = items[startIndex]?.alt || '';
+
+        // Update counter on slide
+        const carouselEl = document.getElementById('mediaViewerCarousel');
+        const updateCounter = (e) => {
+            const activeIdx = Array.from(inner.children).findIndex(ch => ch.classList.contains('active'));
+            if (counter) counter.textContent = `${activeIdx + 1} / ${items.length}`;
+            if (caption) caption.textContent = items[activeIdx]?.alt || '';
+        };
+        carouselEl?.addEventListener('slid.bs.carousel', updateCounter, { once: false });
+
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('mediaViewerModal'));
+        modal.show();
     }
 
     bindModalEvents() {
@@ -626,6 +709,23 @@ class ClientPlanDetailManager {
                     }
                 });
             }
+        });
+
+        // Open media viewer buttons
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-open-media]');
+            if (!btn) return;
+            const groupKey = btn.getAttribute('data-open-media');
+            this.openMediaViewer(groupKey, 0);
+        });
+
+        // Click on any media thumbnail with data-media-group
+        container.addEventListener('click', (e) => {
+            const thumb = e.target.closest('[data-media-group]');
+            if (!thumb) return;
+            const groupKey = thumb.getAttribute('data-media-group');
+            const idx = parseInt(thumb.getAttribute('data-media-index')) || 0;
+            this.openMediaViewer(groupKey, idx);
         });
 
         // Save day review

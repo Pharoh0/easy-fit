@@ -14,8 +14,10 @@ class StaffOnlyMixin:
         if not user.is_authenticated:
             return HttpResponseForbidden("Authentication required")
             
-        # Direct attribute check for staff status
-        is_staff = user.user_type == 'staff' if hasattr(user, 'user_type') else False
+        # Prefer model property for staff detection
+        is_staff = bool(getattr(user, 'is_staff_member', False))
+        if not is_staff and hasattr(user, 'user_type'):
+            is_staff = (user.user_type == 'staff')
         is_superuser = user.is_superuser if hasattr(user, 'is_superuser') else False
         
         if not (is_staff or is_superuser):

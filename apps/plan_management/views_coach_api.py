@@ -573,6 +573,42 @@ def remove_nutrition_from_day(request, day_id):
 
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
+def remove_meal_from_day(request, day_id):
+    """
+    Remove a single meal from a nutrition plan on a plan day.
+    Body: { meal_id: number }
+    """
+    try:
+        coach_profile = request.user.coach_profile
+    except Exception:
+        return Response({'error': 'Coach profile not found'}, status=404)
+
+    meal_id = request.data.get('meal_id')
+    if not meal_id:
+        return Response({'error': 'meal_id is required'}, status=400)
+
+    try:
+        # Fetch the day and verify ownership
+        plan_day = PlanDay.objects.select_related('subscription__product_plan').get(id=day_id)
+        if plan_day.subscription.product_plan.coach != coach_profile:
+            return Response({'error': 'Access denied'}, status=403)
+
+        # Find the meal under any nutrition plan for this day
+        meal = MealPlan.objects.select_related('nutrition_plan__plan_day').get(id=meal_id)
+        if meal.nutrition_plan.plan_day_id != plan_day.id:
+            return Response({'error': 'Meal does not belong to this plan day'}, status=400)
+
+        meal.delete()
+
+        return Response({'success': True, 'message': 'Meal removed'})
+    except PlanDay.DoesNotExist:
+        return Response({'error': 'Plan day not found'}, status=404)
+    except MealPlan.DoesNotExist:
+        return Response({'error': 'Meal not found'}, status=404)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
 def apply_template_to_day(request, day_id):
     """
     Apply a template (workout or meal) to a plan day
@@ -656,6 +692,16 @@ def apply_template_to_day(request, day_id):
                 workout_plan.intensity_level = workout_template.intensity_level
                 workout_plan.required_equipment = workout_template.equipment_needed
                 workout_plan.special_instructions = workout_template.instructions
+                # Media: copy image and attach the first template video (as URL)
+                try:
+                    if getattr(workout_template, 'workout_image', None):
+                        workout_plan.workout_image = workout_template.workout_image
+                    first_wv = getattr(workout_template, 'workout_videos', None).first() if hasattr(workout_template, 'workout_videos') else None
+                    if first_wv and getattr(first_wv, 'video', None):
+                        # Store as URL in the string field; frontend will render as HTML5 video when not YouTube/Vimeo
+                        workout_plan.workout_video_url = first_wv.video.url
+                except Exception:
+                    pass
                 # Recalculate total duration from warm-up + main + cool-down
                 w = getattr(workout_plan, 'warm_up_duration_minutes', warm) or warm
                 c = getattr(workout_plan, 'cool_down_duration_minutes', cool) or cool
@@ -714,7 +760,7 @@ def apply_template_to_day(request, day_id):
                             duration_sec = reps_num
                             reps_num = None
 
-                        Exercise.objects.create(
+                        ex_obj = Exercise.objects.create(
                             exercise_block=eb,
                             exercise_name=et.exercise_name,
                             exercise_category=et.exercise_category,
@@ -725,6 +771,15 @@ def apply_template_to_day(request, day_id):
                             rest_between_sets_seconds=getattr(et, 'rest_seconds', 60) or 60,
                             form_instructions=getattr(et, 'instructions', '') or '',
                         )
+                        # Copy media if present on template
+                        try:
+                            if getattr(et, 'demonstration_image', None):
+                                ex_obj.demonstration_image = et.demonstration_image
+                            if getattr(et, 'demonstration_video', None):
+                                ex_obj.demonstration_video = et.demonstration_video
+                            ex_obj.save()
+                        except Exception:
+                            pass
                         exercise_order += 1
 
                 return Response({
@@ -802,6 +857,25 @@ def apply_template_to_day(request, day_id):
                     carbs_grams=meal_template.carbs_grams,
                     fats_grams=meal_template.fats_grams,
                 )
+
+                # Copy media from meal template
+                try:
+                    if getattr(meal_template, 'meal_image', None):
+                        meal.meal_image = meal_template.meal_image
+                    first_mv = getattr(meal_template, 'meal_videos', None).first() if hasattr(meal_template, 'meal_videos') else None
+                    if first_mv and getattr(first_mv, 'video', None):
+                        # Prefer file copy to recipe_video
+                        meal.recipe_video = first_mv.video
+                    # Additional images -> store as JSON array of urls for serializer to absolutize
+                    if hasattr(meal_template, 'meal_images'):
+                        try:
+                            imgs = [mi.image.url for mi in meal_template.meal_images.all() if getattr(mi, 'image', None)]
+                            meal.additional_images = imgs
+                        except Exception:
+                            pass
+                    meal.save()
+                except Exception:
+                    pass
 
                 for ing in meal_template.ingredients.all():
                     MealIngredient.objects.create(

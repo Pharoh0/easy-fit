@@ -11,8 +11,10 @@ class IsStaffPermission(BasePermission):
         if not user or not user.is_authenticated:
             return False
             
-        # Direct attribute access is more reliable than getattr for core attributes
-        is_staff = user.user_type == 'staff' if hasattr(user, 'user_type') else False
+        # Prefer explicit helper/property if present
+        is_staff = bool(getattr(user, 'is_staff_member', False))
+        if not is_staff and hasattr(user, 'user_type'):
+            is_staff = (user.user_type == 'staff')
         is_superuser = user.is_superuser if hasattr(user, 'is_superuser') else False
         
         # Also check JWT token claims if available
@@ -60,7 +62,9 @@ class StaffRolePermission(BasePermission):
             return False
         
         # First check if user is staff or superuser
-        is_staff = user.user_type == 'staff' if hasattr(user, 'user_type') else False
+        is_staff = bool(getattr(user, 'is_staff_member', False))
+        if not is_staff and hasattr(user, 'user_type'):
+            is_staff = (user.user_type == 'staff')
         is_superuser = user.is_superuser if hasattr(user, 'is_superuser') else False
         
         # Check JWT token claims if available

@@ -37,7 +37,7 @@
     </style>
 
 </head>
-<body data-user-role="{% if request.user.is_authenticated %}{% if request.user.is_coach %}coach{% elif request.user.is_client %}client{% elif request.user.is_staff %}admin{% else %}user{% endif %}{% else %}anonymous{% endif %}" data-user-id="{% if request.user.is_authenticated %}{{ request.user.id }}{% endif %}">
+<body data-user-role="{% if request.user.is_authenticated %}{% if request.user.is_coach %}coach{% elif request.user.is_client %}client{% elif request.user.is_staff_member or request.user.is_superuser %}admin{% else %}user{% endif %}{% else %}anonymous{% endif %}" data-user-id="{% if request.user.is_authenticated %}{{ request.user.id }}{% endif %}">
     <!-- Include the navbar -->
     {% include 'components/navbar.html' %}
 

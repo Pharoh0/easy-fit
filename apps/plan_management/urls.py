@@ -83,6 +83,7 @@ urlpatterns = [
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/apply_template/', views_coach_api.apply_template_to_day, name='apply_template_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/remove_workout/', views_coach_api.remove_workout_from_day, name='remove_workout_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/remove_nutrition/', views_coach_api.remove_nutrition_from_day, name='remove_nutrition_api'),
+    path('api/v1/coach-plan-customization/plan_days/<int:day_id>/remove_meal/', views_coach_api.remove_meal_from_day, name='remove_meal_api'),
     path('api/v1/coach-plan-customization/plan_days/<int:day_id>/notes/', views_coach_api.save_day_notes, name='save_notes_api'),
     path('api/v1/coach-plan-customization/subscription_reviews/', views_coach_api.get_subscription_reviews, name='subscription_reviews_api'),
     

@@ -82,7 +82,9 @@
                             {% else %}
                             {% endif %}
                             
-                            {% if request.user.user_type == 'staff' or request.user.is_superuser %}
+                            {# Show staff apps only for real staff members or superusers #}
+                            {% if request.user.is_authenticated %}
+                            {% if request.user.is_staff_member or request.user.is_superuser %}
                             <a href="{% url 'staff:dashboard' %}" class="app-item">
                                 <i class="bi bi-shield-lock app-icon"></i>
                                 <span class="app-name">Staff Dashboard</span>
@@ -99,6 +101,7 @@
                                 <i class="bi bi-file-earmark-check app-icon"></i>
                                 <span class="app-name">Certifications</span>
                             </a>
+                            {% endif %}
                             {% endif %}
                             
                             
@@ -165,7 +168,9 @@
                 {% endif %}
                 
                 <!-- Staff Management (Staff/Superuser Only) -->
-                {% if request.user.user_type == 'staff' or request.user.is_superuser %}
+                {# Staff management menu: visible only to real staff or superusers #}
+                {% if request.user.is_authenticated %}
+                {% if request.user.is_staff_member or request.user.is_superuser %}
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="staffDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="bi bi-shield-lock nav-icon"></i>
@@ -186,6 +191,7 @@
                         </a></li>
                     </ul>
                 </li>
+                {% endif %}
                 {% endif %}
             </ul>
 

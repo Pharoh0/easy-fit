@@ -4,6 +4,7 @@ from .models import (
     PlanDay, NutritionPlan, MealPlan, MealIngredient, 
     WorkoutPlan, ExerciseBlock, Exercise
 )
+from ..coach.models import WorkoutTemplate, MealTemplate, ExerciseTemplate
 
 User = get_user_model()
 
@@ -51,25 +52,44 @@ class MealPlanSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.meal_image.url)
+        # Fallback: pull from MealTemplate by name and coach
+        try:
+            tmpl = MealTemplate.objects.filter(
+                meal_name=obj.meal_name,
+                template__coach=obj.nutrition_plan.plan_day.subscription.product_plan.coach
+            ).first()
+            if tmpl and tmpl.meal_image and self.context.get('request'):
+                return self.context['request'].build_absolute_uri(tmpl.meal_image.url)
+        except Exception:
+            pass
         return None
     
     def get_additional_images_urls(self, obj):
         """Get full URLs for additional images"""
         request = self.context.get('request')
-        if not request or not obj.additional_images:
-            return []
-        
-        # Convert JSON stored paths to full URLs
         urls = []
-        try:
-            for img_path in obj.additional_images:
-                if img_path and not img_path.startswith('http'):
-                    urls.append(request.build_absolute_uri(img_path))
-                else:
-                    urls.append(img_path)
-            return urls
-        except (TypeError, AttributeError):
-            return []
+        if request and obj.additional_images:
+            try:
+                for img_path in obj.additional_images:
+                    if img_path and not str(img_path).startswith('http'):
+                        urls.append(request.build_absolute_uri(str(img_path)))
+                    else:
+                        urls.append(str(img_path))
+            except (TypeError, AttributeError):
+                pass
+        # Fallback from template images if none found
+        if not urls:
+            try:
+                tmpl = MealTemplate.objects.filter(
+                    meal_name=obj.meal_name,
+                    template__coach=obj.nutrition_plan.plan_day.subscription.product_plan.coach
+                ).first()
+                if tmpl and request:
+                    tmpl_imgs = [mi.image.url for mi in tmpl.meal_images.all() if getattr(mi, 'image', None)]
+                    urls = [request.build_absolute_uri(u) for u in tmpl_imgs]
+            except Exception:
+                pass
+        return urls
     
     def get_recipe_video_file_url(self, obj):
         """Return absolute URL for uploaded recipe_video file (if present)."""
@@ -80,6 +100,21 @@ class MealPlanSerializer(serializers.ModelSerializer):
                     return request.build_absolute_uri(obj.recipe_video.url)
                 except Exception:
                     return obj.recipe_video.url
+        # Fallback: from MealTemplate first video file
+        try:
+            tmpl = MealTemplate.objects.filter(
+                meal_name=obj.meal_name,
+                template__coach=obj.nutrition_plan.plan_day.subscription.product_plan.coach
+            ).first()
+            if tmpl:
+                mv = tmpl.meal_videos.first()
+                if mv and getattr(mv, 'video', None):
+                    request = self.context.get('request')
+                    if request:
+                        return request.build_absolute_uri(mv.video.url)
+                    return mv.video.url
+        except Exception:
+            pass
         return None
     
     def get_total_prep_time(self, obj):
@@ -160,11 +195,21 @@ class ExerciseSerializer(serializers.ModelSerializer):
         ]
     
     def get_demonstration_image_url(self, obj):
-        """Get full URL for demonstration image"""
-        if obj.demonstration_image:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.demonstration_image.url)
+        """Get full URL for demonstration image, with fallback to template image."""
+        request = self.context.get('request')
+        if obj.demonstration_image and request:
+            return request.build_absolute_uri(obj.demonstration_image.url)
+        # Fallback: locate matching ExerciseTemplate via WorkoutTemplate and exercise name
+        try:
+            coach = obj.exercise_block.workout_plan.plan_day.subscription.product_plan.coach
+            w_name = obj.exercise_block.workout_plan.workout_name
+            wtmpl = WorkoutTemplate.objects.filter(name=w_name, template__coach=coach).first()
+            if wtmpl:
+                et = ExerciseTemplate.objects.filter(workout_template=wtmpl, exercise_name=obj.exercise_name).first()
+                if et and et.demonstration_image and request:
+                    return request.build_absolute_uri(et.demonstration_image.url)
+        except Exception:
+            pass
         return None
     
     def get_secondary_images_urls(self, obj):
@@ -186,14 +231,23 @@ class ExerciseSerializer(serializers.ModelSerializer):
             return []
     
     def get_demonstration_video_url(self, obj):
-        """Get full URL for demonstration video if it's a file"""
+        """Get full URL for demonstration video; fallback to template video file if missing."""
         if obj.demonstration_video_url:
-            # Return existing external URL
             return obj.demonstration_video_url
-        elif obj.demonstration_video:
-            request = self.context.get('request')
-            if request:
-                return request.build_absolute_uri(obj.demonstration_video.url)
+        request = self.context.get('request')
+        if obj.demonstration_video and request:
+            return request.build_absolute_uri(obj.demonstration_video.url)
+        # Fallback to ExerciseTemplate video file
+        try:
+            coach = obj.exercise_block.workout_plan.plan_day.subscription.product_plan.coach
+            w_name = obj.exercise_block.workout_plan.workout_name
+            wtmpl = WorkoutTemplate.objects.filter(name=w_name, template__coach=coach).first()
+            if wtmpl:
+                et = ExerciseTemplate.objects.filter(workout_template=wtmpl, exercise_name=obj.exercise_name).first()
+                if et and et.demonstration_video and request:
+                    return request.build_absolute_uri(et.demonstration_video.url)
+        except Exception:
+            pass
         return None
     
     def get_completion_status(self, obj):
@@ -237,6 +291,7 @@ class WorkoutPlanSerializer(serializers.ModelSerializer):
     """Serializer for workout plans"""
     exercise_blocks = ExerciseBlockSerializer(many=True, read_only=True)
     workout_image_url = serializers.SerializerMethodField()
+    workout_video_file_url = serializers.SerializerMethodField()
     completion_summary = serializers.SerializerMethodField()
     
     class Meta:
@@ -247,6 +302,7 @@ class WorkoutPlanSerializer(serializers.ModelSerializer):
             'main_workout_duration_minutes', 'cool_down_duration_minutes', 'total_duration_minutes',
             'intensity_level', 'target_calories_burn', 'target_heart_rate_zone',
             'required_equipment', 'location_type', 'workout_video_url',
+            'workout_video_file_url',
             'workout_image', 'workout_image_url', 'special_instructions',
             'is_completed', 'completed_at', 'actual_duration_minutes',
             'actual_calories_burned', 'client_effort_rating', 'client_notes',
@@ -260,6 +316,43 @@ class WorkoutPlanSerializer(serializers.ModelSerializer):
             request = self.context.get('request')
             if request:
                 return request.build_absolute_uri(obj.workout_image.url)
+        # Fallback: from WorkoutTemplate by name and coach
+        try:
+            tmpl = WorkoutTemplate.objects.filter(
+                name=obj.workout_name,
+                template__coach=obj.plan_day.subscription.product_plan.coach
+            ).first()
+            if tmpl and tmpl.workout_image and self.context.get('request'):
+                return self.context['request'].build_absolute_uri(tmpl.workout_image.url)
+        except Exception:
+            pass
+        return None
+
+    def get_workout_video_file_url(self, obj):
+        """Return absolute URL for uploaded workout video (if present)."""
+        # Prefer explicit external URL via workout_video_url; this method is only for file field.
+        if getattr(obj, 'workout_video', None):
+            request = self.context.get('request')
+            if request:
+                try:
+                    return request.build_absolute_uri(obj.workout_video.url)
+                except Exception:
+                    return obj.workout_video.url
+        # Fallback: first template video file for matching workout template
+        try:
+            tmpl = WorkoutTemplate.objects.filter(
+                name=obj.workout_name,
+                template__coach=obj.plan_day.subscription.product_plan.coach
+            ).first()
+            if tmpl:
+                wv = tmpl.workout_videos.first()
+                if wv and getattr(wv, 'video', None):
+                    request = self.context.get('request')
+                    if request:
+                        return request.build_absolute_uri(wv.video.url)
+                    return wv.video.url
+        except Exception:
+            pass
         return None
     
     def get_completion_summary(self, obj):

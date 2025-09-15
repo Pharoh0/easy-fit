@@ -471,8 +471,7 @@ class PlanBrowseManager {
             health_conditions: formData.get('health_conditions'),
             dietary_preferences: formData.get('dietary_preferences'),
             fitness_level: formData.get('fitness_level'),
-            preferred_schedule: formData.get('preferred_schedule'),
-            budget_range: formData.get('budget_range')
+                preferred_schedule: formData.get('preferred_schedule')
         };
 
         try {
