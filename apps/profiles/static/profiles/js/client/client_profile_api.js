@@ -23,15 +23,26 @@ function getCsrfToken() {
 // Flag to track authentication failures
 let authFailureDetected = false;
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize the page
-    initializeProfilePage();
-});
+// Normalize DRF list responses to a plain array
+function normalizeListResponse(resp) {
+    if (!resp) return [];
+    if (Array.isArray(resp)) return resp;
+    if (resp && Array.isArray(resp.results)) return resp.results;
+    return [];
+}
 
-// In case this script loads after DOMContentLoaded, run immediately
-if (document.readyState !== 'loading') {
+// Guard to ensure we initialize only once (prevents duplicate rendering)
+window.__ClientProfileInitOnce = window.__ClientProfileInitOnce || false;
+
+function startClientProfileInit() {
+    if (window.__ClientProfileInitOnce) return;
+    window.__ClientProfileInitOnce = true;
     try { initializeProfilePage(); } catch (e) { console.error('Init error:', e); }
 }
+
+document.addEventListener('DOMContentLoaded', startClientProfileInit);
+// In case this script loads after DOMContentLoaded, run immediately (guarded)
+if (document.readyState !== 'loading') { startClientProfileInit(); }
 
 /**
  * Normalize relative media URLs (e.g., "clients/avatars/x.jpg") to web-accessible paths
@@ -116,18 +127,19 @@ async function initializeProfilePage() {
         // Populate profile data
         populateProfileData(clientProfile);
         
-        // Fetch and display measurements
-        await fetchAndDisplayMeasurements();
+    // Fetch and display measurements (overview sidebar tile)
+    await fetchAndDisplayMeasurements();
         
         // Populate Key Metrics with real data
         await populateKeyMetrics();
         
-        // Fetch and display progress gallery
-        await fetchAndDisplayProgressGallery();
+    // Gallery tab removed; skip loading gallery
+    // await fetchAndDisplayProgressGallery();
         
         // Load additional tab content
         await loadPersonalInfo(clientProfile);
         await loadHealthInfo(clientProfile);
+    await populateQuickStats(clientProfile);
         
         // Load recent activity with real data
         await loadRecentActivity();
@@ -137,6 +149,9 @@ async function initializeProfilePage() {
         
         // Initialize charts with real data
         await initializeCharts();
+
+        // After initial data load, hide tabs that have no data
+        await hideEmptyTabs();
     } catch (error) {
         console.error('Error initializing profile page:', error);
         showErrorNotification('Failed to load profile data.');
@@ -158,15 +173,16 @@ async function fetchClientProfile() {
         const response = await fetchAPI('client-profile/', 'GET');
         
         // Check different possible response formats
-        if (response && Array.isArray(response) && response.length > 0) {
-            // If response is an array, return the first item
-            return response[0];
-        } else if (response && typeof response === 'object' && !Array.isArray(response)) {
-            // If response is a direct object (not array), return it directly
-            return response;
-        } else if (response && response.results && Array.isArray(response.results) && response.results.length > 0) {
+        // 1) Paginated response: { count, results: [...] }
+        if (response && response.results && Array.isArray(response.results) && response.results.length > 0) {
             // If response has a results array (common in DRF), return first item
             return response.results[0];
+        } else if (response && Array.isArray(response) && response.length > 0) {
+            // 2) Direct array response
+            return response[0];
+        } else if (response && typeof response === 'object' && !Array.isArray(response)) {
+            // 3) Single object response
+            return response;
         } else {
             // Try alternative endpoints as fallback
             console.log('Trying alternative endpoints...');
@@ -237,6 +253,71 @@ function formatActivityLevel(activityLevel) {
     };
     
     return activityMap[activityLevel] || activityLevel;
+}
+
+/**
+ * Build a proper social media link + clean display username from user input.
+ * Accepts:
+ *  - plain username ("essameldin")
+ *  - username with @ ("@essameldin")
+ *  - partial host ("instagram.com/essameldin")
+ *  - full URL ("https://instagram.com/essameldin")
+ * Returns { platform, url, display } or null.
+ */
+function buildSocialLink(platform, raw) {
+    if (!raw) return null;
+    let value = String(raw).trim();
+    if (!value) return null;
+
+    // Remove leading @
+    if (value.startsWith('@')) value = value.slice(1);
+
+    const ensureHttps = (u) => /^https?:\/\//i.test(u) ? u : 'https://' + u.replace(/^https?:\/\//i, '').replace(/^www\./i, '');
+
+    // Regex patterns to pull username
+    const patterns = {
+        instagram: /instagram\.com\/(?:#!\/)?([A-Za-z0-9_.-]+)/i,
+        facebook: /facebook\.com\/(profile.php\?id=\d+|[A-Za-z0-9_.-]+)/i,
+        twitter: /(twitter|x)\.com\/([A-Za-z0-9_.-]+)/i
+    };
+
+    let url, display;
+
+    if (/^(https?:\/\/)?(www\.)?(instagram|facebook|twitter|x)\.com\//i.test(value)) {
+        // Already a (partial) URL
+        url = ensureHttps(value);
+        const pattern = patterns[platform];
+        const match = url.match(pattern);
+        if (match) {
+            display = platform === 'facebook' ? match[1] : (match[1] === 'twitter' || match[1] === 'x' ? '@' + match[2] : '@' + match[1]);
+            if (platform === 'facebook') display = match[1];
+            if (platform === 'twitter') display = '@' + (match[2] || match[1]);
+            if (platform === 'instagram') display = '@' + match[1];
+        } else {
+            display = value;
+        }
+    } else {
+        // Plain username
+        switch (platform) {
+            case 'instagram':
+                url = `https://instagram.com/${value}`;
+                display = '@' + value;
+                break;
+            case 'facebook':
+                url = `https://facebook.com/${value}`;
+                display = value; // Facebook usually without @
+                break;
+            case 'twitter':
+                url = `https://twitter.com/${value}`;
+                display = '@' + value;
+                break;
+            default:
+                return null;
+        }
+    }
+
+    display = display.replace(/\/$/, '');
+    return { platform, url, display };
 }
 
 /**
@@ -340,6 +421,15 @@ function populateProfileData(profile) {
         const location = profile.city 
             ? `${profile.city.name || ''}${profile.city.region ? ', ' + profile.city.region.name : ''}`
             : 'Not specified';
+        
+        // Compute a robust full name with multiple fallbacks
+        const fullName = (
+            profile.full_name ||
+            [
+                profile.first_name || profile.firstName || (profile.user && profile.user.first_name) || '',
+                profile.last_name || profile.lastName || (profile.user && profile.user.last_name) || ''
+            ].join(' ').trim()
+        ) || username;
             
         // Create HTML for personal information section
         let personalInfoHTML = `
@@ -350,7 +440,7 @@ function populateProfileData(profile) {
                         <i class="fas fa-user"></i>
                         <div>
                             <h6>Full Name</h6>
-                            <p>${firstName} ${lastName}</p>
+                            <p>${fullName}</p>
                         </div>
                     </div>
                     <div class="info-item">
@@ -485,13 +575,15 @@ function populateProfileData(profile) {
         // Create HTML for social media section if any social links exist
         let socialMediaHTML = '';
         if (profile.instagram || profile.facebook || profile.twitter) {
+            const socials = [];
+            if (profile.instagram) socials.push(buildSocialLink('instagram', profile.instagram));
+            if (profile.facebook) socials.push(buildSocialLink('facebook', profile.facebook));
+            if (profile.twitter) socials.push(buildSocialLink('twitter', profile.twitter));
             socialMediaHTML = `
                 <div class="profile-section">
                     <h5 class="section-title"><i class="fas fa-share-alt"></i> Social Media</h5>
                     <div class="social-links">
-                        ${profile.instagram ? `<a href="${profile.instagram}" target="_blank" class="social-link"><i class="fab fa-instagram"></i> Instagram</a>` : ''}
-                        ${profile.facebook ? `<a href="${profile.facebook}" target="_blank" class="social-link"><i class="fab fa-facebook"></i> Facebook</a>` : ''}
-                        ${profile.twitter ? `<a href="${profile.twitter}" target="_blank" class="social-link"><i class="fab fa-twitter"></i> Twitter</a>` : ''}
+                        ${socials.map(s => s ? `<a href="${s.url}" target="_blank" rel="noopener" class="social-link"><i class="fab fa-${s.platform === 'twitter' ? 'twitter' : s.platform}"></i> ${s.display}</a>` : '').join('')}
                     </div>
                 </div>
             `;
@@ -527,7 +619,7 @@ async function populateKeyMetrics() {
         
         // Fetch measurements data
         // Fetch latest measurements
-        const measurements = await fetchAPI('client-measurements/', 'GET');
+    const measurements = normalizeListResponse(await fetchAPI('client-measurements/', 'GET'));
         console.log('Measurements data received:', measurements);
         
         // Fetch activity data for calories
@@ -769,222 +861,174 @@ function setupEventListeners() {
     });
 }
 
+// The second, corrupted populateKeyMetrics implementation was removed.
+
 /**
- * Populate Key Metrics with real data from the measurements API
- * This function has been completely rewritten to fix data display issues
+ * Populate the Quick Stats card with useful information
  */
-async function populateKeyMetrics() {
-    console.log('Starting populateKeyMetrics function...');
+function populateQuickStats(profile) {
     try {
-        // Get DOM elements for key metrics
-        const currentWeightElement = document.getElementById('current-weight');
-        const currentBmiElement = document.getElementById('current-bmi');
-        const bodyFatElement = document.getElementById('body-fat');
-        const caloriesBurnedElement = document.getElementById('calories-burned');
+        const statsContainer = document.getElementById('stats-container');
+        if (!statsContainer) return;
         
-        // Verify DOM elements exist
-        if (!currentWeightElement || !currentBmiElement || !bodyFatElement || !caloriesBurnedElement) {
-            console.error('Error: One or more key metrics elements not found in DOM');
+        // Clear to prevent duplication on tab changes
+        statsContainer.innerHTML = '';
+        
+        // Check if any social media links exist
+        if (!profile.instagram && !profile.facebook && !profile.twitter) {
+            statsContainer.innerHTML = `
+                <div class="p-3 text-center">
+                    <i class="fas fa-share-alt text-muted"></i>
+                    <p class="text-muted small mt-2 mb-0">No social media accounts linked</p>
+                </div>`;
             return;
         }
         
-        // Set loading state
-        currentWeightElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
-        currentBmiElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
-        bodyFatElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
-        caloriesBurnedElement.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"></div>';
+        // Card already has a header (Connect with me), so we keep container empty before adding items
+        statsContainer.innerHTML = '';
         
-        // Get JWT token
-        const token = localStorage.getItem('access_token');
-        if (!token) {
-            console.error('Error: No authentication token found');
-            setErrorState();
-            return;
-        }
+        // Social media platforms configuration
+        const socialPlatforms = [
+            { key: 'instagram', color: '#e1306c', icon: 'fab fa-instagram' },
+            { key: 'facebook', color: '#1877f2', icon: 'fab fa-facebook-f' },
+            { key: 'twitter', color: '#1da1f2', icon: 'fab fa-twitter' }
+        ];
         
-        // Fetch measurements data
-        let measurements;
-        try {
-            const response = await fetch('/profiles/api/v1/client-measurements/', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`API returned ${response.status}: ${response.statusText}`);
-            }
-            
-            const responseData = await response.json();
-            console.log('Raw API response:', responseData);
-            
-            // Handle both paginated and non-paginated responses
-            if (responseData.results && Array.isArray(responseData.results)) {
-                // Paginated response
-                measurements = responseData.results;
-                console.log('Using paginated results:', measurements);
-            } else if (Array.isArray(responseData)) {
-                // Direct array response
-                measurements = responseData;
-                console.log('Using direct array results:', measurements);
-            } else {
-                // Unexpected format
-                console.error('Unexpected API response format:', responseData);
-                measurements = [];
-            }
-            
-            console.log('Processed measurements data:', measurements);
-        } catch (error) {
-            console.error('Error fetching measurements:', error);
-            setErrorState();
-            return;
-        }
+        // Create social media icons container
+        const socialRow = document.createElement('div');
+        socialRow.className = 'd-flex flex-column gap-2';
         
-        // Fetch profile data
-        let profileData;
-        try {
-            const profileResponse = await fetch('/profiles/api/v1/client-profile/', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-            
-            if (!profileResponse.ok) {
-                throw new Error(`Profile API returned ${profileResponse.status}`);
-            }
-            
-            profileData = await profileResponse.json();
-            console.log('Profile data received:', profileData);
-        } catch (error) {
-            console.error('Error fetching profile data:', error);
-            // Use default profile data
-            profileData = {
-                gender: 'male',
-                age: 30,
-                activity_level: 'moderately_active'
-            };
-        }
+        // Filter to only platforms the user has accounts for
+        const availablePlatforms = socialPlatforms.filter(platform => profile[platform.key]);
         
-        // Process measurements data
-        if (measurements && Array.isArray(measurements) && measurements.length > 0) {
-            // Get the most recent measurement
-            const latestMeasurement = measurements[0]; // API returns most recent first
+        // Create a compact row for each social media
+        availablePlatforms.forEach(platform => {
+            const built = buildSocialLink(platform.key, profile[platform.key]);
+            if (!built) return;
+            const username = built.display;
             
-            // Update Current Weight with trend indicator
-            if (latestMeasurement.weight) {
-                // Check if we have previous measurement to show trend
-                let trendHtml = '';
-                if (measurements.length > 1 && measurements[1].weight) {
-                    const weightDiff = latestMeasurement.weight - measurements[1].weight;
-                    const trendIcon = weightDiff > 0 ? '<i class="fas fa-arrow-up text-danger"></i>' : 
-                                    weightDiff < 0 ? '<i class="fas fa-arrow-down text-success"></i>' : '';
-                    trendHtml = trendIcon ? ` ${trendIcon} ${Math.abs(weightDiff).toFixed(1)}` : '';
-                }
-                currentWeightElement.innerHTML = `${latestMeasurement.weight} kg${trendHtml}`;
-            } else {
-                currentWeightElement.innerHTML = 'No data';
-            }
+            const socialItem = document.createElement('div');
+            socialItem.className = 'stat-item d-flex align-items-center p-2';
+            socialItem.innerHTML = `
+                <div class="me-3" style="width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 50%; background-color: ${platform.color};">
+                    <i class="${platform.icon}" style="color: white; font-size: 14px;"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <div class="small text-muted" style="font-size: 0.75rem;">${platform.key.charAt(0).toUpperCase() + platform.key.slice(1)}</div>
+                    <div class="fw-medium" style="font-size: 0.9rem;">
+                        <a href="${built.url}" target="_blank" rel="noopener" class="text-decoration-none text-body">${username}</a>
+                    </div>
+                </div>
+                <a href="${built.url}" target="_blank" rel="noopener" class="ms-2" style="color: #6c757d; font-size: 12px;">
+                    <i class="fas fa-external-link-alt"></i>
+                </a>
+            `;
             
-            // Calculate and update BMI with health indicator
-            if (latestMeasurement.weight && latestMeasurement.height) {
-                console.log('Calculating BMI with weight:', latestMeasurement.weight, 'and height:', latestMeasurement.height);
-                const heightInMeters = parseFloat(latestMeasurement.height) / 100;
-                console.log('Height in meters:', heightInMeters);
-                const bmi = (parseFloat(latestMeasurement.weight) / (heightInMeters * heightInMeters)).toFixed(1);
-                console.log('Calculated BMI:', bmi);
-                
-                // Determine BMI category and class for styling
-                let bmiCategory = '';
-                let bmiCategoryClass = '';
-                
-                if (bmi < 18.5) {
-                    bmiCategory = 'Underweight';
-                    bmiCategoryClass = 'text-warning';
-                } else if (bmi >= 18.5 && bmi < 25) {
-                    bmiCategory = 'Healthy';
-                    bmiCategoryClass = 'text-success';
-                } else if (bmi >= 25 && bmi < 30) {
-                    bmiCategory = 'Overweight';
-                    bmiCategoryClass = 'text-warning';
-                } else {
-                    bmiCategory = 'Obese';
-                    bmiCategoryClass = 'text-danger';
-                }
-                
-                currentBmiElement.innerHTML = `${bmi} <span class="${bmiCategoryClass}">(${bmiCategory})</span>`;
-            } else {
-                currentBmiElement.innerHTML = 'No data';
-            }
-            
-            // Update Body Fat % with healthy range indicator
-            if (latestMeasurement.body_fat_percentage) {
-                // Determine if body fat percentage is in healthy range (approximate ranges)
-                const gender = profileData?.gender || 'male'; // Default to male if not specified
-                const age = profileData?.age || 30; // Default to 30 if not specified
-                let isHealthy = false;
-                
-                if (gender.toLowerCase() === 'male') {
-                    // Rough male healthy ranges
-                    if (age < 40 && latestMeasurement.body_fat_percentage >= 8 && latestMeasurement.body_fat_percentage <= 19) isHealthy = true;
-                    if (age >= 40 && latestMeasurement.body_fat_percentage >= 11 && latestMeasurement.body_fat_percentage <= 21) isHealthy = true;
-                } else {
-                    // Rough female healthy ranges
-                    if (age < 40 && latestMeasurement.body_fat_percentage >= 21 && latestMeasurement.body_fat_percentage <= 32) isHealthy = true;
-                    if (age >= 40 && latestMeasurement.body_fat_percentage >= 23 && latestMeasurement.body_fat_percentage <= 33) isHealthy = true;
-                }
-                
-                const healthyIndicator = isHealthy ? '<i class="fas fa-check-circle text-success"></i>' : '';
-                bodyFatElement.innerHTML = `${latestMeasurement.body_fat_percentage}% ${healthyIndicator}`;
-            } else {
-                bodyFatElement.innerHTML = 'No data';
-            }
-            
-            // Calculate calories burned based on weight, height, age, gender and activity level
-            if (latestMeasurement.weight && latestMeasurement.height && profileData) {
-                // Get activity level multiplier
-                const activityMultipliers = {
-                    'sedentary': 1.2,
-                    'lightly_active': 1.375,
-                    'moderately_active': 1.55,
-                    'very_active': 1.725,
-                    'extra_active': 1.9
-                };
-                
-                const activityLevel = profileData?.activity_level || 'moderately_active';
-                const activityMultiplier = activityMultipliers[activityLevel] || 1.55; // Default to moderately active
-                
-                // Calculate BMR using the Mifflin-St Jeor Equation
-                let bmr;
-                const gender = profileData.gender?.toLowerCase() || 'male';
-                const age = profileData.age || 30;
-                
-                if (gender === 'female') {
-                    bmr = 10 * latestMeasurement.weight + 6.25 * latestMeasurement.height - 5 * age - 161;
-                } else {
-                    bmr = 10 * latestMeasurement.weight + 6.25 * latestMeasurement.height - 5 * age + 5;
-                }
-                
-                // Total Daily Energy Expenditure (TDEE)
-                const caloriesBurned = Math.round(bmr * activityMultiplier);
-                caloriesBurnedElement.innerHTML = `${caloriesBurned} cal`;
-            } else {
-                caloriesBurnedElement.innerHTML = 'No data';
-            }
+            socialRow.appendChild(socialItem);
+        });
+        
+        statsContainer.appendChild(socialRow);
+    } catch(err) {
+        console.warn('populateQuickStats failed:', err);
+    }
+}
+
+// Handle Add Measurement button(s) inside Fitness Data tab
+document.addEventListener('click', (e) => {
+    // Header Add button in Fitness Data card
+    const headerAddBtn = e.target.closest('#fitness-data .card-header .btn.btn-primary');
+    const emptyStateAddBtn = e.target.closest('#measurements-tbody .btn.btn-primary');
+    if (headerAddBtn || emptyStateAddBtn) {
+        e.preventDefault();
+        window.location.href = '/profiles/client/measurements/add/';
+    }
+});
+
+// Plans & Sessions loader for real containers
+async function loadPlansAndSessions() {
+    try {
+        const workoutContainer = document.getElementById('workout-plans-container');
+        const dietContainer = document.getElementById('diet-plans-container');
+        const sessionsContainer = document.getElementById('upcoming-sessions-container');
+
+        if (workoutContainer) workoutContainer.innerHTML = '<div class="skeleton-loader"></div>';
+        if (dietContainer) dietContainer.innerHTML = '<div class="skeleton-loader"></div>';
+        if (sessionsContainer) sessionsContainer.innerHTML = '<div class="skeleton-loader"></div>';
+
+        const [subscriptions, sessionsRaw] = await Promise.all([
+            fetchAPI('client-subscriptions/', 'GET').then(normalizeListResponse).catch(() => []),
+            // sessions endpoint may not exist; handle gracefully
+            (async () => {
+                try { return await fetchAPI('client-sessions/', 'GET').then(normalizeListResponse); } catch { return []; }
+            })()
+        ]);
+
+        // If no subscriptions at all, hide entire tab (handled elsewhere) but also clear containers
+        if (!subscriptions || subscriptions.length === 0) {
+            if (workoutContainer) workoutContainer.innerHTML = '<div class="text-muted">No workout plans.</div>';
+            if (dietContainer) dietContainer.innerHTML = '<div class="text-muted">No diet plans.</div>';
         } else {
-            // No measurements found, set default values
-            currentWeightElement.innerHTML = 'No data';
-            currentBmiElement.innerHTML = 'No data';
-            bodyFatElement.innerHTML = 'No data';
-            caloriesBurnedElement.innerHTML = 'No data';
+            // Partition workout vs diet using common keys
+            const workoutPlans = [];
+            const dietPlans = [];
+            subscriptions.forEach(s => {
+                const t = (s.plan_type || s.category || s.type || '').toString().toLowerCase();
+                if (t.includes('diet') || t.includes('meal')) {
+                    dietPlans.push(s);
+                } else if (t.includes('workout') || t.includes('train')) {
+                    workoutPlans.push(s);
+                } else {
+                    // Unknown type: default to workout
+                    workoutPlans.push(s);
+                }
+            });
+
+            const renderPlan = (s) => `
+                <div class="d-flex justify-content-between align-items-start border rounded p-2 mb-2">
+                    <div>
+                        <div class="fw-semibold">${s.plan_name || s.name || 'Plan'}</div>
+                        <div class="small text-muted">Coach: ${s.coach_name || s.coach || '—'} · Status: ${(s.status || '—').toString().charAt(0).toUpperCase() + (s.status || '—').toString().slice(1)}</div>
+                    </div>
+                    <div class="small text-muted text-end">
+                        ${s.start_date ? formatDate(s.start_date) : ''}${s.end_date ? ' – ' + formatDate(s.end_date) : ''}
+                    </div>
+                </div>`;
+
+            if (workoutContainer) {
+                workoutContainer.innerHTML = workoutPlans.length ? workoutPlans.map(renderPlan).join('') : '<div class="text-muted">No workout plans.</div>';
+            }
+            if (dietContainer) {
+                dietContainer.innerHTML = dietPlans.length ? dietPlans.map(renderPlan).join('') : '<div class="text-muted">No diet plans.</div>';
+            }
         }
-    } finally {
-        // Hide loading state
-        setKeyMetricsLoadingState(false);
-        // Key metrics population completed
+
+        // Sessions
+        if (sessionsContainer) {
+            const sessions = Array.isArray(sessionsRaw) ? sessionsRaw : (sessionsRaw && sessionsRaw.results) || [];
+            if (!sessions || sessions.length === 0) {
+                sessionsContainer.innerHTML = '<div class="text-muted">No upcoming sessions.</div>';
+            } else {
+                sessions.sort((a,b)=> new Date(a.date||a.start_time||a.scheduled_at) - new Date(b.date||b.start_time||b.scheduled_at));
+                sessionsContainer.innerHTML = sessions.slice(0,5).map(s => `
+                    <div class="d-flex justify-content-between align-items-start border rounded p-2 mb-2">
+                        <div>
+                            <div class="fw-semibold">${s.title || s.workout_plan || 'Session'}</div>
+                            <div class="small text-muted">Coach: ${s.coach_name || s.coach || '—'}</div>
+                        </div>
+                        <div class="small text-muted text-end">${formatDate(s.date || s.start_time || s.scheduled_at)}</div>
+                    </div>
+                `).join('');
+            }
+        }
+    } catch (err) {
+        console.warn('loadPlansAndSessions failed:', err);
+        // Fail visible with friendly messages instead of empty panes
+        const workoutContainer = document.getElementById('workout-plans-container');
+        const dietContainer = document.getElementById('diet-plans-container');
+        const sessionsContainer = document.getElementById('upcoming-sessions-container');
+        if (workoutContainer) workoutContainer.innerHTML = '<div class="text-danger">Failed to load workout plans.</div>';
+        if (dietContainer) dietContainer.innerHTML = '<div class="text-danger">Failed to load diet plans.</div>';
+        if (sessionsContainer) sessionsContainer.innerHTML = '<div class="text-danger">Failed to load sessions.</div>';
     }
 }
 
@@ -1026,7 +1070,7 @@ async function fetchAndDisplayProgressGallery() {
         }
         
         // Fetch progress reports which contain photos
-        const progressReports = await fetchAPI('client-progress-reports/', 'GET');
+        const progressReports = normalizeListResponse(await fetchAPI('client-progress-reports/', 'GET'));
         
         // Exit if no containers found
         if (!beforeAfterContainer && !allPhotosContainer) {
@@ -1292,18 +1336,35 @@ async function loadPersonalInfo(profile) {
         return;
     }
     
+    // Build a robust full name and activity label
+    const username = profile.username || (profile.user && profile.user.username) || 'User';
+    const fullName = (
+        profile.full_name ||
+        [
+            profile.first_name || profile.firstName || (profile.user && profile.user.first_name) || '',
+            profile.last_name || profile.lastName || (profile.user && profile.user.last_name) || ''
+        ].join(' ').trim()
+    ) || username;
+    const activityLabel = formatActivityLevel(profile.activity_level);
+    
     const personalInfoHTML = `
         <div class="row g-3">
             <div class="col-md-6">
                 <div class="info-item">
-                    <i class="fas fa-user text-primary me-2"></i>
-                    <strong>Full Name:</strong> ${profile.username || 'Not specified'}
+                    <i class="fas fa-id-card text-primary me-2"></i>
+                    <strong>Full Name:</strong> ${fullName || 'Not specified'}
                 </div>
             </div>
             <div class="col-md-6">
                 <div class="info-item">
                     <i class="fas fa-envelope text-primary me-2"></i>
                     <strong>Email:</strong> ${profile.email || 'Not specified'}
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="info-item">
+                    <i class="fas fa-user text-primary me-2"></i>
+                    <strong>Username:</strong> ${username}
                 </div>
             </div>
             <div class="col-md-6">
@@ -1333,7 +1394,7 @@ async function loadPersonalInfo(profile) {
             <div class="col-12">
                 <div class="info-item">
                     <i class="fas fa-running text-primary me-2"></i>
-                    <strong>Activity Level:</strong> ${profile.activity_level || 'Not specified'}
+                    <strong>Activity Level:</strong> ${activityLabel || 'Not specified'}
                 </div>
             </div>
             <div class="col-12">
@@ -1462,7 +1523,7 @@ async function initializeCharts() {
         `;
         
         // Fetch measurements data for chart
-        const measurements = await fetchAPI('client-measurements/', 'GET');
+    const measurements = normalizeListResponse(await fetchAPI('client-measurements/', 'GET'));
         
         // Make sure the container still exists after the async operation
         if (!document.body.contains(chartContainer)) {
@@ -1594,7 +1655,7 @@ async function loadMeasurementsTable() {
         }
 
         // Fetch measurements data
-        const measurements = await fetchAPI('client-measurements/', 'GET');
+    const measurements = normalizeListResponse(await fetchAPI('client-measurements/', 'GET'));
 
         if (measurements && measurements.length > 0) {
             measurementsTableBody.innerHTML = '';
@@ -1610,10 +1671,10 @@ async function loadMeasurementsTable() {
                     <td>${measurement.hips ? measurement.hips + ' cm' : '--'}</td>
                     <td>${measurement.body_fat_percentage ? measurement.body_fat_percentage + '%' : '--'}</td>
                     <td>
-                        <button class="btn btn-sm btn-outline-primary me-1" onclick="editMeasurement(${measurement.id})">
+                        <button class="btn btn-sm btn-outline-primary me-1" data-action="edit-measurement" data-id="${measurement.id}">
                             <i class="fas fa-edit"></i>
                         </button>
-                        <button class="btn btn-sm btn-outline-danger" onclick="deleteMeasurement(${measurement.id})">
+                        <button class="btn btn-sm btn-outline-danger" data-action="delete-measurement" data-id="${measurement.id}">
                             <i class="fas fa-trash"></i>
                         </button>
                     </td>
@@ -1654,6 +1715,60 @@ async function loadMeasurementsTable() {
     }
 }
 
+// Event delegation for Fitness Data actions (works without global functions)
+document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('[data-action="edit-measurement"],[data-action="delete-measurement"]');
+    if (!btn) return;
+    const id = btn.getAttribute('data-id');
+    const action = btn.getAttribute('data-action');
+    if (!id) return;
+    // Prefer routes to dedicated pages if modal editor isn't available here
+    if (action === 'edit-measurement') {
+        // Navigate to measurement detail or edit page if exists; else fallback to list
+        window.location.href = `/profiles/client/measurements/`;
+    } else if (action === 'delete-measurement') {
+        try {
+            const confirmed = confirm('Delete this measurement?');
+            if (!confirmed) return;
+            await fetchAPI(`client-measurements/${id}/`, 'DELETE');
+            await loadMeasurementsTable();
+            await fetchAndDisplayMeasurements();
+            await loadRecentActivity();
+        } catch (err) {
+            console.error('Delete failed', err);
+            alert('Failed to delete measurement.');
+        }
+    }
+});
+
+// Hide Progress and Plans tabs if they have no data
+async function hideEmptyTabs() {
+    try {
+        const [reports, subscriptions] = await Promise.all([
+            fetchAPI('client-progress-reports/', 'GET').then(normalizeListResponse).catch(() => []),
+            fetchAPI('client-subscriptions/', 'GET').then(normalizeListResponse).catch(() => [])
+        ]);
+
+        // Hide Progress if no reports
+        if (!reports || reports.length === 0) {
+            const progressTabBtn = document.getElementById('progress-tab');
+            const progressPane = document.getElementById('progress');
+            if (progressTabBtn) progressTabBtn.parentElement.removeChild(progressTabBtn);
+            if (progressPane) progressPane.remove();
+        }
+
+        // Hide Plans & Sessions if no subscriptions
+        if (!subscriptions || subscriptions.length === 0) {
+            const plansTabBtn = document.getElementById('plans-tab');
+            const plansPane = document.getElementById('plans');
+            if (plansTabBtn) plansTabBtn.parentElement.removeChild(plansTabBtn);
+            if (plansPane) plansPane.remove();
+        }
+    } catch (err) {
+        console.warn('hideEmptyTabs failed:', err);
+    }
+}
+
 /**
  * Load progress reports with real data
  */
@@ -1668,7 +1783,7 @@ async function loadProgressReports() {
         }
         
         // Fetch progress reports data
-        const progressReports = await fetchAPI('client-progress-reports/', 'GET');
+    const progressReports = normalizeListResponse(await fetchAPI('client-progress-reports/', 'GET'));
         
         if (progressReports && progressReports.length > 0) {
             progressReportsContainer.innerHTML = '';
@@ -1731,125 +1846,7 @@ async function loadProgressReports() {
 /**
  * Load plans and sessions with real data
  */
-async function loadPlansAndSessions() {
-    try {
-        console.log('Loading plans and sessions...');
-        
-        const plansContainer = document.getElementById('plans-container');
-        const sessionsContainer = document.getElementById('sessions-container');
-        
-        if (!plansContainer || !sessionsContainer) {
-            console.warn('Plans or sessions container not found');
-            return;
-        }
-        
-        // Fetch subscriptions data (sessions endpoint removed as it doesn't exist)
-        let subscriptions = [];
-        try {
-            const response = await fetchAPI('client-subscriptions/', 'GET');
-            if (response && Array.isArray(response)) {
-                subscriptions = response;
-            }
-        } catch (error) {
-            console.warn('Failed to load subscriptions:', error);
-        }
-        
-        // Load Subscriptions (previously called Plans)
-        if (subscriptions.length > 0) {
-            plansContainer.innerHTML = '';
-            
-            subscriptions.forEach(subscription => {
-                const planCard = document.createElement('div');
-                planCard.className = 'card mb-3';
-                planCard.innerHTML = `
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-2">
-                            <h6 class="card-title mb-0">${subscription.plan_name || 'Fitness Plan'}</h6>
-                            <span class="badge bg-${subscription.status === 'active' ? 'success' : 'secondary'}">${subscription.status || 'inactive'}</span>
-                        </div>
-                        <p class="card-text text-muted mb-2">${subscription.description || 'No description available'}</p>
-                        <div class="row text-center mb-3">
-                            <div class="col-4">
-                                <small class="text-muted d-block">Duration</small>
-                                <strong>${subscription.duration_months || '--'} months</strong>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-muted d-block">Start Date</small>
-                                <strong>${formatDate(subscription.start_date)}</strong>
-                            </div>
-                            <div class="col-4">
-                                <small class="text-muted d-block">End Date</small>
-                                <strong>${formatDate(subscription.end_date)}</strong>
-                            </div>
-                        </div>
-                        <div class="d-flex justify-content-between align-items-center">
-                            <div class="btn-group btn-group-sm" role="group">
-                                <button class="btn btn-outline-primary" onclick="viewPlanDetails(${subscription.id})">
-                                    <i class="fas fa-eye me-1"></i> View Details
-                                </button>
-                                <button class="btn btn-outline-info" onclick="downloadPlan(${subscription.id})">
-                                    <i class="fas fa-download me-1"></i> Download
-                                </button>
-                            </div>
-                            <small class="text-muted">Coach: ${subscription.coach_name || 'Not assigned'}</small>
-                        </div>
-                    </div>
-                `;
-                plansContainer.appendChild(planCard);
-            });
-        } else {
-            plansContainer.innerHTML = `
-                <div class="text-center text-muted py-4">
-                    <i class="fas fa-dumbbell fa-2x mb-3 d-block"></i>
-                    <h6>No Active Plans</h6>
-                    <p class="mb-3">You don't have any active fitness plans yet.</p>
-                    <button class="btn btn-primary btn-sm">
-                        <i class="fas fa-plus me-1"></i> Browse Plans
-                    </button>
-                </div>
-            `;
-        }
-        
-        // Load Sessions (placeholder implementation)
-        sessionsContainer.innerHTML = `
-            <div class="text-center text-muted py-4">
-                <i class="fas fa-calendar-alt fa-2x mb-3 d-block"></i>
-                <h6>Sessions Coming Soon</h6>
-                <p class="mb-3">Session tracking functionality will be available soon.</p>
-                <button class="btn btn-outline-primary btn-sm">
-                    <i class="fas fa-calendar-plus me-1"></i> Schedule Session
-                </button>
-            </div>
-        `;
-        
-    } catch (error) {
-        console.error('Error loading plans and sessions:', error);
-        
-        if (plansContainer) {
-            plansContainer.innerHTML = `
-                <div class="text-center text-danger py-4">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
-                    <h6>Failed to Load Plans</h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="loadPlansAndSessions()">
-                        <i class="fas fa-refresh me-1"></i> Try Again
-                    </button>
-                </div>
-            `;
-        }
-        
-        if (sessionsContainer) {
-            sessionsContainer.innerHTML = `
-                <div class="text-center text-danger py-4">
-                    <i class="fas fa-exclamation-triangle fa-2x mb-3 d-block"></i>
-                    <h6>Failed to Load Sessions</h6>
-                    <button class="btn btn-outline-primary btn-sm" onclick="loadPlansAndSessions()">
-                        <i class="fas fa-refresh me-1"></i> Try Again
-                    </button>
-                </div>
-            `;
-        }
-    }
-}
+// loadPlansAndSessions is implemented earlier with correct containers; duplicate removed.
 
 /**
  * Load gallery images (placeholder)
@@ -1888,7 +1885,7 @@ async function loadRecentActivity() {
         
         // 1. Get measurements (newest first)
         try {
-            const measurements = await fetchAPI('client-measurements/', 'GET');
+            const measurements = normalizeListResponse(await fetchAPI('client-measurements/', 'GET'));
             if (measurements && Array.isArray(measurements)) {
                 measurements.slice(0, 3).forEach(measurement => {
                     activityItems.push({
@@ -1908,7 +1905,7 @@ async function loadRecentActivity() {
         
         // 2. Get progress reports
         try {
-            const reports = await fetchAPI('client-progress-reports/', 'GET');
+            const reports = normalizeListResponse(await fetchAPI('client-progress-reports/', 'GET'));
             if (reports && Array.isArray(reports)) {
                 reports.slice(0, 3).forEach(report => {
                     activityItems.push({

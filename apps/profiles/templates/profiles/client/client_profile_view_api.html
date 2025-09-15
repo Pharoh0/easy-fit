@@ -54,10 +54,10 @@
         <div class="row g-4">
             <!-- Left Sidebar -->
             <div class="col-lg-3">
-                <!-- Quick Stats Card -->
+                <!-- Social Connect Card (was Quick Stats) -->
                 <div class="card shadow-sm mb-4">
                     <div class="card-header bg-white py-3">
-                        <h6 class="mb-0 fw-bold"><i class="fas fa-chart-line text-primary me-2"></i>Quick Stats</h6>
+                        <h6 class="mb-0 fw-bold"><i class="fas fa-share-alt text-primary me-2"></i>Connect with me</h6>
                     </div>
                     <div class="card-body p-0">
                         <div class="stats-grid" id="stats-container">
@@ -105,31 +105,7 @@
                     </div>
                 </div>
 
-                <!-- Quick Actions Card -->
-                <div class="card shadow-sm">
-                    <div class="card-header bg-white py-3">
-                        <h6 class="mb-0 fw-bold"><i class="fas fa-bolt text-danger me-2"></i>Quick Actions</h6>
-                    </div>
-                    <div class="card-body p-3">
-                        <div class="d-grid gap-2">
-                            <a href="{% url 'plan_management:client_plan_browser' %}" class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-search me-1"></i> Browse Plans
-                            </a>
-                            <a href="{% url 'plan_management:client_dashboard' %}" class="btn btn-outline-success btn-sm">
-                                <i class="fas fa-calendar-check me-1"></i> My Plans
-                            </a>
-                            <button class="btn btn-outline-primary btn-sm">
-                                <i class="fas fa-plus me-1"></i> Add Measurement
-                            </button>
-                            <button class="btn btn-outline-success btn-sm">
-                                <i class="fas fa-camera me-1"></i> Upload Progress Photo
-                            </button>
-                            <button class="btn btn-outline-info btn-sm">
-                                <i class="fas fa-file-alt me-1"></i> Create Report
-                            </button>
-                        </div>
-                    </div>
-                </div>
+                <!-- Quick Actions removed as requested -->
             </div>
 
             <!-- Main Content Area -->
@@ -153,9 +129,7 @@
                             <button class="nav-link" id="plans-tab" data-bs-toggle="tab" data-bs-target="#plans" type="button" role="tab">
                                 <i class="fas fa-calendar-alt me-2"></i>Plans & Sessions
                             </button>
-                            <button class="nav-link" id="gallery-tab" data-bs-toggle="tab" data-bs-target="#gallery" type="button" role="tab">
-                                <i class="fas fa-images me-2"></i>Gallery
-                            </button>
+                            
                         </nav>
                     </div>
                 </div>
@@ -389,25 +363,7 @@
                         </div>
                     </div>
 
-                    <!-- Gallery Tab -->
-                    <div class="tab-pane fade" id="gallery" role="tabpanel">
-                        <div class="card shadow-sm">
-                            <div class="card-header bg-white py-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h6 class="mb-0 fw-bold"><i class="fas fa-images text-info me-2"></i>Progress Gallery</h6>
-                                    <button class="btn btn-sm btn-primary" id="upload-photo-btn">
-                                        <i class="fas fa-upload me-1"></i> Upload Photo
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="card-body">
-                                <div class="gallery-grid" id="gallery-container">
-                                    <!-- Gallery images will be loaded by JS -->
-                                    <div class="skeleton-loader"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    
                 </div>
             </div>
         </div>
