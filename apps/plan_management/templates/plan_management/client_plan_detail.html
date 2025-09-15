@@ -28,6 +28,100 @@
   /* Media viewer modal */
   #mediaViewerModal .modal-content { border-radius: .75rem; }
   #mediaViewerModal .carousel-item img { max-height: 78vh; object-fit: contain; }
+
+  /* Day Details modal: make wider, smarter, and scrollable without touching data/JS */
+  /* Default: use almost full viewport width up to 1280px; shrink with viewport */
+  #dayDetailsModal .modal-dialog {
+    max-width: min(96vw, 1280px);
+  }
+
+  /* On very large screens, allow a bit more width */
+  @media (min-width: 1400px) {
+    #dayDetailsModal .modal-dialog {
+      max-width: min(92vw, 1400px);
+    }
+  }
+
+  /* Keep modal centered and readable spacing */
+  #dayDetailsModal .modal-content { border-radius: .75rem; }
+  #dayDetailsModal .modal-header { padding: 1rem 1.25rem; border-bottom: 1px solid #eef1f4; }
+  #dayDetailsModal .modal-title { font-size: 1.05rem; font-weight: 700; }
+  #dayDetailsModal .modal-body { padding: 1rem 1.25rem; }
+
+  /* Constrain height and enable internal scrolling for long content */
+  #dayDetailsModal .modal-body {
+    max-height: 80vh;
+    overflow-y: auto;
+  }
+
+  /* Optional sticky review/action bar if present as the first card in body */
+  #dayDetailsModal .modal-body > .card:first-child {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-top-left-radius: .75rem;
+    border-top-right-radius: .75rem;
+  }
+
+  /* Media should fit container nicely */
+  #dayDetailsModal img { max-width: 100%; height: auto; border-radius: .5rem; }
+  #dayDetailsModal video { max-width: 100%; height: auto; border-radius: .5rem; }
+  #dayDetailsModal .ratio { overflow: hidden; border-radius: .5rem; }
+
+  /* Improve two-column content spacing if a row/col layout is present */
+  #dayDetailsModal .row { row-gap: 1rem; }
+  #dayDetailsModal .col, 
+  #dayDetailsModal [class^="col-"] { margin-bottom: .5rem; }
+  /* Give columns consistent internal padding where needed */
+  #dayDetailsModal .col > .card { margin-bottom: .5rem; }
+
+  /* Cards inside modal should have subtle elevation and spacing */
+  #dayDetailsModal .card { box-shadow: 0 2px 10px rgba(0,0,0,.04); }
+  #dayDetailsModal .card + .card { margin-top: .75rem; }
+  #dayDetailsModal .card-header .small, #dayDetailsModal .card-header small { color: #8391a2; }
+  #dayDetailsModal .list-group-item { background: #fff; }
+  #dayDetailsModal .list-group-item .small { color: #6c757d; }
+
+  /* Section titles (Workouts, Meals) */
+  #dayDetailsModal h6.card-title, #dayDetailsModal h5.card-title {
+    font-weight: 700; color: #2b3a49; letter-spacing: .2px;
+  }
+
+  /* Subtle separators between workout items */
+  #dayDetailsModal .workout-item + .workout-item { border-top: 1px dashed #e9ecef; padding-top: .75rem; margin-top: .75rem; }
+  #dayDetailsModal .meal-item + .meal-item { border-top: 1px dashed #e9ecef; padding-top: .75rem; margin-top: .75rem; }
+
+  /* Ratings row alignment */
+  #dayDetailsModal .rating-row { display: flex; align-items: center; gap: .5rem; flex-wrap: wrap; }
+  #dayDetailsModal .rating-row .form-control { min-width: 220px; }
+
+  /* Action buttons alignment */
+  #dayDetailsModal .action-bar { display: flex; gap: .5rem; align-items: center; justify-content: flex-end; }
+  #dayDetailsModal .btn-outline-secondary { border-color: #e1e5ea; }
+
+  /* Small refinements for labels and meta text */
+  #dayDetailsModal .form-label, 
+  #dayDetailsModal label { font-weight: 600; color: #3a4b5c; }
+  #dayDetailsModal .text-muted { color: #6c757d !important; }
+
+  /* Plan days table enhancements */
+  #planDaysTable { border-collapse: separate; border-spacing: 0 6px; }
+  #planDaysTable thead th { border-bottom: 0; color: #5b6b79; font-weight: 700; }
+  #planDaysTable tbody tr { background: #fff; box-shadow: 0 2px 10px rgba(0,0,0,.03); }
+  #planDaysTable tbody tr:hover { box-shadow: 0 4px 16px rgba(0,0,0,.06); }
+  #planDaysTable td, #planDaysTable th { padding: .9rem .85rem; }
+  #planDaysTable td:first-child, #planDaysTable th:first-child { width: 32px; padding-left: .5rem; padding-right: .25rem; }
+  /* Status badge styles */
+  .status-badge { display: inline-flex; align-items: center; gap: .4rem; padding: .25rem .55rem; border-radius: 999px; font-size: .78rem; font-weight: 600; }
+  .status-completed { color: #155724; background: #d4edda; }
+  .status-upcoming { color: #0b5ed7; background: #e7f1ff; }
+  .status-inprogress { color: #664d03; background: #fff3cd; }
+  .status-missed { color: #842029; background: #f8d7da; }
+  .status-pending { color: #495057; background: #e9ecef; }
+  .status-badge i { font-size: .85em; }
+  /* Progress cell subtle styles (for bars injected by JS) */
+  .progress-ghost { height: 8px; background: #eef1f4; border-radius: 999px; overflow: hidden; }
+  .progress-ghost > span { display: block; height: 100%; background: linear-gradient(90deg, #63a4ff, #83eaf1); border-radius: 999px; }
 </style>
 {% endblock %}
 
@@ -200,4 +294,58 @@
 <script src="{% static 'vendor/datatables/jquery.dataTables.min.js' %}"></script>
 <script src="{% static 'vendor/datatables/dataTables.bootstrap5.min.js' %}"></script>
 <script src="{% static 'js/plan_management/client_plan_detail.js' %}"></script>
+<script>
+  // Client-side UI decorators for the plan days table (no server changes)
+  (function() {
+    function mapStatusToken(text) {
+      if (!text) return { cls: 'status-pending', icon: 'far fa-clock', label: 'Pending' };
+      const t = String(text).trim().toLowerCase();
+      if (t.includes('complete')) return { cls: 'status-completed', icon: 'fas fa-check-circle', label: text };
+      if (t.includes('progress')) return { cls: 'status-inprogress', icon: 'fas fa-spinner', label: text };
+      if (t.includes('upcoming') || t.includes('scheduled')) return { cls: 'status-upcoming', icon: 'fas fa-calendar-day', label: text };
+      if (t.includes('miss') || t.includes('overdue')) return { cls: 'status-missed', icon: 'fas fa-exclamation-circle', label: text };
+      if (t.includes('not started') || t === 'pending') return { cls: 'status-pending', icon: 'far fa-clock', label: text };
+      return { cls: 'status-pending', icon: 'far fa-clock', label: text };
+    }
+
+    function decorateStatusAndProgress() {
+      const table = document.getElementById('planDaysTable');
+      if (!table || !table.tBodies[0]) return;
+      const rows = table.tBodies[0].rows;
+      for (let r = 0; r < rows.length; r++) {
+        const cells = rows[r].cells;
+        if (!cells || cells.length < 8) continue;
+        // Status (index 4)
+        const statusCell = cells[4];
+        if (statusCell && !statusCell.dataset.decorated) {
+          const raw = statusCell.getAttribute('data-status') || statusCell.textContent;
+          const m = mapStatusToken(raw);
+          statusCell.innerHTML = `<span class="status-badge ${m.cls}"><i class="${m.icon}"></i>${m.label}</span>`;
+          statusCell.dataset.decorated = '1';
+        }
+        // Progress (index 5) if numeric
+        const progressCell = cells[5];
+        if (progressCell && !progressCell.dataset.decorated) {
+          const rawP = parseInt(progressCell.textContent, 10);
+          if (!isNaN(rawP)) {
+            const val = Math.max(0, Math.min(100, rawP));
+            progressCell.innerHTML = `<div class="progress-ghost"><span style="width:${val}%"></span></div>`;
+            progressCell.title = `${val}%`;
+            progressCell.dataset.decorated = '1';
+          }
+        }
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      // Initial pass after DataTables likely populates
+      setTimeout(decorateStatusAndProgress, 400);
+    });
+    if (window.jQuery) {
+      jQuery(function($){
+        $('#planDaysTable').on('draw.dt', function(){ decorateStatusAndProgress(); });
+      });
+    }
+  })();
+</script>
 {% endblock %}
