@@ -29,7 +29,7 @@ class ProductPlanSerializer(serializers.ModelSerializer):
     total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
     coach_info = serializers.SerializerMethodField()
     coach_name = serializers.SerializerMethodField()
-    duration_days = serializers.SerializerMethodField()
+    # Use the model field duration_days directly (do not compute from dates)
     rating_average = serializers.SerializerMethodField()
     rating_count = serializers.SerializerMethodField()
 
@@ -39,6 +39,10 @@ class ProductPlanSerializer(serializers.ModelSerializer):
             'id', 'coach', 'coach_info', 'coach_name', 'name', 'description', 'plan_type', 'price',
             'price_per_session', 'session_count', 'start_date', 'end_date',
             'renewal_period', 'created_at', 'updated_at', 'total_price', 'items', 'plan_items', 'image',
+            # Plan structure and capacity fields
+            'difficulty_level', 'workout_days_per_week', 'rest_days_per_week',
+            'meals_per_day', 'snacks_per_day', 'max_clients', 'is_active',
+            # Duration from DB field (not recomputed), and annotated fields
             'duration_days', 'rating_average', 'rating_count'
         ]
         # Mark the 'coach' field as read-only
@@ -68,14 +72,9 @@ class ProductPlanSerializer(serializers.ModelSerializer):
         except Exception:
             return 'Unknown Coach'
 
-    def get_duration_days(self, obj):
-        """Compute plan duration in days (inclusive)."""
-        try:
-            if obj.start_date and obj.end_date:
-                return (obj.end_date - obj.start_date).days + 1
-        except Exception:
-            pass
-        return None
+    # Note: we intentionally do not compute duration_days from dates here.
+    # The serializer exposes the DB field value so the frontend sees exactly
+    # what was saved, avoiding off-by-one surprises.
 
     def get_rating_average(self, obj):
         """Expose annotated rating average if present."""

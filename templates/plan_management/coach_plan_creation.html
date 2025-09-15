@@ -57,7 +57,7 @@
                                         <div class="step-number">2</div>
                                         <div class="step-content">
                                             <span class="step-title">Plan Structure</span>
-                                            <span class="step-desc">Workout & nutrition settings</span>
+                                            <span class="step-desc">Workouts, meals, and rest</span>
                                         </div>
                                         <div class="step-status">
                                             <i class="bi bi-circle text-secondary"></i>
@@ -105,8 +105,8 @@
                                     <div class="col-md-6">
                                         <label for="planType" class="form-label">Plan Type <span class="text-danger">*</span></label>
                                         <select class="form-select" id="planType" required>
-                                            <option value="" disabled>Select plan type</option>
-                                            <option value="workout" selected>Workout Only</option>
+                                            <option value="" disabled selected>Select plan type</option>
+                                            <option value="workout">Workout Only</option>
                                             <option value="diet">Diet/Nutrition Only</option>
                                             <option value="combined">Combined (Workout & Diet)</option>
                                         </select>
@@ -125,7 +125,7 @@
                                     
                                     <div class="col-md-6">
                                         <label for="planDuration" class="form-label">Duration (Days) <span class="text-danger">*</span></label>
-                                        <input type="number" class="form-control" id="planDuration" min="1" max="365" value="30" required>
+                                        <input type="number" class="form-control" id="planDuration" min="1" max="365" placeholder="e.g., 30" required>
                                     </div>
                                     
                                     <div class="col-md-6">
@@ -138,7 +138,7 @@
                                         <label for="planPrice" class="form-label">Price <span class="text-danger">*</span></label>
                                         <div class="input-group">
                                             <span class="input-group-text">$</span>
-                                            <input type="number" class="form-control" id="planPrice" min="0" step="0.01" required>
+                                            <input type="number" class="form-control" id="planPrice" min="0" step="0.01" placeholder="0.00" required>
                                         </div>
                                     </div>
                                     
@@ -154,24 +154,12 @@
                                         <label for="planDescription" class="form-label">Description <span class="text-danger">*</span></label>
                                         <textarea class="form-control" id="planDescription" rows="4" required placeholder="Provide a detailed description of this plan"></textarea>
                                     </div>
-                                    
-                                    <div class="col-12">
-                                        <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="isActive">
-                                            <label class="form-check-label" for="isActive">
-                                                Make this plan active immediately
-                                            </label>
-                                        </div>
-                                    </div>
                                 </div>
                             </form>
                         </div>
-                        <div class="card-footer bg-light d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary">
-                                <i class="bi bi-save me-1"></i> Save as Draft
-                            </button>
-                            <button type="button" class="btn btn-primary" id="nextToStructure">
-                                Next: Plan Structure <i class="bi bi-chevron-right ms-1"></i>
+                        <div class="card-footer bg-light d-flex justify-content-end">
+                            <button type="button" class="btn btn-primary" id="nextToReview">
+                                Next: Review & Publish <i class="bi bi-chevron-right ms-1"></i>
                             </button>
                         </div>
                     </div>
@@ -182,16 +170,10 @@
                     <div class="modern-card mb-4">
                         <div class="card-header bg-white">
                             <h5 class="mb-0">Plan Structure</h5>
-                            <p class="text-muted small mb-0">Define the workout and nutrition structure of your plan</p>
+                            <p class="text-muted small mb-0">Configure workout frequency and meals per day</p>
                         </div>
                         <div class="card-body">
-                            <div class="alert alert-info">
-                                <i class="bi bi-info-circle-fill me-2"></i>
-                                The settings below will be used to generate a default plan structure. You can customize individual days later.
-                            </div>
-                            
-                            <div id="workoutStructureSection">
-                                <h5 class="section-title"><i class="bi bi-activity me-2"></i>Workout Structure</h5>
+                            <form id="planStructureForm">
                                 <div class="row g-3">
                                     <div class="col-md-6">
                                         <label for="workoutDaysPerWeek" class="form-label">Workout Days Per Week</label>
@@ -199,16 +181,9 @@
                                     </div>
                                     <div class="col-md-6">
                                         <label for="restDaysPerWeek" class="form-label">Rest Days Per Week</label>
-                                        <input type="number" class="form-control" id="restDaysPerWeek" min="0" max="7" value="2" readonly>
+                                        <input type="number" class="form-control" id="restDaysPerWeek" min="0" max="7" value="2" disabled>
+                                        <div class="form-text">Calculated automatically</div>
                                     </div>
-                                </div>
-                            </div>
-                            
-                            <hr class="my-4">
-                            
-                            <div id="nutritionStructureSection">
-                                <h5 class="section-title"><i class="bi bi-cup-hot me-2"></i>Nutrition Structure</h5>
-                                <div class="row g-3">
                                     <div class="col-md-6">
                                         <label for="mealsPerDay" class="form-label">Meals Per Day</label>
                                         <input type="number" class="form-control" id="mealsPerDay" min="0" max="10" value="3">
@@ -218,20 +193,19 @@
                                         <input type="number" class="form-control" id="snacksPerDay" min="0" max="10" value="2">
                                     </div>
                                 </div>
-                            </div>
+                            </form>
                         </div>
                         <div class="card-footer bg-light d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" id="backToBasics">
+                            <button type="button" class="btn btn-outline-secondary" id="backToBasicsFromStructure">
                                 <i class="bi bi-chevron-left me-1"></i> Back
                             </button>
-                            <button type="button" class="btn btn-primary" id="nextToReview">
+                            <button type="button" class="btn btn-primary" id="nextToReviewFromStructure">
                                 Next: Review & Publish <i class="bi bi-chevron-right ms-1"></i>
                             </button>
                         </div>
                     </div>
                 </div>
-                
-                
+
                 <!-- Plan Review Tab -->
                 <div class="tab-pane fade" id="plan-review" role="tabpanel" aria-labelledby="plan-review-tab">
                     <div class="modern-card mb-4">
@@ -257,15 +231,15 @@
                             
                             
                             
-                            <div class="form-check mt-4">
+                            {% comment %} <div class="form-check mt-4">
                                 <input class="form-check-input" type="checkbox" id="publishPlanCheck" checked>
                                 <label class="form-check-label" for="publishPlanCheck">
                                     Make this plan available to clients immediately upon publishing
                                 </label>
-                            </div>
+                            </div> {% endcomment %}
                         </div>
                         <div class="card-footer bg-light d-flex justify-content-between">
-                            <button type="button" class="btn btn-outline-secondary" id="backToMealTemplate">
+                            <button type="button" class="btn btn-outline-secondary" id="backToStructureFromReview">
                                 <i class="bi bi-chevron-left me-1"></i> Back
                             </button>
                             <button type="button" class="btn btn-success" id="publishPlanBtn">
@@ -300,7 +274,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{% static 'js/api/api_base.js' %}?v=20250907-4"></script>
-<script src="{% static 'js/api/coach_plan_api.js' %}?v=20250907-4"></script>
-<script src="{% static 'js/coach/plan_creation_simplified.js' %}?v=20250907-4"></script>
+<script src="{% static 'js/api/api_base.js' %}?v=20250907-5"></script>
+<script src="{% static 'js/api/coach_plan_api.js' %}?v=20250907-5"></script>
+<script src="{% static 'js/coach/plan_creation_simplified.js' %}?v=20250907-5"></script>
 {% endblock %}

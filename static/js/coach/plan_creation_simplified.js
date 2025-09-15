@@ -34,7 +34,16 @@ function renderReviewSummary() {
         const duration = parseInt(document.getElementById('planDuration').value, 10) || 30;
         const diffRaw = document.getElementById('difficultyLevel')?.value || '3';
         const renewal = document.getElementById('renewalPeriod')?.value || 'monthly';
+    const maxClients = document.getElementById('maxClients')?.value || 'unlimited';
+    const workoutDays = parseInt(document.getElementById('workoutDaysPerWeek')?.value, 10);
+    const mealsPerDay = parseInt(document.getElementById('mealsPerDay')?.value, 10);
+    const snacksPerDay = parseInt(document.getElementById('snacksPerDay')?.value, 10);
         const mapDifficulty = (v) => ({'1':'beginner','2':'intermediate','3':'intermediate','4':'advanced','5':'expert'})[String(v)] || 'intermediate';
+
+        console.log('[PlanCreation] Rendering review with data:', {
+            name, type, price, duration, difficulty: mapDifficulty(diffRaw), renewal, maxClients,
+            workoutDays, mealsPerDay, snacksPerDay
+        });
 
         const container = document.getElementById('planSummary');
         if (container) {
@@ -45,8 +54,12 @@ function renderReviewSummary() {
                     <div class="col-md-3"><strong>Type:</strong> ${type}</div>
                     <div class="col-md-3"><strong>Duration:</strong> ${duration} days</div>
                     <div class="col-md-3"><strong>Difficulty:</strong> ${mapDifficulty(diffRaw)}</div>
-                    <div class="col-md-3"><strong>Price:</strong> $${isNaN(price) ? '0' : price}</div>
+                    <div class="col-md-3"><strong>Price:</strong> $${isNaN(price) ? '0.00' : price.toFixed(2)}</div>
+                    <div class="col-md-3"><strong>Max Clients:</strong> ${maxClients === '' ? 'unlimited' : maxClients}</div>
                     <div class="col-md-3"><strong>Renewal:</strong> ${renewal}</div>
+                    <div class="col-md-3"><strong>Workout Days/Week:</strong> ${Number.isFinite(workoutDays) ? workoutDays : '-'}</div>
+                    <div class="col-md-3"><strong>Meals/Day:</strong> ${Number.isFinite(mealsPerDay) ? mealsPerDay : '-'}</div>
+                    <div class="col-md-3"><strong>Snacks/Day:</strong> ${Number.isFinite(snacksPerDay) ? snacksPerDay : '-'}</div>
                 </div>
             `;
         }
@@ -149,6 +162,54 @@ function createToastContainer() {
 }
 
 /**
+ * Update step completion status in the navigation
+ * @param {number} stepNumber - The step number (1 or 2 - Plan Structure removed)
+ * @param {boolean} isCompleted - Whether the step should be marked as completed
+ */
+function updateStepStatus(stepNumber, isCompleted) {
+    try {
+        const stepButtons = [
+            { number: 1, id: 'plan-basics-tab' },
+            { number: 2, id: 'plan-structure-tab' },
+            { number: 3, id: 'plan-review-tab' }
+        ];
+        
+        const step = stepButtons.find(s => s.number === stepNumber);
+        if (!step) return;
+        
+        const stepButton = document.getElementById(step.id);
+        if (!stepButton) return;
+        
+        const statusIcon = stepButton.querySelector('.step-status i');
+        if (!statusIcon) return;
+        
+        if (isCompleted) {
+            // Mark as completed
+            statusIcon.className = 'bi bi-check-circle-fill text-success';
+        } else {
+            // Mark as not completed
+            statusIcon.className = 'bi bi-circle text-secondary';
+        }
+    } catch (e) {
+        console.warn('updateStepStatus error', e);
+    }
+}
+
+/**
+ * Mark all steps up to the current step as completed
+ * @param {number} currentStep - The current step number (1 or 2)
+ */
+function markStepsCompleted(currentStep) {
+    for (let i = 1; i <= currentStep; i++) {
+        updateStepStatus(i, true);
+    }
+    // Mark future steps as not completed
+    for (let i = currentStep + 1; i <= 3; i++) {
+        updateStepStatus(i, false);
+    }
+}
+
+/**
  * Update the workout days calculation
  */
 function updateWorkoutDaysCalculation() {
@@ -167,7 +228,12 @@ function savePlanStateToSession() {
         plan_type: document.getElementById('planType')?.value,
         price: document.getElementById('planPrice')?.value,
         duration: document.getElementById('planDuration')?.value,
-        workout_days_per_week: document.getElementById('workoutDaysPerWeek')?.value
+        difficulty_level: document.getElementById('difficultyLevel')?.value,
+        max_clients: document.getElementById('maxClients')?.value,
+        renewal_period: document.getElementById('renewalPeriod')?.value,
+        workout_days_per_week: document.getElementById('workoutDaysPerWeek')?.value,
+        meals_per_day: document.getElementById('mealsPerDay')?.value,
+        snacks_per_day: document.getElementById('snacksPerDay')?.value
     };
     sessionStorage.setItem('planCreationFormData', JSON.stringify(formData));
 }
@@ -187,18 +253,40 @@ function restorePlanStateFromSession() {
     }
     if (formData.price) document.getElementById('planPrice').value = formData.price;
     if (formData.duration) document.getElementById('planDuration').value = formData.duration;
-    if (formData.workout_days_per_week) document.getElementById('workoutDaysPerWeek').value = formData.workout_days_per_week;
+    if (formData.difficulty_level) {
+        const select = document.getElementById('difficultyLevel');
+        if (select) select.value = formData.difficulty_level;
+    }
+    if (formData.max_clients) document.getElementById('maxClients').value = formData.max_clients;
+    if (formData.renewal_period) {
+        const select = document.getElementById('renewalPeriod');
+        if (select) select.value = formData.renewal_period;
+    }
+    if (formData.workout_days_per_week) {
+        const element = document.getElementById('workoutDaysPerWeek');
+        if (element) element.value = formData.workout_days_per_week;
+    }
+    if (formData.meals_per_day) {
+        const element = document.getElementById('mealsPerDay');
+        if (element) element.value = formData.meals_per_day;
+    }
+    if (formData.snacks_per_day) {
+        const element = document.getElementById('snacksPerDay');
+        if (element) element.value = formData.snacks_per_day;
+    }
     
     // Update calculated fields
-    updateWorkoutDaysCalculation();
+    if (document.getElementById('workoutDaysPerWeek')) {
+        updateWorkoutDaysCalculation();
+    }
 }
 
 /**
  * Initialize all event listeners for plan creation
  */
 function initializePlanCreationListeners() {
-    // Plan Basics Tab Navigation
-    const nextToStructureBtn = document.getElementById('nextToStructure');
+    // Plan Basics Tab Navigation - now goes directly to Review
+    const nextToStructureBtn = document.getElementById('nextToReview');
     if (nextToStructureBtn) {
         nextToStructureBtn.addEventListener('click', function() {
             // Validate form first
@@ -217,85 +305,93 @@ function initializePlanCreationListeners() {
             };
             setInvalid('planName', !planName);
             setInvalid('planDescription', !planDescription);
-            // planType: if missing, set sane default and don't block
-            if (!planType) {
-                const sel = document.getElementById('planType');
-                if (sel) sel.value = 'workout';
-                planType = 'workout';
-            }
-            setInvalid('planType', false);
+            // planType must be selected by the user
+            setInvalid('planType', !planType);
             setInvalid('planPrice', !planPrice);
             setInvalid('planDuration', !(Number.isFinite(planDuration) && planDuration > 0));
 
-            if (!planType) {
-                const sel = document.getElementById('planType');
-                if (sel) { sel.value = 'workout'; }
-            }
-            // Non-blocking: if fields are missing, set reasonable defaults and proceed
-            if (!Number.isFinite(planDuration) || planDuration <= 0) {
-                const durEl = document.getElementById('planDuration');
-                if (durEl) durEl.value = 30;
-            }
-            if (!planPrice || isNaN(parseFloat(planPrice))) {
-                const priceEl = document.getElementById('planPrice');
-                if (priceEl) priceEl.value = '0';
-            }
-            if (!planName) {
-                const nameEl = document.getElementById('planName');
-                if (nameEl && !nameEl.value) nameEl.value = 'Untitled Plan';
-            }
-            if (!planDescription) {
-                const descEl = document.getElementById('planDescription');
-                if (descEl && !descEl.value) descEl.value = 'No description provided';
+            // Block navigation if required fields are missing
+            if (!planName || !planDescription || !planType || !(Number.isFinite(planDuration) && planDuration > 0) || !planPrice || isNaN(parseFloat(planPrice))) {
+                showToast('warning', 'Please fill all required fields before continuing.');
+                return;
             }
 
             // Save form data to session storage
             savePlanStateToSession();
+            
+            // Render the review summary before navigating
+            try { renderReviewSummary(); } catch (e) { console.warn('Render review summary failed', e); }
 
-            // Navigate to plan structure tab
+            // Mark step 1 as completed when moving to step 2
+            markStepsCompleted(1);
+
+            // Navigate to structure tab
             document.getElementById('plan-structure-tab').click();
         });
     }
-    
-    // Plan Structure Tab Navigation
-    const nextToReviewBtn = document.getElementById('nextToReview');
-    if (nextToReviewBtn) {
-        nextToReviewBtn.addEventListener('click', function() {
-            // Save form data to session storage
+
+    // Structure nav buttons
+    const backToBasicsFromStructureBtn = document.getElementById('backToBasicsFromStructure');
+    if (backToBasicsFromStructureBtn) {
+        backToBasicsFromStructureBtn.addEventListener('click', function() {
             savePlanStateToSession();
-            // Render the review summary before navigating
-            try { renderReviewSummary(); } catch (e) { console.warn('Render review summary failed', e); }
-            
-            // Navigate to review tab
-            document.getElementById('plan-review-tab').click();
-        });
-    }
-    
-    const backToBasicsBtn = document.getElementById('backToBasics');
-    if (backToBasicsBtn) {
-        backToBasicsBtn.addEventListener('click', function() {
-            // Save form data to session storage
-            savePlanStateToSession();
-            
-            // Navigate to plan basics tab
+            markStepsCompleted(0);
             document.getElementById('plan-basics-tab').click();
         });
     }
-    
-    // Review Tab Navigation
-    const backToStructureBtn = document.getElementById('backToStructure');
-    if (backToStructureBtn) {
-        backToStructureBtn.addEventListener('click', function() {
-            // Navigate to plan structure tab
+    const nextToReviewFromStructureBtn = document.getElementById('nextToReviewFromStructure');
+    if (nextToReviewFromStructureBtn) {
+        nextToReviewFromStructureBtn.addEventListener('click', function() {
+            savePlanStateToSession();
+            markStepsCompleted(2);
+            try { renderReviewSummary(); } catch (e) { console.warn('Render review summary failed', e); }
+            document.getElementById('plan-review-tab').click();
+        });
+    }
+
+    // Back button from Review to Structure
+    const backToStructureFromReviewBtn = document.getElementById('backToStructureFromReview');
+    if (backToStructureFromReviewBtn) {
+        backToStructureFromReviewBtn.addEventListener('click', function() {
+            savePlanStateToSession();
+            markStepsCompleted(1);
             document.getElementById('plan-structure-tab').click();
         });
     }
     
-    // Workout days calculation
+    // Workout days calculation (if elements exist)
     const workoutDaysInput = document.getElementById('workoutDaysPerWeek');
     if (workoutDaysInput) {
         workoutDaysInput.addEventListener('change', updateWorkoutDaysCalculation);
         workoutDaysInput.addEventListener('input', updateWorkoutDaysCalculation);
+    }
+    
+    // Add Bootstrap tab event listeners to handle direct tab clicks
+    const planBasicsTab = document.getElementById('plan-basics-tab');
+    const planStructureTab = document.getElementById('plan-structure-tab');
+    const planReviewTab = document.getElementById('plan-review-tab');
+    
+    if (planBasicsTab) {
+        planBasicsTab.addEventListener('shown.bs.tab', function() {
+            // When showing basics tab, no steps are completed yet
+            markStepsCompleted(0);
+        });
+    }
+    
+    if (planStructureTab) {
+        planStructureTab.addEventListener('shown.bs.tab', function() {
+            // When showing structure tab, mark step 1 as completed
+            markStepsCompleted(1);
+        });
+    }
+    
+    if (planReviewTab) {
+        planReviewTab.addEventListener('shown.bs.tab', function() {
+            // When showing review tab, mark steps 1 and 2 as completed
+            markStepsCompleted(2);
+            // Also render the review summary
+            try { renderReviewSummary(); } catch (e) { console.warn('Render review summary failed', e); }
+        });
     }
     
     // Publish Plan Button
@@ -321,7 +417,6 @@ function publishPlan() {
     let planType = document.getElementById('planType')?.value || '';
     const planPrice = parseFloat(document.getElementById('planPrice').value);
     const planDuration = parseInt(document.getElementById('planDuration').value, 10);
-    const isActive = document.getElementById('publishPlanCheck')?.checked || false;
     const difficultyLevelRaw = document.getElementById('difficultyLevel')?.value || '3';
     const renewalPeriod = document.getElementById('renewalPeriod')?.value || 'monthly';
     const maxClients = document.getElementById('maxClients')?.value || null;
@@ -337,34 +432,54 @@ function publishPlan() {
         }
     };
 
-    // Compute dates required by backend
+    // Compute dates only for create; in edit, we won't modify dates unless explicitly intended
     const toISODate = (d) => d.toISOString().slice(0,10);
     const today = new Date();
     const startDate = toISODate(today);
     const endDate = toISODate(new Date(today.getFullYear(), today.getMonth(), today.getDate() + Math.max(0, (Number.isFinite(planDuration) ? planDuration : 30) - 1)));
 
-    // Fallbacks
-    if (!planType) planType = 'workout';
-    const safeDuration = Number.isFinite(planDuration) && planDuration > 0 ? planDuration : 30;
-    const safePrice = isNaN(planPrice) ? 0 : planPrice;
+    // Validate mandatory fields (no static defaults)
+    if (!planName || !planDescription || !planType || !(Number.isFinite(planDuration) && planDuration > 0) || isNaN(planPrice)) {
+        showToast('warning', 'Please complete all required fields before publishing.');
+        isPublishingPlan = false;
+        return;
+    }
+    const safeDuration = planDuration;
+    const safePrice = planPrice;
+
+    // Get structure settings (with safety checks)
+    const workoutDaysPerWeek = parseInt(document.getElementById('workoutDaysPerWeek')?.value, 10) || 5;
+    const mealsPerDay = parseInt(document.getElementById('mealsPerDay')?.value, 10) || 3;
+    const snacksPerDay = parseInt(document.getElementById('snacksPerDay')?.value, 10) || 2;
 
     // Prepare minimal required data matching ProductPlanSerializer
     const planData = {
-        name: planName || 'Untitled Plan',
-        description: planDescription || 'No description provided',
+    name: planName,
+    description: planDescription,
         plan_type: planType,
         price: safePrice,
         price_per_session: safePrice,
         session_count: 1,
-        start_date: startDate,
-        end_date: endDate,
+        // For creation we send start/end; for edit we'll omit unless changing duration
         renewal_period: normalizeRenewal(renewalPeriod),
+        // Structure settings
+        workout_days_per_week: workoutDaysPerWeek,
+        rest_days_per_week: Math.max(0, 7 - workoutDaysPerWeek),
+        meals_per_day: mealsPerDay,
+        snacks_per_day: snacksPerDay,
         // Optional/ignored by serializer but safe to send
         duration_days: safeDuration,
         difficulty_level: mapDifficulty(difficultyLevelRaw),
         max_clients: maxClients ? parseInt(maxClients, 10) : null,
-        is_active: !!isActive
+        is_active: true  // Default to active when publishing
     };
+
+    // Only include dates on create; avoid changing saved dates during edit unless explicitly needed
+    const isEdit = !!currentPlanId;
+    if (!isEdit) {
+        planData.start_date = startDate;
+        planData.end_date = endDate;
+    }
 
     // Show loading indicator
     const publishBtn = document.getElementById('publishPlanBtn');
@@ -376,7 +491,6 @@ function publishPlan() {
     `;
 
     // Create vs Update based on currentPlanId
-    const isEdit = !!currentPlanId;
     const url = isEdit
         ? `/plan-management/api/v1/product-plans/${currentPlanId}/`
         : '/plan-management/api/v1/product-plans/';
@@ -449,30 +563,40 @@ function initPopovers() {
 // Event Handlers
 document.addEventListener('DOMContentLoaded', function() {
     console.log('[PlanCreation] DOMContentLoaded - initializing');
+    console.log('[PlanCreation] URL:', window.location.href);
+    console.log('[PlanCreation] Search params:', window.location.search);
+    
     // Initialize event listeners
     initializePlanCreationListeners();
     
-    // Try to restore any saved state (if returning from previous page)
-    restorePlanStateFromSession();
-    // Ensure a sane default for plan type
-    const planTypeSelect = document.getElementById('planType');
-    if (planTypeSelect && (!planTypeSelect.value || planTypeSelect.value === '')) {
-        planTypeSelect.value = 'workout';
+    // Try to restore any saved state (only for create mode, not edit mode)
+    // Edit mode will load data from API instead
+    if (!window.location.search.includes('plan_id')) {
+        restorePlanStateFromSession();
     }
+    
+    // Do not auto-fill mandatory fields; user must choose/provide them
     
     // Detect edit mode from query params: ?plan_id=123
     try {
         const params = new URLSearchParams(window.location.search);
         const pid = params.get('plan_id');
         if (pid) {
+            // Edit mode: plan_id is in URL
             currentPlanId = pid;
             sessionStorage.setItem('currentPlanId', currentPlanId);
+            console.log('[PlanCreation] Edit mode detected - plan_id from URL:', currentPlanId);
         } else {
-            currentPlanId = sessionStorage.getItem('currentPlanId');
+            // Create mode: no plan_id in URL, clear any stored plan_id
+            currentPlanId = null;
+            sessionStorage.removeItem('currentPlanId');
+            console.log('[PlanCreation] Create mode detected - no plan_id in URL');
         }
-        console.log('[PlanCreation] currentPlanId:', currentPlanId);
     } catch (e) {
         console.warn('Failed to parse plan_id from URL', e);
+        // Fallback to create mode
+        currentPlanId = null;
+        sessionStorage.removeItem('currentPlanId');
     }
 
     // If in edit mode, preload the plan and lock immutable fields
@@ -491,27 +615,35 @@ document.addEventListener('DOMContentLoaded', function() {
                 typeSel.value = plan.plan_type || typeSel.value;
                 typeSel.disabled = true;
             }
-            // Derive duration from dates if available
-            try {
-                if (plan.start_date && plan.end_date) {
-                    const sd = new Date(plan.start_date);
-                    const ed = new Date(plan.end_date);
-                    const ms = ed - sd;
-                    const days = Math.floor(ms / (1000*60*60*24)) + 1;
-                    if (days > 0) document.getElementById('planDuration').value = days;
-                } else if (plan.duration_days) {
-                    document.getElementById('planDuration').value = plan.duration_days;
-                }
-            } catch (e) { console.warn('duration calc failed', e); }
+            // Use duration directly from database only
+            if (plan.duration_days != null) {
+                document.getElementById('planDuration').value = plan.duration_days;
+            }
             document.getElementById('planPrice').value = safe(plan.price, 0);
             document.getElementById('difficultyLevel').value = mapDiff[String(plan.difficulty_level || '').toLowerCase()] || '3';
-            document.getElementById('maxClients').value = safe(plan.max_clients, '');
+            // Handle max_clients properly - if null, show empty for unlimited
+            document.getElementById('maxClients').value = plan.max_clients ? plan.max_clients : '';
             document.getElementById('renewalPeriod').value = safe(plan.renewal_period, 'monthly');
-            document.getElementById('isActive').checked = !!plan.is_active;
-            // Structure defaults
+            // Note: is_active field removed from UI - plans are active by default when published
+            
+            // Log loaded data for debugging
+            console.log('[PlanCreation] Loaded plan data:', {
+                name: plan.name,
+                price: plan.price,
+                duration_days: plan.duration_days,
+                max_clients: plan.max_clients,
+                difficulty_level: plan.difficulty_level
+            });
+            
+            // Populate structure fields
             if (document.getElementById('workoutDaysPerWeek') && plan.workout_days_per_week != null) {
                 document.getElementById('workoutDaysPerWeek').value = plan.workout_days_per_week;
-                updateWorkoutDaysCalculation();
+            }
+            if (document.getElementById('restDaysPerWeek') && plan.rest_days_per_week != null) {
+                document.getElementById('restDaysPerWeek').value = plan.rest_days_per_week;
+            } else if (document.getElementById('restDaysPerWeek')) {
+                const w = parseInt(document.getElementById('workoutDaysPerWeek').value, 10) || 5;
+                document.getElementById('restDaysPerWeek').value = Math.max(0, 7 - w);
             }
             if (document.getElementById('mealsPerDay') && plan.meals_per_day != null) {
                 document.getElementById('mealsPerDay').value = plan.meals_per_day;
@@ -527,11 +659,57 @@ document.addEventListener('DOMContentLoaded', function() {
             const publishBtn = document.getElementById('publishPlanBtn');
             if (publishBtn) publishBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Save Changes';
             showToast('info', 'Editing existing plan. Some fields are locked.');
+            
+            // For edit mode, mark steps as completed since data is already loaded
+            setTimeout(() => {
+                const activeTab = document.querySelector('.nav-link.active');
+                if (activeTab) {
+                    const tabId = activeTab.id;
+                    if (tabId === 'plan-basics-tab') {
+                        markStepsCompleted(0); // Current step - no steps completed yet
+                    } else if (tabId === 'plan-review-tab') {
+                        markStepsCompleted(1); // Step 1 completed (on review step)
+                    }
+                }
+            }, 200);
         }).catch((err) => {
             console.error('Failed to load plan for editing', err);
             showToast('warning', 'Could not load plan details for editing');
         });
+    } else {
+        // Create mode: ensure UI shows correct create mode elements
+        console.log('[PlanCreation] Setting up create mode UI');
+        const heroTitle = document.querySelector('.hero-gradient h1');
+        if (heroTitle) heroTitle.textContent = 'Create a New Plan';
+        const heroDesc = document.querySelector('.hero-gradient p');
+        if (heroDesc) heroDesc.textContent = 'Design comprehensive fitness and nutrition plans for your clients';
+        const publishBtn = document.getElementById('publishPlanBtn');
+        if (publishBtn) publishBtn.innerHTML = '<i class="bi bi-check-circle me-1"></i> Publish Plan';
+        
+        // Clear any existing form data that might be from a previous session
+        document.getElementById('planName').value = '';
+        document.getElementById('planDescription').value = '';
+        // Ensure plan type is enabled in create mode
+        const planTypeSelect = document.getElementById('planType');
+        if (planTypeSelect) planTypeSelect.disabled = false;
+        // Clear the saved form data from session storage for create mode
+        sessionStorage.removeItem('planCreationFormData');
+        // Keep default values for other fields as they are properly set
     }
+    
+    // Initialize step completion status based on active tab
+    setTimeout(() => {
+        const activeTab = document.querySelector('.nav-link.active');
+        if (activeTab) {
+            const tabId = activeTab.id;
+            if (tabId === 'plan-basics-tab') {
+                markStepsCompleted(0); // No steps completed yet
+            } else if (tabId === 'plan-review-tab') {
+                markStepsCompleted(1); // Step 1 completed (basics done, now on review)
+                try { renderReviewSummary(); } catch (e) { console.warn('Initial review summary failed', e); }
+            }
+        }
+    }, 100); // Small delay to ensure DOM is fully loaded
     
     // Note: Removed delegated click handler to prevent double submissions
 
