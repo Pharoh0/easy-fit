@@ -1,0 +1,10 @@
+Hello {{ user.first_name|default:user.username }},
+
+We’re sorry to let you know that your coach profile was not approved at this time.
+
+Reason: {{ reason|default:'(no reason provided)' }}
+
+You can update your profile and resubmit for approval. If you have questions, please reply to this email.
+
+Thanks,
+Easy Fit Team

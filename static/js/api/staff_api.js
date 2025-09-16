@@ -75,6 +75,10 @@ class StaffAPI {
         async reject(coachProfileId, { notes = '' } = {}) {
             const url = `${StaffAPI.BASE_PATH}/coaches/${coachProfileId}/reject/`;
             return await APIBase.request(url, { method: 'POST', body: JSON.stringify({ notes }) });
+        },
+        async revert(coachProfileId, { notes = '' } = {}) {
+            const url = `${StaffAPI.BASE_PATH}/coaches/${coachProfileId}/revert/`;
+            return await APIBase.request(url, { method: 'POST', body: JSON.stringify({ notes }) });
         }
     };
 
@@ -101,6 +105,10 @@ class StaffAPI {
         },
         async reject(certId, { notes = '' } = {}) {
             const url = `${StaffAPI.BASE_PATH}/certifications/${certId}/reject/`;
+            return await APIBase.request(url, { method: 'POST', body: JSON.stringify({ notes }) });
+        },
+        async revert(certId, { notes = '' } = {}) {
+            const url = `${StaffAPI.BASE_PATH}/certifications/${certId}/revert/`;
             return await APIBase.request(url, { method: 'POST', body: JSON.stringify({ notes }) });
         }
     };

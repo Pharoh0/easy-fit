@@ -1,0 +1,10 @@
+Hello {{ user.first_name|default:user.username }},
+
+Good news! Your coach profile has been approved on Easy Fit.
+
+You can now appear in coach searches and clients can view your profile.
+
+Notes from the reviewer: {{ notes|default:'(none)' }}
+
+Thanks,
+Easy Fit Team

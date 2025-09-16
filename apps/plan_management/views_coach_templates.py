@@ -997,12 +997,27 @@ def coach_export_pdf(request):
     width, height = A4
     x = 50
     y = height - 50
+    header_h = 24
+    def draw_header_footer():
+        # Header bar
+        c.setFillColorRGB(13/255.0, 110/255.0, 253/255.0)
+        c.rect(0, height - header_h, width, header_h, fill=1, stroke=0)
+        c.setFillColorRGB(1, 1, 1)
+        c.setFont('Helvetica-Bold', 12)
+        c.drawString(x, height - 16, 'Easy Fit — Coach Dashboard Report')
+        # Footer
+        c.setFillColorRGB(0, 0, 0)
+        c.setFont('Helvetica', 8)
+        c.drawString(x, 20, f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}")
+        c.drawRightString(width - x, 20, f'Page {c.getPageNumber()}')
     def line(txt, dy=16, font=('Helvetica', 10)):
         nonlocal y
         c.setFont(*font)
         c.drawString(x, y, str(txt))
         y -= dy
 
+    draw_header_footer()
+    y = height - header_h - 20
     line('Coach Dashboard Report', dy=20, font=('Helvetica-Bold', 14))
     line(f"Generated: {timezone.now().strftime('%Y-%m-%d %H:%M')}")
     line(f"Preset: {filters.get('preset') or ''}")
@@ -1022,7 +1037,7 @@ def coach_export_pdf(request):
     c.setFont('Helvetica', 10)
     for idx, r in enumerate(raw_top, start=1):
         if y < 60:
-            c.showPage(); y = height - 50
+            c.showPage(); draw_header_footer(); y = height - header_h - 20
             c.setFont('Helvetica-Bold', 10)
             for i, h in enumerate(headers):
                 c.drawString(cols[i], y, h)
@@ -1035,8 +1050,7 @@ def coach_export_pdf(request):
         last = r.get('last_activity_date')
         c.drawString(cols[3], y, (last.isoformat() if last else ''))
         y -= 14
-    c.showPage()
-    c.save()
+    c.showPage(); c.save()
     pdf = buf.getvalue(); buf.close()
     resp = HttpResponse(pdf, content_type='application/pdf')
     resp['Content-Disposition'] = 'attachment; filename="coach_dashboard_report.pdf"'

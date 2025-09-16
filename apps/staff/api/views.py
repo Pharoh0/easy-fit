@@ -7,6 +7,9 @@ from rest_framework.response import Response
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.permissions import IsAuthenticated, BasePermission
 from django.utils.translation import gettext_lazy as _
+from django.core.mail import EmailMultiAlternatives
+from django.template.loader import render_to_string
+from django.conf import settings
 
 from apps.profiles.coach_profile.models import CoachProfile, Certification
 from apps.plan_management.models import PlanRequest
@@ -222,20 +225,73 @@ class CoachesViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.Gen
         if enable_user:
             profile.user.is_enabled = True
             profile.user.save(update_fields=['is_enabled'])
+        # Notify coach via email (best-effort; uses console backend in dev)
+        try:
+            subject = 'Your coach profile has been approved'
+            ctx = {
+                'user': profile.user,
+                'profile': profile,
+                'notes': notes,
+            }
+            text = render_to_string('emails/coach_profile_approved.txt', ctx)
+            html = render_to_string('emails/coach_profile_approved.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
         return Response({'status': 'approved', 'enable_user': enable_user})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
     def reject(self, request, pk=None):
         profile = self.get_object()
-        notes = request.data.get('notes', '')
+        # Accept optional notes/reason when rejecting a coach
+        notes = request.data.get('notes', '') or request.data.get('reason', '')
         
-        if not notes.strip():
-            return Response({'detail': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
         profile.approval_status = 'rejected'
         profile.approval_notes = notes
         profile.save(update_fields=['approval_status', 'approval_notes'])
+        # Notify coach with reason if provided
+        try:
+            subject = 'Your coach profile has been rejected'
+            ctx = {
+                'user': profile.user,
+                'profile': profile,
+                'reason': notes or '(no reason provided)'
+            }
+            text = render_to_string('emails/coach_profile_rejected.txt', ctx)
+            html = render_to_string('emails/coach_profile_rejected.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
         return Response({'status': 'rejected'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
+    def revert(self, request, pk=None):
+        """Revert coach approval status back to pending (undo approve/reject)."""
+        profile = self.get_object()
+        notes = request.data.get('notes', '')
+        profile.approval_status = 'pending'
+        # Do not clear approved_at/approved_by to preserve audit trail; keep approval_notes as history
+        profile.save(update_fields=['approval_status'])
+        # Notify coach about revert
+        try:
+            subject = 'Your coach profile status was reverted to pending'
+            ctx = {
+                'user': profile.user,
+                'profile': profile,
+                'notes': notes,
+            }
+            text = render_to_string('emails/coach_profile_reverted.txt', ctx)
+            html = render_to_string('emails/coach_profile_reverted.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
+        return Response({'status': 'pending'})
 
 
 class CertificationsViewSet(DefaultPaginationMixin, mixins.ListModelMixin, viewsets.GenericViewSet):
@@ -256,22 +312,82 @@ class CertificationsViewSet(DefaultPaginationMixin, mixins.ListModelMixin, views
         cert.verified_by = request.user
         cert.notes = notes
         cert.save(update_fields=['status', 'verified_at', 'verified_by', 'notes'])
+        # Notify coach via email (best-effort)
+        try:
+            subject = 'Your certification has been approved'
+            ctx = {
+                'user': cert.coach_profile.user,
+                'certification': cert,
+                'notes': notes,
+            }
+            text = render_to_string('emails/certification_approved.txt', ctx)
+            html = render_to_string('emails/certification_approved.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [cert.coach_profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
         return Response({'status': 'approved'})
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
     def reject(self, request, pk=None):
         cert = self.get_object()
-        notes = request.data.get('notes', '')
+        # Accept optional notes/reason when rejecting a certification
+        notes = request.data.get('notes', '') or request.data.get('reason', '')
         
-        if not notes.strip():
-            return Response({'detail': 'Rejection reason is required.'}, status=status.HTTP_400_BAD_REQUEST)
-            
         cert.status = 'rejected'
         cert.verified_at = timezone.now()
         cert.verified_by = request.user
         cert.notes = notes
         cert.save(update_fields=['status', 'verified_at', 'verified_by', 'notes'])
+        # Notify coach with reason if provided
+        try:
+            subject = 'Your certification has been rejected'
+            ctx = {
+                'user': cert.coach_profile.user,
+                'certification': cert,
+                'reason': notes or '(no reason provided)'
+            }
+            text = render_to_string('emails/certification_rejected.txt', ctx)
+            html = render_to_string('emails/certification_rejected.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [cert.coach_profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
         return Response({'status': 'rejected'})
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsAnyStaffPermission])
+    def revert(self, request, pk=None):
+        """Revert certification status back to pending (undo approve/reject)."""
+        cert = self.get_object()
+        notes = request.data.get('notes', '')
+        cert.status = 'pending'
+        # Clear verification details when reverting a certification
+        cert.verified_at = None
+        cert.verified_by = None
+        # Keep notes as an audit trail; optionally append revert note
+        if notes:
+            existing = (cert.notes or '').strip()
+            prefix = (existing + "\n") if existing else ""
+            cert.notes = f"{prefix}Reverted to pending: {notes}"
+        cert.save(update_fields=['status', 'verified_at', 'verified_by', 'notes'])
+        # Notify coach about revert
+        try:
+            subject = 'Your certification status was reverted to pending'
+            ctx = {
+                'user': cert.coach_profile.user,
+                'certification': cert,
+                'notes': notes,
+            }
+            text = render_to_string('emails/certification_reverted.txt', ctx)
+            html = render_to_string('emails/certification_reverted.html', ctx)
+            msg = EmailMultiAlternatives(subject, text, settings.DEFAULT_FROM_EMAIL, [cert.coach_profile.user.email])
+            msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            pass
+        return Response({'status': 'pending'})
 
 
 from rest_framework.views import APIView
@@ -524,22 +640,44 @@ class DashboardExportPDFView(APIView):
         buffer = BytesIO()
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
-        y = height - 50
-        p.setFont("Helvetica-Bold", 16)
-        p.drawString(40, y, "Easy Fit - Staff Dashboard Report")
-        y -= 20
-        p.setFont("Helvetica", 10)
-        p.drawString(40, y, f"Generated at: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        y -= 30
+
+        header_h = 24
+        margin_x = 40
+        def draw_header_footer():
+            # Header bar
+            p.setFillColorRGB(13/255.0, 110/255.0, 253/255.0)
+            p.rect(0, height - header_h, width, header_h, fill=1, stroke=0)
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont('Helvetica-Bold', 12)
+            p.drawString(margin_x, height - 16, 'Easy Fit — Staff Dashboard Report')
+            # Footer
+            p.setFillColorRGB(0, 0, 0)
+            p.setFont('Helvetica', 8)
+            p.drawString(margin_x, 20, f"Generated at: {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            p.drawRightString(width - margin_x, 20, f'Page {p.getPageNumber()}')
+
+        def new_page():
+            p.showPage(); draw_header_footer(); return height - header_h - 30
+
+        draw_header_footer()
+        y = height - header_h - 30
 
         def write_section(title, items):
             nonlocal y
+            if y < 80:
+                y = new_page()
             p.setFont("Helvetica-Bold", 12)
-            p.drawString(40, y, title)
+            p.drawString(margin_x, y, title)
             y -= 18
             p.setFont("Helvetica", 10)
             for k, v in items.items():
-                p.drawString(60, y, f"- {k}: {v}")
+                if y < 60:
+                    y = new_page()
+                    p.setFont("Helvetica-Bold", 12)
+                    p.drawString(margin_x, y, title + ' (cont.)')
+                    y -= 18
+                    p.setFont("Helvetica", 10)
+                p.drawString(margin_x + 20, y, f"- {k}: {v}")
                 y -= 14
             y -= 10
 
@@ -547,6 +685,7 @@ class DashboardExportPDFView(APIView):
         write_section('Plan Requests by Status', reqs)
         write_section('Subscriptions by Status', subs)
 
+        # finalize
         p.showPage()
         p.save()
         buffer.seek(0)

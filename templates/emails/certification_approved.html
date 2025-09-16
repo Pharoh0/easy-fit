@@ -1,0 +1,8 @@
+<p>Hello {{ user.username }},</p>
+<p>Good news! One of your certifications has been <strong>approved</strong>.</p>
+<ul>
+  <li><strong>Description:</strong> {{ certification.description|default:'(no description)' }}</li>
+  <li><strong>Notes:</strong> {{ notes|default:'(none)' }}</li>
+</ul>
+<p>You can manage your certifications from your profile.</p>
+<p>Thanks,<br>Easy Fit Team</p>

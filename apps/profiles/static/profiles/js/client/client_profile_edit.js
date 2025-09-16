@@ -205,7 +205,7 @@ function populateForm(profile) {
     console.log('Populating form with profile data:', profile);
     
     // Basic fields
-    const basicFields = ['age', 'height', 'weight'];
+    const basicFields = ['email', 'age', 'height', 'weight'];
     basicFields.forEach(field => {
         const input = document.getElementById(field);
         if (input && profile[field] !== null && profile[field] !== undefined) {
@@ -313,6 +313,24 @@ function validateForm() {
     document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
     document.querySelectorAll('.field-error').forEach(el => el.remove());
     
+    // Email validation
+    const emailInput = document.getElementById('email');
+    if (emailInput) {
+        const value = (emailInput.value || '').trim();
+        if (!value) {
+            isValid = false;
+            emailInput.classList.add('is-invalid');
+            showFieldError(emailInput, 'Email is required');
+        } else {
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(value)) {
+                isValid = false;
+                emailInput.classList.add('is-invalid');
+                showFieldError(emailInput, 'Enter a valid email address');
+            }
+        }
+    }
+
     // Basic validation for numeric fields
     const numericFields = ['age', 'height', 'weight'];
     numericFields.forEach(field => {
@@ -390,8 +408,8 @@ async function saveProfile() {
         
         console.log('Profile ID for update:', currentProfile.id);
         
-        // Use PUT method to update existing profile
-        const url = `/profiles/api/v1/client-profile/${currentProfile.id}/`;
+    // Use PATCH method to partially update existing profile
+    const url = `/profiles/api/v1/client-profile/${currentProfile.id}/`;
         
         console.log('Updating profile with PUT request to:', url);
         
@@ -414,7 +432,7 @@ async function saveProfile() {
             console.log('Sending FormData with files');
             
             response = await fetch(url, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: {
                     // Don't set Content-Type with FormData, browser will set it with boundary
                     'X-CSRFToken': getCsrfToken(),
@@ -427,7 +445,7 @@ async function saveProfile() {
             console.log('Sending JSON data (no files)');
             
             response = await fetch(url, {
-                method: 'PUT',
+                method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': getCsrfToken(),
@@ -437,17 +455,17 @@ async function saveProfile() {
             });
         }
         
-        console.log('PUT Response status:', response.status);
+        console.log('PATCH Response status:', response.status);
         
         if (!response.ok) {
             let errorMessage = 'Failed to save profile';
             try {
                 const errorText = await response.text();
-                console.error('PUT Error response text:', errorText);
+                console.error('PATCH Error response text:', errorText);
                 
                 try {
                     const errorData = JSON.parse(errorText);
-                    console.error('PUT Error response parsed:', errorData);
+                    console.error('PATCH Error response parsed:', errorData);
                     
                     // Handle DRF validation errors
                     if (errorData && typeof errorData === 'object') {
@@ -505,7 +523,7 @@ function getFormData() {
     
     // Basic fields
     const fields = [
-        'age', 'height', 'weight', 'gender', 'activity_level'
+        'email', 'age', 'height', 'weight', 'gender', 'activity_level'
     ];
     
     // Health information fields

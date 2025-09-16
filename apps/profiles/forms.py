@@ -1,4 +1,7 @@
 from django import forms
+from django.core.exceptions import ValidationError
+from django.db import IntegrityError
+from django.contrib.auth import get_user_model
 from .coach_profile.models import CoachProfile, Certification, ClientPicture, CoachPicture
 from cities_light.models import Country, Region, City
 
@@ -8,6 +11,14 @@ from cities_light.models import Country, Region, City
 #         fields = ['avatar', 'age', 'gender', 'height', 'weight', 'bmi', 'body_fat_percentage', 'waist_size', 'chest_size', 'health_conditions', 'fitness_goals', 'dietary_preferences']
 
 class CoachProfileForm(forms.ModelForm):
+    # Expose user email for editing alongside profile fields
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'you@example.com'
+        })
+    )
     class Meta:
         model = CoachProfile
         fields = [
@@ -73,6 +84,12 @@ class CoachProfileForm(forms.ModelForm):
         
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Initialize email field from the related user
+        try:
+            if self.instance and getattr(self.instance, 'user', None):
+                self.fields['email'].initial = self.instance.user.email
+        except Exception:
+            pass
         
         # Set up location cascading dropdowns
         if 'country' in self.data:
@@ -92,6 +109,43 @@ class CoachProfileForm(forms.ModelForm):
                 pass
         elif self.instance.pk and self.instance.region:
             self.fields['city'].queryset = self.instance.region.city_set.all()
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        User = get_user_model()
+        try:
+            qs = User.objects.filter(email__iexact=email)
+            if self.instance and getattr(self.instance, 'user_id', None):
+                qs = qs.exclude(pk=self.instance.user_id)
+            if qs.exists():
+                raise ValidationError('This email is already in use.')
+        except Exception:
+            # If anything goes wrong (e.g., custom User without email field constraints), skip uniqueness enforcement
+            pass
+        return email
+
+    def save(self, commit=True):
+        profile = super().save(commit=False)
+        # Update the related user's email
+        email = self.cleaned_data.get('email')
+        if profile.user and email:
+            # Validate uniqueness again to be safe
+            User = get_user_model()
+            exists = User.objects.filter(email__iexact=email).exclude(pk=profile.user_id).exists()
+            if exists:
+                # Attach error to the form and raise ValidationError to be handled by the view
+                self.add_error('email', 'This email is already in use.')
+                raise ValidationError('This email is already in use.')
+            profile.user.email = email
+            try:
+                # Save user first to ensure consistency
+                profile.user.save(update_fields=['email'])
+            except IntegrityError:
+                self.add_error('email', 'This email is already in use.')
+                raise ValidationError('This email is already in use.')
+        if commit:
+            profile.save()
+        return profile
 
 
 class CertificationForm(forms.ModelForm):

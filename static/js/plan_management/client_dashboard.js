@@ -12,6 +12,8 @@
   let subsStatusChart = null;
   let dashboardCache = null;
   let productPlansCache = null; // cache for price fallback in combined table
+  let plansCombinedRowsCache = []; // cache rows used in Plans overview for export
+  const exportCache = { latestMeasurement: null, measurementsSeries: [] };
 
   function setLoading(state) {
     isLoading = state;
@@ -66,6 +68,7 @@
 
       if (latestResp && latestResp.success && latestResp.data) {
         const m = latestResp.data;
+        exportCache.latestMeasurement = m;
         setMetric('mWeight', m && m.weight != null ? `${m.weight} kg` : null);
         setMetric('mBodyFat', m && m.body_fat_percentage != null ? `${Number(m.body_fat_percentage).toFixed(1)}%` : null);
         // Prefer flat schema (m.waist); fallback to nested body_part_measurements
@@ -212,9 +215,10 @@
         } else if (Array.isArray(progResp.data)) {
           series = progResp.data;
         }
-        if (series && series.length) {
+  if (series && series.length) {
         const labels = series.map(x => x.date || x.created_at || x.updated_at || '');
         const values = series.map(x => (x.weight ?? x.weight_kg ?? x.weight_value ?? null));
+  exportCache.measurementsSeries = series.slice();
   // Compute useful changes (last minus first)
         if (series.length >= 2) {
           const first = series[0];
@@ -414,6 +418,7 @@
           subscription_id: p.subscription_id || sub?.id
         };
       });
+      plansCombinedRowsCache = rows.slice();
       if (plansCombinedTable) { plansCombinedTable.destroy(); $('#plansCombinedTable').empty(); }
       plansCombinedTable = $('#plansCombinedTable').DataTable({
         data: rows,
@@ -651,17 +656,28 @@
       }
       const data = resp.data;
       dashboardCache = data;
-    // KPIs (simplified)
+    // KPIs (simplified) — Active plans, Completed days, Total subscriptions, Canceled plans
     setText('kpiActiveSubs', data?.kpis?.active_subscriptions, '--');
-    setText('kpiCompletion', formatPct(data?.kpis?.completion_avg));
     const completedDays = Number(data?.charts?.completion_distribution?.completed || 0);
     setText('kpiCompletedDays', isFinite(completedDays) ? completedDays : '--');
-    const bestStreakVal = (data?.week_summary?.best_streak != null)
-    ? data.week_summary.best_streak
-    : (data?.kpis?.current_streak_best != null
-      ? data.kpis.current_streak_best
-      : data?.kpis?.current_streak_avg);
-    setText('kpiStreak', numberOrDash(bestStreakVal));
+    // Subscriptions metrics
+    const subCounts = (data?.stats?.subscription_counts) || {};
+    // Compute total as sum of known statuses when explicit total is missing
+    let totalSubs = Number(subCounts.total || subCounts.all || 0);
+    if (!totalSubs) {
+      const keys = Object.keys(subCounts);
+      if (keys.length) {
+        totalSubs = keys.reduce((acc, k) => acc + Number(subCounts[k] || 0), 0);
+      } else if (Array.isArray(data?.options?.subscriptions)) {
+        totalSubs = data.options.subscriptions.length;
+      }
+    }
+    // Handle cancelled/canceled spelling and any alternate status mapping
+    const cancelledSubs = Number(
+      subCounts.cancelled || subCounts.canceled || subCounts.cancel || 0
+    );
+    setText('kpiTotalSubs', isFinite(totalSubs) ? totalSubs : '--');
+    setText('kpiCancelledSubs', isFinite(cancelledSubs) ? cancelledSubs : '--');
 
       // Active plans quick access (right card)
       try {
@@ -941,7 +957,7 @@
       subscription: filters.subscription_id,
       active_only: filters.active_only,
       page: 1,
-      page_size: 100
+      page_size: 1000
     };
     const url = `/plan-management/api/v1/daily-progress/${buildQuery(query)}`;
     const resp = await APIBase.request(url);
@@ -1053,28 +1069,304 @@
     }
   }
 
+  // Dynamically load jsPDF and autotable when needed
+  async function ensureJsPDF() {
+    if (window.jspdf && window.jspdf.jsPDF) return true;
+    const loadScript = (src) => new Promise((resolve, reject) => {
+      const s = document.createElement('script'); s.src = src; s.async = true; s.onload = resolve; s.onerror = reject; document.head.appendChild(s);
+    });
+    try {
+      if (!(window.jspdf && window.jspdf.jsPDF)) {
+        await loadScript('https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js');
+      }
+      // Load AutoTable plugin; it augments jsPDF API (doc.autoTable)
+      await loadScript('https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js');
+      return !!(window.jspdf && window.jspdf.jsPDF);
+    } catch (e) { console.warn('Failed to load jsPDF', e); return false; }
+  }
+
+  // Brand header/footer utils for jsPDF exports
+  function addBrandHeaderFooter(doc, title, subtitle) {
+    const pageCount = doc.getNumberOfPages();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const margin = 12;
+    const headerH = 16;
+    const dt = new Date().toLocaleString();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      // Header bar
+      doc.setFillColor(13, 110, 253); // Bootstrap primary
+      doc.rect(0, 0, pageW, headerH, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      doc.text(title || 'Easy Fit — Report', margin, 11);
+      if (subtitle) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+        doc.text(subtitle, margin + 2, 11);
+      }
+      // Footer with date and page numbers
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8);
+      doc.text(`Generated on ${dt}`, margin, pageH - 6);
+      doc.text(`Page ${i} of ${pageCount}`, pageW - margin - 30, pageH - 6);
+    }
+  }
+
+  function getPdfTopY(doc) {
+    const margin = 12; const headerH = 16; return margin + headerH + 6;
+  }
+
+  function canvasToImageData(canvasId) {
+    const c = document.getElementById(canvasId);
+    if (!c) return null;
+    try { return c.toDataURL('image/png', 1.0); } catch (_) { return null; }
+  }
+
+  function collectFiltersSummary() {
+    const f = getFiltersFromUI();
+    const pretty = [];
+    if (f.date_from || f.date_to) pretty.push(`Range: ${f.date_from || '—'} → ${f.date_to || '—'}`);
+    if (f.plan_type) pretty.push(`Type: ${String(f.plan_type).toUpperCase()}`);
+    if (f.subscription_id) pretty.push(`Plan: #${f.subscription_id}`);
+    if (f.status) pretty.push(`Status: ${String(f.status).toUpperCase()}`);
+    return pretty.join(' • ');
+  }
+
+  function getKPIValues() {
+    const text = (id) => { const el = document.getElementById(id); return el ? el.textContent.trim() : ''; };
+    return {
+      active: text('kpiActiveSubs'),
+      completedDays: text('kpiCompletedDays'),
+      totalSubs: text('kpiTotalSubs'),
+      cancelledSubs: text('kpiCancelledSubs'),
+    };
+  }
+
+  function getSubsStatusCounts() {
+    const counts = (dashboardCache && dashboardCache.stats && dashboardCache.stats.subscription_counts) || {};
+    return {
+      active: counts.active || 0,
+      completed: counts.completed || 0,
+      pending: counts.pending || 0,
+      cancelled: counts.cancelled || 0,
+      expired: counts.expired || 0,
+    };
+  }
+
+  function buildPlansTableForExport() {
+    // Use cached rows used to render the DataTable
+    return (plansCombinedRowsCache || []).map(r => ({
+      Plan: r.plan_name,
+      Type: String(r.plan_type || '').toUpperCase(),
+      Coach: r.coach_name || '',
+      Price: r.price != null ? (window.utils ? window.utils.formatCurrency(r.price) : String(r.price)) : '',
+      Status: r.status || '',
+      Progress: `${Number(r.completion_percentage||0).toFixed(1)}%`,
+      Adherence: `${Number(r.adherence_rate||0).toFixed(1)}%`,
+      SubscribedOn: (window.utils ? window.utils.formatDate(r.subscribed_at) : (r.subscribed_at || ''))
+    }));
+  }
+
+  async function exportDashboardPDF() {
+    const ok = await ensureJsPDF();
+    if (!ok) throw new Error('PDF engine failed to load');
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+    const margin = 12; const topY = getPdfTopY(doc);
+    let y = topY;
+
+    // Cover page
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
+    doc.text('Client Dashboard Report', margin, y); y += 10;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(11);
+    const filtersStr = collectFiltersSummary();
+    if (filtersStr) { doc.text(filtersStr, margin, y); y += 8; }
+    const dt = new Date().toLocaleString();
+    doc.text(`Generated: ${dt}`, margin, y); y += 8;
+    doc.setDrawColor(13,110,253); doc.setLineWidth(0.5);
+    doc.line(margin, y, doc.internal.pageSize.getWidth() - margin, y); y += 10;
+    // Add a short note
+    doc.setFontSize(10);
+    doc.text('This report summarizes your dashboard KPIs, measurements, charts, plans and logs for the selected period.', margin, y);
+    // New page for content
+    doc.addPage();
+    y = topY;
+
+    // KPIs
+    const k = getKPIValues();
+    doc.autoTable({
+      startY: y,
+      theme: 'grid',
+      styles: { fontSize: 9 },
+      margin: { top: topY, left: margin, right: margin },
+      head: [['Active plans', 'Completed days', 'Total subscriptions', 'Canceled plans']],
+      body: [[k.active, k.completedDays, k.totalSubs, k.cancelledSubs]]
+    });
+    y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 6) : (y + 20);
+
+    // Measurements (subset)
+    const m = exportCache.latestMeasurement || {};
+    const measRows = [];
+    if (m.weight != null) measRows.push(['Weight', `${m.weight} kg`]);
+    if (m.body_fat_percentage != null) measRows.push(['Body fat %', `${Number(m.body_fat_percentage).toFixed(1)}%`]);
+    if (m.waist != null) measRows.push(['Waist', `${m.waist}`]);
+    if (m.date || m.updated_at) measRows.push(['Updated', (window.utils ? window.utils.formatDate(m.updated_at || m.date) : (m.updated_at || m.date))]);
+    if (measRows.length) {
+      doc.autoTable({ startY: y, theme: 'plain', styles: { fontSize: 9 }, margin: { top: topY, left: margin, right: margin }, head: [['Measurements']], body: measRows });
+      y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 4) : (y + 20);
+    }
+
+    // Charts: Progress, Completion, Subs status, Measurement sparkline
+    const chartIds = ['progressChart', 'completionChart', 'subsStatusChart', 'measurementSparkline'];
+    for (const id of chartIds) {
+      const img = canvasToImageData(id);
+      if (img) {
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const w = pageWidth - margin * 2; const h = 60;
+        doc.addImage(img, 'PNG', margin, y, w, h, undefined, 'FAST'); y += h + 6;
+        if (y > doc.internal.pageSize.getHeight() - 30) { doc.addPage(); y = margin; }
+      }
+    }
+
+    // Plans Overview Table
+    const plansRows = buildPlansTableForExport();
+    if (plansRows.length) {
+      const head = [['Plan', 'Type', 'Coach', 'Price', 'Status', 'Progress', 'Adherence', 'Subscribed On']];
+      const body = plansRows.map(r => [r.Plan, r.Type, r.Coach, r.Price, r.Status, r.Progress, r.Adherence, r.SubscribedOn]);
+      doc.autoTable({ startY: y, theme: 'grid', styles: { fontSize: 8 }, margin: { top: topY, left: margin, right: margin }, head, body });
+      y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 4) : (y + 20);
+    }
+
+    // Daily Progress Logs table
+    try {
+      const logs = await loadLogsData();
+      if (Array.isArray(logs) && logs.length) {
+        const head = [['Date', 'Plan', 'Completed', 'Meals', 'Workouts', 'Calories']];
+        const body = logs.map(row => [
+          window.utils ? window.utils.formatDate(row.date) : (row.date || ''),
+          row.plan_name || row.plan || '',
+          row.completed ? 'Yes' : 'No',
+          `${Number(row.meals_completed||0)} / ${Number(row.meals_scheduled||0)}`,
+          `${Number(row.workouts_completed||0)} / ${Number(row.workouts_scheduled||0)}`,
+          Number(row.calories||0)
+        ]);
+        doc.autoTable({ startY: y, theme: 'grid', styles: { fontSize: 8 }, margin: { top: topY, left: margin, right: margin }, head, body });
+        y = (doc.lastAutoTable && doc.lastAutoTable.finalY) ? (doc.lastAutoTable.finalY + 4) : (y + 20);
+      }
+    } catch (_) { /* ignore logs in PDF if unavailable */ }
+    // Apply branding and page numbers on all pages
+    addBrandHeaderFooter(doc, 'Easy Fit — Client Dashboard', null);
+    doc.save('dashboard.pdf');
+  }
+
+  function toCSVRow(arr) { return arr.map(v => {
+    if (v == null) return '';
+    const s = String(v).replace(/"/g, '""');
+    if (/[",\n]/.test(s)) return '"' + s + '"';
+    return s;
+  }).join(','); }
+
+  async function exportDashboardCSV() {
+    const parts = [];
+    const filters = collectFiltersSummary();
+    parts.push('Dashboard Filters');
+    parts.push(toCSVRow([filters]));
+    parts.push('');
+
+  // KPIs
+    const k = getKPIValues();
+    parts.push('KPIs');
+  parts.push(toCSVRow(['Active plans', 'Completed days', 'Total subscriptions', 'Canceled plans']));
+  parts.push(toCSVRow([k.active, k.completedDays, k.totalSubs, k.cancelledSubs]));
+    parts.push('');
+
+    // Subscription status counts
+    const c = getSubsStatusCounts();
+    parts.push('Subscription Status');
+    parts.push(toCSVRow(['Active','Completed','Pending','Cancelled','Expired']));
+    parts.push(toCSVRow([c.active, c.completed, c.pending, c.cancelled, c.expired]));
+    parts.push('');
+
+    // Measurements
+    const m = exportCache.latestMeasurement || {};
+    const meas = [];
+    if (m.weight != null) meas.push(['Weight', `${m.weight} kg`]);
+    if (m.body_fat_percentage != null) meas.push(['Body fat %', `${Number(m.body_fat_percentage).toFixed(1)}%`]);
+    if (m.waist != null) meas.push(['Waist', `${m.waist}`]);
+    if (m.date || m.updated_at) meas.push(['Updated', (window.utils ? window.utils.formatDate(m.updated_at || m.date) : (m.updated_at || m.date))]);
+    if (meas.length) {
+      parts.push('Measurements');
+      for (const row of meas) parts.push(toCSVRow(row));
+      parts.push('');
+    }
+
+    // Progress series
+    const series = exportCache.measurementsSeries || [];
+    if (series.length) {
+      parts.push('Measurements Series');
+      parts.push(toCSVRow(['Date','Weight']));
+      for (const it of series) parts.push(toCSVRow([it.date || it.created_at || it.updated_at || '', it.weight ?? it.weight_kg ?? it.weight_value ?? '']));
+      parts.push('');
+    }
+
+    // Plans overview
+    const plans = buildPlansTableForExport();
+    if (plans.length) {
+      parts.push('Plans Overview');
+      parts.push(toCSVRow(['Plan','Type','Coach','Price','Status','Progress','Adherence','Subscribed On']));
+      for (const r of plans) parts.push(toCSVRow([r.Plan, r.Type, r.Coach, r.Price, r.Status, r.Progress, r.Adherence, r.SubscribedOn]));
+      parts.push('');
+    }
+
+    // Daily Progress Logs
+    try {
+      const logs = await loadLogsData();
+      if (Array.isArray(logs) && logs.length) {
+        parts.push('Daily Progress Logs');
+        parts.push(toCSVRow(['Date','Plan','Completed','Meals (done/total)','Workouts (done/total)','Calories']));
+        for (const row of logs) {
+          parts.push(toCSVRow([
+            row.date || '',
+            row.plan_name || row.plan || '',
+            row.completed ? 'Yes' : 'No',
+            `${Number(row.meals_completed||0)} / ${Number(row.meals_scheduled||0)}`,
+            `${Number(row.workouts_completed||0)} / ${Number(row.workouts_scheduled||0)}`,
+            Number(row.calories||0)
+          ]));
+        }
+        parts.push('');
+      }
+    } catch (_) { /* ignore logs in CSV if not available */ }
+
+    const csv = parts.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a'); a.href = url; a.download = 'dashboard.csv'; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+  }
+
   function bindExportHandlers() {
     const excelBtn = document.getElementById('btnExportExcel');
     const pdfBtn = document.getElementById('btnExportPDF');
-    if (excelBtn) excelBtn.addEventListener('click', (ev) => {
+    if (excelBtn) excelBtn.addEventListener('click', async (ev) => {
       ev.preventDefault();
-      const f = getFiltersFromUI();
-      const q = buildQuery({
-        start_date: f.date_from, end_date: f.date_to,
-        plan_type: f.plan_type, subscription: f.subscription_id,
-        active_only: f.active_only
-      });
-      performDownload(`/plan-management/api/v1/daily-progress/export_excel/${q}`, 'daily_logs.xlsx');
+      try { await exportDashboardCSV(); }
+      catch (e) {
+        // fallback to server export
+        const f = getFiltersFromUI();
+        const q = buildQuery({ start_date: f.date_from, end_date: f.date_to, plan_type: f.plan_type, subscription: f.subscription_id, active_only: f.active_only });
+        performDownload(`/plan-management/api/v1/daily-progress/export_excel/${q}`, 'daily_logs.xlsx');
+      }
     });
-    if (pdfBtn) pdfBtn.addEventListener('click', (ev) => {
+    if (pdfBtn) pdfBtn.addEventListener('click', async (ev) => {
       ev.preventDefault();
-      const f = getFiltersFromUI();
-      const q = buildQuery({
-        start_date: f.date_from, end_date: f.date_to,
-        plan_type: f.plan_type, subscription: f.subscription_id,
-        active_only: f.active_only
-      });
-      performDownload(`/plan-management/api/v1/daily-progress/export_pdf/${q}`, 'daily_logs.pdf');
+      try { await exportDashboardPDF(); }
+      catch (e) {
+        // fallback to server export
+        const f = getFiltersFromUI();
+        const q = buildQuery({ start_date: f.date_from, end_date: f.date_to, plan_type: f.plan_type, subscription: f.subscription_id, active_only: f.active_only });
+        performDownload(`/plan-management/api/v1/daily-progress/export_pdf/${q}`, 'daily_logs.pdf');
+      }
     });
   }
 

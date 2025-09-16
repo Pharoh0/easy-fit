@@ -12,7 +12,8 @@ User = get_user_model()
 
 class ClientProfileSerializer(serializers.ModelSerializer):
     username = serializers.SerializerMethodField()
-    email = serializers.SerializerMethodField()
+    # Make email editable via the serializer (mapped to related User.email). Write-only to avoid attribute lookup on GET.
+    email = serializers.EmailField(required=False, allow_blank=True, write_only=True)
     avatar_url = serializers.SerializerMethodField()
     
     class Meta:
@@ -24,7 +25,7 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             'instagram', 'facebook', 'twitter', 'activity_level',
             'last_measurement_date', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'username', 'email', 'bmi', 'last_measurement_date', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'username', 'bmi', 'last_measurement_date', 'created_at', 'updated_at']
         extra_kwargs = {
             'avatar': {'required': False},  # Make the avatar field optional
             'cover_image': {'required': False},  # Make the cover image field optional
@@ -32,9 +33,6 @@ class ClientProfileSerializer(serializers.ModelSerializer):
 
     def get_username(self, obj):
         return obj.user.username
-    
-    def get_email(self, obj):
-        return obj.user.email
 
     def get_avatar_url(self, obj):
         try:
@@ -51,6 +49,32 @@ class ClientProfileSerializer(serializers.ModelSerializer):
             pass
         return None
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        try:
+            data['email'] = instance.user.email
+        except Exception:
+            data['email'] = None
+        return data
+
+    def validate_email(self, value):
+        # Allow missing/blank (frontend enforces required); if provided, enforce uniqueness
+        if value in (None, ''):
+            return value
+        User = get_user_model()
+        try:
+            request = self.context.get('request') if hasattr(self, 'context') else None
+            current_user = request.user if request else None
+            qs = User.objects.filter(email__iexact=value)
+            if current_user and current_user.pk:
+                qs = qs.exclude(pk=current_user.pk)
+            if qs.exists():
+                raise serializers.ValidationError('This email is already in use.')
+        except Exception:
+            # If user model/email field behavior is non-standard, let DB enforce
+            pass
+        return value
+
     def update(self, instance, validated_data):
         # Check if avatar is in the validated data
         if 'avatar' in validated_data and validated_data['avatar'] is None:
@@ -60,6 +84,20 @@ class ClientProfileSerializer(serializers.ModelSerializer):
         if 'cover_image' in validated_data and validated_data['cover_image'] is None:
             validated_data.pop('cover_image')
         
+        # Handle email update on the related User
+        new_email = validated_data.pop('email', None)
+        if new_email is not None and hasattr(instance, 'user') and instance.user:
+            # Uniqueness already validated in validate_email; add final guard
+            User = get_user_model()
+            if User.objects.filter(email__iexact=new_email).exclude(pk=instance.user_id).exists():
+                raise serializers.ValidationError({'email': 'This email is already in use.'})
+            instance.user.email = new_email
+            try:
+                instance.user.save(update_fields=['email'])
+            except Exception:
+                # Surface a clear field error
+                raise serializers.ValidationError({'email': 'Unable to update email. Please try a different address.'})
+
         # Update instance
         instance = super().update(instance, validated_data)
         

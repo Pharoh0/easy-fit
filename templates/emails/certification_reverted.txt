@@ -1,0 +1,11 @@
+Hello {{ user.username }},
+
+A certification status was changed back to pending for review.
+
+Description: {{ certification.description|default:'(no description)' }}
+Notes: {{ notes|default:'(none)' }}
+
+We’ll notify you when a decision is made.
+
+Thanks,
+Easy Fit Team

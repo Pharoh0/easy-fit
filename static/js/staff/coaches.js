@@ -192,15 +192,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Actions',
                     orderable: false,
                     render: function(data, type, row) {
-                        // Only show actions for pending coaches
-                        if (row.approval_status !== 'pending') {
-                            return '<span class="text-muted">No actions</span>';
+                        if (row.approval_status === 'pending') {
+                            return `<div class="dt-actions">
+                                <button class="btn btn-sm btn-success approve-coach" data-coach-id="${row.id}">Approve</button>
+                                <button class="btn btn-sm btn-danger reject-coach" data-coach-id="${row.id}">Reject</button>
+                            </div>`;
+                        } else {
+                            return `<div class="dt-actions">
+                                <button class="btn btn-sm btn-warning revert-coach" data-coach-id="${row.id}">Revert to Pending</button>
+                            </div>`;
                         }
-                        
-                        return `<div class="dt-actions">
-                            <button class="btn btn-sm btn-success approve-coach" data-coach-id="${row.id}">Approve</button>
-                            <button class="btn btn-sm btn-danger reject-coach" data-coach-id="${row.id}">Reject</button>
-                        </div>`;
                     }
                 }
             ],
@@ -261,22 +262,61 @@ document.addEventListener('DOMContentLoaded', function() {
         $(tableEl).on('click', '.reject-coach', async function() {
             const coachId = $(this).data('coach-id');
             
-            const confirmed = await window.utils.confirm({
+            // Ask for optional reason
+            const reason = await window.utils.prompt({
                 title: 'Reject Coach Profile',
-                message: 'Are you sure you want to reject this coach profile?',
+                message: 'Reason (optional):',
+                inputType: 'textarea',
                 confirmText: 'Reject Coach',
+                variant: 'danger',
+                required: false
+            });
+
+            const confirmed = await window.utils.confirm({
+                title: 'Confirm Rejection',
+                message: 'Are you sure you want to reject this coach profile?',
+                confirmText: 'Reject',
                 variant: 'danger'
             });
             
             if (confirmed) {
                 try {
-                    await StaffAPI.coaches.reject(coachId);
+                    await StaffAPI.coaches.reject(coachId, { notes: reason || '' });
                     window.utils.showToast('Coach has been rejected successfully', 'success');
                     coachesTable.ajax.reload(null, false);
                 } catch (error) {
                     console.error('Error rejecting coach:', error);
                     window.utils.showToast('Failed to reject coach', 'danger');
                 }
+            }
+        });
+
+        // Revert coach approval status handler
+        $(tableEl).on('click', '.revert-coach', async function() {
+            const coachId = $(this).data('coach-id');
+            const confirmed = await window.utils.confirm({
+                title: 'Revert to Pending',
+                message: 'Undo approve/reject and set status back to Pending?',
+                confirmText: 'Revert',
+                variant: 'warning'
+            });
+            if (!confirmed) return;
+
+            const notes = await window.utils.prompt({
+                title: 'Optional Notes',
+                message: 'Add a note for the coach (optional):',
+                inputType: 'textarea',
+                confirmText: 'Submit',
+                required: false
+            });
+
+            try {
+                await StaffAPI.coaches.revert(coachId, { notes: notes || '' });
+                window.utils.showToast('Coach status reverted to pending', 'warning');
+                coachesTable.ajax.reload(null, false);
+            } catch (error) {
+                console.error('Error reverting coach:', error);
+                window.utils.showToast('Failed to revert coach status', 'danger');
             }
         });
     }

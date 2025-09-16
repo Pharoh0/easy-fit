@@ -50,13 +50,15 @@
                             </div>
                             <h2 class="profile-name">
                                 {{ profile.user.get_full_name|default:profile.user.username }}
-                                <i class="fas fa-check-circle verified-badge" data-bs-toggle="tooltip" title="Verified Coach"></i>
+                                {% if profile.approval_status == 'approved' %}
+                                    <i class="fas fa-check-circle verified-badge" data-bs-toggle="tooltip" title="Verified Coach"></i>
+                                {% endif %}
                             </h2>
                             <div class="profile-tagline">Professional Fitness Coach</div>
                             <div class="profile-meta">
                                 <span class="location d-block mb-2">
                                     <i class="fas fa-map-marker-alt text-muted me-1"></i>
-                                    {{ profile.city.name }}, {{ profile.country.name }}
+                                    {% if profile.city %}{{ profile.city.name }}{% endif %}{% if profile.city and profile.country %}, {% endif %}{% if profile.country %}{{ profile.country.name }}{% endif %}
                                 </span>
                                 <span class="username d-block mb-3">
                                     <i class="fas fa-at text-muted me-1"></i>
@@ -69,14 +71,14 @@
                                         </a>
                                     </div>
                                 {% else %}
-                                    <div class="mt-3">
+                                    {% comment %} <div class="mt-3">
                                         <a href="#" class="btn btn-sm btn-primary">
                                             <i class="fas fa-envelope me-1"></i> Contact
                                         </a>
                                         <a href="#" class="btn btn-sm btn-light ms-2">
                                             <i class="fas fa-bookmark me-1"></i> Save
                                         </a>
-                                    </div>
+                                    </div> {% endcomment %}
                                 {% endif %}
                             </div>
                         </div>
@@ -113,15 +115,16 @@
                                 <div class="stat-icon">
                                     <i class="fas fa-users"></i>
                                 </div>
-                                <div class="stat-value">{{ profile.client_count|default:"0" }}</div>
+                                <div class="stat-value">{{ active_clients_count|default:"0" }}</div>
                                 <div class="stat-label">Clients</div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Social Links -->
+                    {% comment %} {% if request.user == profile.user %} {% endcomment %}
+                    <!-- Social Links (Only visible to the coach) -->
                     <div class="p-4">
-                        <h6 class="section-title">Connect</h6>
+                        <h6 class="section-title">Social Links</h6>
                         <div class="social-links">
                             {% if profile.facebook_profile_url %}
                                 <a href="{{ profile.facebook_profile_url }}" target="_blank" class="btn btn-icon btn-light-primary" data-bs-toggle="tooltip" title="Facebook">
@@ -148,13 +151,16 @@
                                     <i class="fab fa-youtube"></i>
                                 </a>
                             {% endif %}
-                            {% if profile.tiktok_profile_url %}
-                                <a href="{{ profile.tiktok_profile_url }}" target="_blank" class="btn btn-icon btn-light-dark" data-bs-toggle="tooltip" title="TikTok">
-                                    <i class="fab fa-tiktok"></i>
-                                </a>
-                            {% endif %}
+                            {% with tiktok_url=profile.tiktok_profile_url|default:profile.tiktok_profilel_url %}
+                                {% if tiktok_url %}
+                                    <a href="{{ tiktok_url }}" target="_blank" class="btn btn-icon btn-light-dark" data-bs-toggle="tooltip" title="TikTok">
+                                        <i class="fab fa-tiktok"></i>
+                                    </a>
+                                {% endif %}
+                            {% endwith %}
                         </div>
                     </div>
+                    {% comment %} {% endif %} {% endcomment %}
                 </div>
             </div>
         </div>
@@ -176,12 +182,6 @@
                                 <a class="nav-link" href="#certifications" data-section="certifications">
                                     <i class="fas fa-certificate me-md-2"></i>
                                     <span>Certifications</span>
-                                </a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="#plans" data-section="plans">
-                                    <i class="fas fa-dumbbell me-md-2"></i>
-                                    <span>Plans</span>
                                 </a>
                             </li>
                             <li class="nav-item">
@@ -217,9 +217,9 @@
                         <h6 class="section-title"><i class="fas fa-star me-2"></i>Specialties</h6>
                     </div>
                     <div class="specialties-wrapper">
-                        {% if profile.specialties %}
+                        {% if specialties_list %}
                             <div class="specialties">
-                                {% for specialty in profile.specialties.split %}
+                                {% for specialty in specialties_list %}
                                     <span class="specialty-badge">{{ specialty }}</span>
                                 {% endfor %}
                             </div>
@@ -306,10 +306,10 @@
                                             </div>
                                             <div class="testimonial-author">
                                                 <div class="author-avatar">
-                                                    {% if testimonial.client.client_profile.avatar %}
-                                                        <img src="{{ testimonial.client.client_profile.avatar.url }}" alt="{{ testimonial.client.get_full_name }}">
+                                                    {% if testimonial.client_avatar_url %}
+                                                        <img src="{{ testimonial.client_avatar_url }}" alt="{{ testimonial.client.get_full_name|default:testimonial.client.username }}">
                                                     {% else %}
-                                                        <div class="avatar-placeholder">{{ testimonial.client.first_name|first|default:testimonial.client.username|first }}</div>
+                                                        <div class="avatar-placeholder">{{ testimonial.client_initial|default:testimonial.client.username|first }}</div>
                                                     {% endif %}
                                                 </div>
                                                 <div class="author-info">
@@ -535,13 +535,13 @@
                                                         <button class="btn btn-sm btn-outline-warning" onclick="editPlan({{ plan.id }})" title="Edit Plan">
                                                             <i class="fas fa-edit"></i>
                                                         </button>
-                                                        <button class="btn btn-sm btn-outline-danger" onclick="deletePlan({{ plan.id }}, '{{ plan.name|escapejs }}')" title="Delete Plan">
+                                                        {% comment %} <button class="btn btn-sm btn-outline-danger" onclick="deletePlan({{ plan.id }}, '{{ plan.name|escapejs }}')" title="Delete Plan">
                                                             <i class="fas fa-trash"></i>
-                                                        </button>
+                                                        </button> {% endcomment %}
                                                     </div>
                                                 {% else %}
                                                     <!-- Other users viewing - show view/subscribe option -->
-                                                    <a href="#" class="btn btn-sm btn-primary">View Plan</a>
+                                                    {% comment %} <a href="#" class="btn btn-sm btn-primary">View Plan</a> {% endcomment %}
                                                 {% endif %}
                                             </div>
                                         </div>
@@ -944,15 +944,98 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
+    // Wrapper function to standardize toast messages
+    function showToastMessage(message, type) {
+        // Use the global utility function if available
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(message, type);
+        } else if (window.showToast) {
+            // Use local showToast function if available
+            window.showToast(message, type);
+        } else {
+            // Fallback to alert
+            alert(message);
+        }
+    }
+    
+    // Confirmation modal function
+    function showConfirmModal(options) {
+        const modalId = 'confirmModal' + Date.now();
+        const title = options.title || 'Confirm';
+        const message = options.message || 'Are you sure?';
+        const confirmText = options.confirmText || 'Confirm';
+        const confirmButtonClass = options.confirmButtonClass || 'btn-primary';
+        const cancelText = options.cancelText || 'Cancel';
+        
+        // Create modal element
+        const modalHTML = `
+            <div class="modal fade" id="${modalId}" tabindex="-1" aria-labelledby="${modalId}Label" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="${modalId}Label">${title}</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${message}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">${cancelText}</button>
+                            <button type="button" class="btn ${confirmButtonClass}" id="${modalId}Confirm">${confirmText}</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+        
+        const modalElement = document.getElementById(modalId);
+        const modal = new bootstrap.Modal(modalElement);
+        
+        // Handle confirm button click
+        document.getElementById(`${modalId}Confirm`).addEventListener('click', function() {
+            modal.hide();
+            if (typeof options.onConfirm === 'function') {
+                options.onConfirm();
+            }
+        });
+        
+        // Remove modal from DOM after it's hidden
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            this.remove();
+        });
+        
+        // Show the modal
+        modal.show();
+    }
+    
     // Certification CRUD functions
     {% if request.user == profile.user %}
     function getCsrfToken() {
         const token = document.querySelector('[name=csrfmiddlewaretoken]');
         if (!token) {
             console.error('CSRF token not found');
-            return '';
+            // Fallback to cookie if form token is not available
+            return getCsrfCookie();
         }
         return token.value;
+    }
+    
+    function getCsrfCookie() {
+        const name = 'csrftoken';
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
     }
     
     // Add certification
@@ -989,7 +1072,7 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(data => {
             if (data.id) {
-                showToast('Certification saved successfully!', 'success');
+                showToastMessage('Certification saved successfully!', 'success');
                 // Close the modal
                 const modal = bootstrap.Modal.getInstance(document.getElementById('addCertificationModal'));
                 if (modal) modal.hide();
@@ -997,12 +1080,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 setTimeout(() => location.reload(), 500);
             } else {
                 console.error('API returned data without id:', data);
-                showToast('Error saving certification. Please try again.', 'error');
+                showToastMessage('Error saving certification. Please try again.', 'error');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            showToast(`Error saving certification: ${error.message}`, 'error');
+            showToastMessage(`Error saving certification: ${error.message}`, 'error');
         });
     });
     
@@ -1019,41 +1102,72 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Delete certification
     function deleteCertification(id) {
-        if (confirm('Are you sure you want to delete this certification?')) {
-            fetch(`/profiles/api/v1/coach-certifications/${id}/`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': getCsrfToken()
+        if (window.utils && window.utils.confirm) {
+            // Use the global utility function if available
+            window.utils.confirm({
+                title: 'Delete Certification',
+                message: 'Are you sure you want to delete this certification?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+            }).then(result => {
+                if (result) {
+                    deleteCertificationConfirmed(id);
                 }
-            })
-            .then(response => {
-                if (response.ok) {
-                    document.querySelector(`[data-certification-id="${id}"]`).remove();
-                    showToast('Certification deleted successfully!', 'success');
-                    // Show no certifications message if all are deleted
-                    if (document.querySelectorAll('[data-certification-id]').length === 0) {
-                        document.getElementById('certifications-container').innerHTML = `
-                            <div class="col-12" id="no-certifications">
-                                <div class="alert alert-light text-center">
-                                    <i class="fas fa-info-circle me-2"></i> No certifications added yet
-                                    <div class="mt-2">
-                                        <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
-                                            <i class="fas fa-plus me-1"></i> Add Your First Certificate
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        `;
-                    }
-                } else {
-                    showToast('Error deleting certification. Please try again.', 'error');
+            });
+        } else {
+            // Fallback to local implementation
+            showConfirmModal({
+                title: 'Delete Certification',
+                message: 'Are you sure you want to delete this certification?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+                onConfirm: function() {
+                    deleteCertificationConfirmed(id);
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error deleting certification. Please try again.', 'error');
             });
         }
+    }
+    
+    function deleteCertificationConfirmed(id) {
+        fetch(`/profiles/api/v1/coach-certifications/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                document.querySelector(`[data-certification-id="${id}"]`).remove();
+                showToast('Certification deleted successfully!', 'success');
+                // Update certification count
+                const certCount = document.querySelectorAll('[data-certification-id]').length;
+                document.querySelector('.stat-value:nth-of-type(2)').textContent = certCount;
+                
+                // Show empty state if no certifications left
+                if (certCount === 0) {
+                    document.getElementById('certifications-container').innerHTML = `
+                        <div class="col-12" id="no-certifications">
+                            <div class="alert alert-light text-center">
+                                <i class="fas fa-info-circle me-2"></i> No certifications added yet
+                                <div class="mt-2">
+                                    <button class="btn btn-sm btn-light-primary" data-bs-toggle="modal" data-bs-target="#addCertificationModal">
+                                        <i class="fas fa-plus me-1"></i> Add Your First Certificate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+            } else {
+                showToast('Error deleting certification. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error deleting certification. Please try again.', 'error');
+        });
     }
     
     // Reset modal when it's closed
@@ -1087,7 +1201,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.id) {
-                showToast('Client photo saved successfully!', 'success');
+                showToastMessage('Client photo saved successfully!', 'success');
                 location.reload(); // Refresh page to show new picture
             } else {
                 showToast('Error saving picture. Please try again.', 'error');
@@ -1110,27 +1224,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function deleteClientPicture(id) {
-        if (confirm('Are you sure you want to delete this client photo?')) {
-            fetch(`/profiles/api/v1/coach-client-pictures/${id}/`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': getCsrfToken()
+        if (window.utils && window.utils.confirm) {
+            // Use the global utility function if available
+            window.utils.confirm({
+                title: 'Delete Client Photo',
+                message: 'Are you sure you want to delete this client photo?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+            }).then(result => {
+                if (result) {
+                    deleteClientPictureConfirmed(id);
                 }
-            })
-            .then(response => {
-                if (response.ok) {
-                    document.querySelector(`[data-picture-id="${id}"][data-type="client"]`).remove();
-                    showToast('Client photo deleted successfully!', 'success');
-                    updateClientPictureCount();
-                } else {
-                    showToast('Error deleting picture. Please try again.', 'error');
+            });
+        } else {
+            // Fallback to local implementation
+            showConfirmModal({
+                title: 'Delete Client Photo',
+                message: 'Are you sure you want to delete this client photo?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+                onConfirm: function() {
+                    deleteClientPictureConfirmed(id);
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error deleting picture. Please try again.', 'error');
             });
         }
+    }
+    
+    function deleteClientPictureConfirmed(id) {
+        fetch(`/profiles/api/v1/coach-client-pictures/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                document.querySelector(`[data-picture-id="${id}"][data-type="client"]`).remove();
+                showToastMessage('Client photo deleted successfully!', 'success');
+                updateClientPictureCount();
+            } else {
+                showToastMessage('Error deleting picture. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToastMessage('Error deleting picture. Please try again.', 'error');
+        });
     }
     
     // Coach Picture Functions
@@ -1155,7 +1296,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.id) {
-                showToast('Journey photo saved successfully!', 'success');
+                showToastMessage('Journey photo saved successfully!', 'success');
                 location.reload(); // Refresh page to show new picture
             } else {
                 showToast('Error saving picture. Please try again.', 'error');
@@ -1178,27 +1319,54 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function deleteCoachPicture(id) {
-        if (confirm('Are you sure you want to delete this journey photo?')) {
-            fetch(`/profiles/api/v1/coach-pictures/${id}/`, {
-                method: 'DELETE',
-                headers: {
-                    'X-CSRFToken': getCsrfToken()
+        if (window.utils && window.utils.confirm) {
+            // Use the global utility function if available
+            window.utils.confirm({
+                title: 'Delete Journey Photo',
+                message: 'Are you sure you want to delete this journey photo?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+            }).then(result => {
+                if (result) {
+                    deleteCoachPictureConfirmed(id);
                 }
-            })
-            .then(response => {
-                if (response.ok) {
-                    document.querySelector(`[data-picture-id="${id}"][data-type="coach"]`).remove();
-                    showToast('Journey photo deleted successfully!', 'success');
-                    updateCoachPictureCount();
-                } else {
-                    showToast('Error deleting picture. Please try again.', 'error');
+            });
+        } else {
+            // Fallback to local implementation
+            showConfirmModal({
+                title: 'Delete Journey Photo',
+                message: 'Are you sure you want to delete this journey photo?',
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+                onConfirm: function() {
+                    deleteCoachPictureConfirmed(id);
                 }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showToast('Error deleting picture. Please try again.', 'error');
             });
         }
+    }
+    
+    function deleteCoachPictureConfirmed(id) {
+        fetch(`/profiles/api/v1/coach-pictures/${id}/`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': getCsrfToken()
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                document.querySelector(`[data-picture-id="${id}"][data-type="coach"]`).remove();
+                showToastMessage('Journey photo deleted successfully!', 'success');
+                updateCoachPictureCount();
+            } else {
+                showToastMessage('Error deleting picture. Please try again.', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToastMessage('Error deleting picture. Please try again.', 'error');
+        });
     }
     
     // Helper functions to update picture counts and show empty states
@@ -1266,37 +1434,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
     window.deletePlan = function(planId, planName) {
         // Show confirmation modal and handle deletion
-        showConfirmModal({
-            title: 'Delete Plan',
-            message: `Are you sure you want to delete the plan "${planName}"? This action cannot be undone.`,
-            confirmText: 'Delete Plan',
-            confirmClass: 'btn-danger',
-            onConfirm: function() {
-                // Check if plan has active subscriptions first
-                fetch(`/plan-management/api/v1/product-plans/${planId}/can_delete/`, {
-                    method: 'GET',
-                    headers: {
-                        'Accept': 'application/json',
-                        'X-CSRFToken': getCsrfToken(),
-                    },
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.can_delete) {
-                        // Safe to delete
-                        deletePlanConfirmed(planId, planName);
-                    } else {
-                        showToast(`Cannot delete "${planName}" because it has active subscriptions. You can deactivate it instead.`, 'warning');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error checking plan deletion status:', error);
-                    // Proceed with deletion attempt anyway
-                    deletePlanConfirmed(planId, planName);
-                });
-            }
-        });
+        if (window.utils && window.utils.confirm) {
+            // Use the global utility function if available
+            window.utils.confirm({
+                title: 'Delete Plan',
+                message: `Are you sure you want to delete "${planName}"? This action cannot be undone.`,
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+            }).then(result => {
+                if (result) {
+                    checkAndDeletePlan(planId, planName);
+                }
+            });
+        } else {
+            // Fallback to local implementation
+            showConfirmModal({
+                title: 'Delete Plan',
+                message: `Are you sure you want to delete "${planName}"? This action cannot be undone.`,
+                confirmText: 'Delete',
+                confirmButtonClass: 'btn-danger',
+                cancelText: 'Cancel',
+                onConfirm: function() {
+                    checkAndDeletePlan(planId, planName);
+                }
+            });
+        }
     };
+    
+    function checkAndDeletePlan(planId, planName) {
+        // First check if the plan can be deleted (no active subscriptions)
+        fetch(`/plan-management/api/v1/product-plans/${planId}/can-delete/`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'application/json',
+                'X-CSRFToken': getCsrfToken(),
+            },
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Failed to check if plan can be deleted');
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.can_delete) {
+                // Safe to delete
+                deletePlanConfirmed(planId, planName);
+            } else {
+                showToastMessage(`Cannot delete "${planName}" because it has active subscriptions. You can deactivate it instead.`, 'warning');
+            }
+        })
+        .catch(error => {
+            console.error('Error checking plan deletion status:', error);
+            showToastMessage(`Error checking if plan can be deleted: ${error.message}`, 'danger');
+        });
+    }
 
     function deletePlanConfirmed(planId, planName) {
         fetch(`/plan-management/api/v1/product-plans/${planId}/`, {
@@ -1307,20 +1500,43 @@ document.addEventListener('DOMContentLoaded', function() {
             },
         })
         .then(response => {
-            if (response.ok) {
-                showToast(`Plan "${planName}" deleted successfully!`, 'success');
-                // Remove the plan card from the page
-                location.reload(); // Simple approach - reload to refresh the plans
-            } else {
+            if (!response.ok) {
+                if (response.status === 403) {
+                    throw new Error('You do not have permission to delete this plan');
+                } else if (response.status === 404) {
+                    throw new Error('Plan not found');
+                }
                 return response.json().then(data => {
                     throw new Error(data.detail || 'Failed to delete plan');
                 });
             }
+            showToastMessage(`Plan "${planName}" deleted successfully!`, 'success');
+            // Remove the plan card from the page without reloading
+            const planCard = document.querySelector(`[data-plan-id="${planId}"]`);
+            if (planCard) {
+                planCard.remove();
+            } else {
+                // If we can't find the card, reload the page
+                location.reload();
+            }
         })
         .catch(error => {
             console.error('Error deleting plan:', error);
-            showToast(`Error deleting plan: ${error.message}`, 'danger');
+            showToastMessage(`Error deleting plan: ${error.message}`, 'danger');
         });
+    }
+    
+    function showToastMessage(message, type) {
+        // Use the global utility function if available
+        if (window.utils && window.utils.showToast) {
+            window.utils.showToast(message, type);
+        } else if (window.showToast) {
+            // Use local showToast function if available
+            window.showToast(message, type);
+        } else {
+            // Fallback to alert
+            alert(message);
+        }
     }
 
     {% endif %}

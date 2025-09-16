@@ -1,0 +1,11 @@
+Hello {{ user.username }},
+
+Good news! One of your certifications has been approved.
+
+Description: {{ certification.description|default:'(no description)' }}
+Notes: {{ notes|default:'(none)' }}
+
+You can manage your certifications from your profile.
+
+Thanks,
+Easy Fit Team

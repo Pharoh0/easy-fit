@@ -85,8 +85,6 @@
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="sortDropdown">
                             <li><a class="dropdown-item sort-option" data-sort="rating" href="#">Rating (High to Low)</a></li>
-                            <li><a class="dropdown-item sort-option" data-sort="hourly_rate_asc" href="#">Price (Low to High)</a></li>
-                            <li><a class="dropdown-item sort-option" data-sort="hourly_rate_desc" href="#">Price (High to Low)</a></li>
                             <li><a class="dropdown-item sort-option" data-sort="experience" href="#">Experience (Most First)</a></li>
                         </ul>
                     </div>
@@ -116,24 +114,7 @@
                         </select>
                     </div>
                     
-                    <!-- Price Range Filter -->
-                    <div class="filter-group mb-3">
-                        <label class="form-label fw-medium">Price Range</label>
-                        <div class="row g-2">
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="min_rate" name="min_rate" placeholder="Min">
-                                </div>
-                            </div>
-                            <div class="col-6">
-                                <div class="input-group input-group-sm">
-                                    <span class="input-group-text">$</span>
-                                    <input type="number" class="form-control" id="max_rate" name="max_rate" placeholder="Max">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- Price filter removed: coaches do not have hourly rates -->
                     
                     <!-- Experience Filter -->
                     <div class="filter-group mb-3">
@@ -157,15 +138,33 @@
                                 <label class="form-check-label" for="rating_all">All Ratings</label>
                             </div>
                             <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_5plus" value="5">
+                                <label class="form-check-label" for="rating_5plus">
+                                    <span class="rating-stars">★★★★★</span>
+                                </label>
+                            </div>
+                            <div class="form-check">
                                 <input class="form-check-input" type="radio" name="rating_filter" id="rating_4plus" value="4">
                                 <label class="form-check-label" for="rating_4plus">
-                                    <span class="rating-stars">★★★★☆</span> & up
+                                    <span class="rating-stars">★★★★☆</span>
                                 </label>
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="radio" name="rating_filter" id="rating_3plus" value="3">
                                 <label class="form-check-label" for="rating_3plus">
-                                    <span class="rating-stars">★★★☆☆</span> & up
+                                    <span class="rating-stars">★★★☆☆</span> 
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_2plus" value="2">
+                                <label class="form-check-label" for="rating_2plus">
+                                    <span class="rating-stars">★★☆☆☆</span> 
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="rating_filter" id="rating_1plus" value="1">
+                                <label class="form-check-label" for="rating_1plus">
+                                    <span class="rating-stars">★☆☆☆☆</span> 
                                 </label>
                             </div>
                         </div>
@@ -415,11 +414,7 @@
         const specialty = document.getElementById('specialty').value;
         if (specialty) formData.append('specialty', specialty);
         
-        // Add price range filters
-        const minRate = document.getElementById('min_rate').value;
-        const maxRate = document.getElementById('max_rate').value;
-        if (minRate) formData.append('min_rate', minRate);
-        if (maxRate) formData.append('max_rate', maxRate);
+    // Price filters removed (hourly rates not used)
         
         // Add experience filter
         const yearsOfExperience = document.getElementById('years_of_experience').value;
@@ -438,12 +433,6 @@
             switch(currentSort) {
                 case 'rating':
                     sortParam = 'rating_high';
-                    break;
-                case 'hourly_rate_asc':
-                    sortParam = 'price_low';
-                    break;
-                case 'hourly_rate_desc':
-                    sortParam = 'price_high';
                     break;
                 case 'experience':
                     sortParam = 'experience_high';
@@ -489,6 +478,26 @@
             
             // Store original data for reference
             originalData = data.results || [];
+
+            // Dynamically populate Specialty options from results if empty
+            try {
+                const specSelect = document.getElementById('specialty');
+                if (specSelect && specSelect.options.length <= 1 && Array.isArray(originalData) && originalData.length) {
+                    const set = new Set();
+                    originalData.forEach(c => {
+                        const spec = c?.specialties || '';
+                        if (typeof spec === 'string') {
+                            spec.split(',').map(s => s.trim()).filter(Boolean).forEach(s => set.add(s));
+                        }
+                    });
+                    Array.from(set).sort().forEach(s => {
+                        const opt = document.createElement('option');
+                        opt.value = s;
+                        opt.textContent = s;
+                        specSelect.appendChild(opt);
+                    });
+                }
+            } catch (e) { console.warn('Populate specialties failed', e); }
             
             // Debug: Log the coaches data
             console.log('Coaches data:', originalData);
@@ -803,7 +812,7 @@
     // Update the event listeners for filters to trigger backend search
     function setupFilterEventListeners() {
         // Filter inputs should now trigger a new search with debounce
-        const filterInputs = document.querySelectorAll('#specialty, #min_rate, #max_rate, input[name="rating_filter"]');
+    const filterInputs = document.querySelectorAll('#specialty, input[name="rating_filter"]');
         filterInputs.forEach(input => {
             if (input.type === 'radio') {
                 input.addEventListener('change', () => {
@@ -856,8 +865,7 @@
         if (document.getElementById('specialty').value) activeCount++;
         
         // Check price range
-        if (document.getElementById('min_rate').value) activeCount++;
-        if (document.getElementById('max_rate').value) activeCount++;
+    // Price filters removed
         
         // Check experience
         if (document.getElementById('years_of_experience').value) activeCount++;
@@ -899,8 +907,7 @@
         
         // Reset other form inputs
         document.getElementById('specialty').value = '';
-        document.getElementById('min_rate').value = '';
-        document.getElementById('max_rate').value = '';
+    // Price filters removed
         document.getElementById('years_of_experience').value = '';
         document.getElementById('rating_all').checked = true;
         
@@ -931,7 +938,7 @@
         // Safely extract data with fallbacks
         const coachName = coach.user?.username || coach.user?.first_name || coach.user?.email || 'No name available';
         const specialties = coach.specialties || 'No specialties available';
-        const hourlyRate = coach.hourly_rate ? `$${coach.hourly_rate}` : 'No hourly rate available';
+    // Hourly rate removed
         const city = coach.city?.name || 'No city';
         const country = coach.country?.name || 'No country';
         const experience = coach.years_of_experience || 'No experience';
@@ -1007,6 +1014,9 @@
         
         const avatarColor = getAvatarColor(coachName);
         
+    // Determine approval status; default to true since search returns approved coaches only
+    const isApproved = coach.approval_status ? (coach.approval_status === 'approved') : true;
+        
         try {
             // Create coach card
             col.innerHTML = `
@@ -1023,9 +1033,9 @@
                                 }
                             </div>
                             <div>
-                                <h5 class="card-title mb-1">${coachName}</h5>
+                                <h5 class="card-title mb-1">${coachName} ${isApproved ? '<i class="fas fa-check-circle verified-badge text-primary" data-bs-toggle="tooltip" title="Verified Coach"></i>' : ''}</h5>
                                 <div class="coach-rating mb-1">
-                                    ${starsHtml} <small class="text-muted ms-1">(${rating}/5)</small>
+                                    ${starsHtml} <small class="text-muted ms-1">(${Number(rating||0).toFixed(1)}/5${coach.total_ratings?`, ${coach.total_ratings} ratings`:''})</small>
                                 </div>
                                 <div class="coach-location small text-muted">
                                     <i class="fas fa-map-marker-alt me-1"></i> ${city}, ${country}
@@ -1039,11 +1049,7 @@
                                 <div>${specialtiesBadges}</div>
                             </div>
                             
-                            <div class="d-flex justify-content-between align-items-center mb-3">
-                                <div class="coach-rate">
-                                    <span class="fw-bold fs-5 text-primary">${hourlyRate}</span>
-                                    <small class="text-muted">/ hour</small>
-                                </div>
+                            <div class="d-flex justify-content-end align-items-center mb-3">
                                 <div class="coach-experience small text-muted">
                                     <i class="fas fa-briefcase me-1"></i> ${experience} years
                                 </div>

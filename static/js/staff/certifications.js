@@ -195,14 +195,16 @@ document.addEventListener('DOMContentLoaded', function() {
                     title: 'Actions',
                     orderable: false,
                     render: function(data, type, row) {
-                        // Only show actions for pending certifications
-                        if (row.status !== 'pending') {
-                            return '<span class="text-muted">No actions</span>';
+                        // Actions vary by status
+                        if (row.status === 'pending') {
+                            return `<div class="dt-actions">
+                                <button class="btn btn-sm btn-success approve-cert" data-cert-id="${data}">Approve</button>
+                                <button class="btn btn-sm btn-danger reject-cert" data-cert-id="${data}">Reject</button>
+                            </div>`;
                         }
-                        
+                        // For approved/rejected, allow revert to pending
                         return `<div class="dt-actions">
-                            <button class="btn btn-sm btn-success approve-cert" data-cert-id="${data}">Approve</button>
-                            <button class="btn btn-sm btn-danger reject-cert" data-cert-id="${data}">Reject</button>
+                            <button class="btn btn-sm btn-warning revert-cert" data-cert-id="${data}">Revert to Pending</button>
                         </div>`;
                     }
                 }
@@ -291,6 +293,36 @@ document.addEventListener('DOMContentLoaded', function() {
                     console.error('Error rejecting certification:', error);
                     window.utils.showToast('Failed to reject certification', 'danger');
                 }
+            }
+        });
+
+        // Revert certification handler
+        $(tableEl).on('click', '.revert-cert', async function() {
+            const certId = $(this).data('cert-id');
+
+            const confirm = await window.utils.confirm({
+                title: 'Revert to Pending',
+                message: 'Are you sure you want to revert this certification to pending?',
+                confirmText: 'Revert',
+                variant: 'warning'
+            });
+            if (!confirm) return;
+
+            const notes = await window.utils.prompt({
+                title: 'Optional Notes',
+                message: 'Add a note for the coach (optional):',
+                inputType: 'textarea',
+                confirmText: 'Submit',
+                required: false
+            });
+
+            try {
+                await StaffAPI.certifications.revert(certId, { notes: notes || '' });
+                window.utils.showToast('Certification status reverted to pending', 'warning');
+                certificationsTable.ajax.reload(null, false);
+            } catch (error) {
+                console.error('Error reverting certification:', error);
+                window.utils.showToast('Failed to revert certification', 'danger');
             }
         });
     }

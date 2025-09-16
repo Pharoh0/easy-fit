@@ -1,0 +1,5 @@
+<p>Hello {{ user.first_name|default:user.username }},</p>
+<p>Your coach profile has been <strong>rejected</strong> at this time.</p>
+<p><strong>Reason:</strong> {{ reason|default:'(no reason provided)' }}</p>
+<p>You can update your profile and resubmit for approval. If you have questions, reply to this email.</p>
+<p>Thanks,<br/>Easy Fit Team</p>

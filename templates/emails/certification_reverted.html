@@ -1,0 +1,8 @@
+<p>Hello {{ user.username }},</p>
+<p>A certification status was changed back to <strong>pending</strong> for review.</p>
+<ul>
+  <li><strong>Description:</strong> {{ certification.description|default:'(no description)' }}</li>
+  <li><strong>Notes:</strong> {{ notes|default:'(none)' }}</li>
+</ul>
+<p>We’ll notify you when a decision is made.</p>
+<p>Thanks,<br>Easy Fit Team</p>

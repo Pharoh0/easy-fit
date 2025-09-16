@@ -22,11 +22,14 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         logger.info(f"Creating notification: type={notification_type}, subscription_id={subscription.id}, client_id={subscription.client.id}")
         
         # Create notification record
+        # Note: subject/email_content are non-nullable; seed with placeholders then update after rendering
         notification = PlanNotification.objects.create(
             subscription=subscription,
             user=subscription.client,
             notification_type=notification_type,
             recipient_email=subscription.client.email,
+            subject="",  # placeholder, will be updated after rendering
+            email_content="",  # placeholder, will be updated after rendering
             plan_access_token=access_token,
             link_expires_at=timezone.now() + timedelta(days=30),
             additional_data=additional_context or {}
@@ -65,14 +68,12 @@ def send_plan_notification(subscription, notification_type, additional_context=N
         notification.email_content = html_content
         notification.save()
         
-        # Add to email queue
+        # Add to email queue (align with EmailQueue model fields)
         email_queue = EmailQueue.objects.create(
             notification=notification,
             priority=get_notification_priority(notification_type),
             scheduled_send_time=timezone.now(),
-            status='pending',
-            retry_count=0,
-            last_attempt=timezone.now()
+            status='queued'
         )
         
         logger.info(f"Notification queued: {notification_type} for {subscription.client.email} (Queue ID: {email_queue.id})")
@@ -206,9 +207,9 @@ def get_notification_priority(notification_type):
 
 def process_email_queue():
     """Process queued emails - to be called by a management command or celery task"""
-    # Get pending emails, ordered by priority (high to low) and creation time (oldest first)
+    # Get queued emails, ordered by priority (high to low) and creation time (oldest first)
     queued_emails = EmailQueue.objects.filter(
-        status='pending',
+        status='queued',
         scheduled_send_time__lte=timezone.now()
     ).order_by('-priority', 'created_at').select_related('notification')[:50]  # Process in batches of 50
     
@@ -219,8 +220,7 @@ def process_email_queue():
         try:
             # Update status to processing
             email.status = 'processing'
-            email.last_attempt = timezone.now()
-            email.save(update_fields=['status', 'last_attempt'])
+            email.save(update_fields=['status'])
             
             # Get text content (fallback to HTML if not available)
             text_content = getattr(email.notification, 'text_content', None)
@@ -246,10 +246,8 @@ def process_email_queue():
             # Send the email
             msg.send(fail_silently=False)
             
-            # Mark as sent
-            email.status = 'sent'
-            email.sent_at = timezone.now()
-            email.save(update_fields=['status', 'sent_at'])
+            # Mark as sent (use model helper to also update related notification)
+            email.mark_as_sent()
             success_count += 1
             
             logger.info(f"Successfully sent email {email.id} to {email.notification.recipient_email}")
@@ -259,22 +257,22 @@ def process_email_queue():
             logger.error(f"Error sending email {email.id}: {error_msg}", exc_info=True)
             
             email.status = 'failed'
-            email.error_message = error_msg[:500]  # Truncate error message
-            email.retry_count = (email.retry_count or 0) + 1
+            email.last_error = error_msg[:500]  # Truncate error message
+            email.current_retry_count = (email.current_retry_count or 0) + 1
             
             # Calculate next retry time with exponential backoff (max 24h delay)
-            if email.retry_count < 5:  # Max 5 retries
-                delay_minutes = min(60 * 24, 5 * (2 ** (email.retry_count - 1)))  # 5, 10, 20, 40, 60 minutes
+            if email.current_retry_count < 5:  # Max 5 retries
+                delay_minutes = min(60 * 24, 5 * (2 ** (email.current_retry_count - 1)))  # 5, 10, 20, 40, 60 minutes
                 email.scheduled_send_time = timezone.now() + timedelta(minutes=delay_minutes)
-                email.status = 'pending'
+                email.status = 'queued'
                 logger.warning(
                     f"Email {email.id} will be retried in {delay_minutes} minutes "
-                    f"(attempt {email.retry_count}/5)"
+                    f"(attempt {email.current_retry_count}/5)"
                 )
             
             email.save(update_fields=[
-                'status', 'error_message', 'retry_count', 
-                'scheduled_send_time', 'last_attempt'
+                'status', 'last_error', 'current_retry_count', 
+                'scheduled_send_time'
             ])
             error_count += 1
     

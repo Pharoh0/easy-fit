@@ -1,0 +1,10 @@
+Hello {{ user.username }},
+
+Your coach profile status has been changed back to pending for review.
+
+Notes: {{ notes|default:'(none)' }}
+
+We’ll notify you when a decision is made.
+
+Thanks,
+Easy Fit Team

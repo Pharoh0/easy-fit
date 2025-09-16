@@ -20,9 +20,9 @@
                             <input class="form-check-input" type="checkbox" id="showArchivedToggle">
                             <label class="form-check-label" for="showArchivedToggle">Show archived</label>
                         </div>
-                        <button class="btn btn-sm btn-primary" id="newConversationBtn">
+                        {% comment %} <button class="btn btn-sm btn-primary" id="newConversationBtn">
                             <i class="fas fa-plus"></i>
-                        </button>
+                        </button> {% endcomment %}
                     </div>
                 </div>
                 <div class="card-body p-0">
@@ -48,7 +48,7 @@
                         <button class="btn btn-sm btn-outline-secondary me-2 d-md-none" id="toggleSidebarBtn">
                             <i class="fas fa-bars"></i>
                         </button>
-                        <img src="" alt="Avatar" class="rounded-circle me-2" width="40" height="40" id="chatAvatar">
+                        <img src="" alt="Avatar" class="rounded-circle me-2 message-avatar" width="40" height="40" id="chatAvatar" data-username="User">
                         <div>
                             <h6 class="mb-0" id="chatName"></h6>
                             <small class="text-muted" id="chatStatus"></small>
@@ -59,10 +59,10 @@
                             <i class="fas fa-ellipsis-v"></i>
                         </button>
                         <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="#" id="viewPlanBtn"><i class="fas fa-eye"></i> View Plan</a></li>
+                            {% comment %} <li><a class="dropdown-item" href="#" id="viewPlanBtn"><i class="fas fa-eye"></i> View Plan</a></li> {% endcomment %}
                             <li><a class="dropdown-item" href="#" id="archiveConversationBtn"><i class="fas fa-archive"></i> Archive</a></li>
                             <li><a class="dropdown-item" href="#" id="unarchiveConversationBtn"><i class="fas fa-box-open"></i> Unarchive</a></li>
-                            <li><a class="dropdown-item" href="#" id="muteConversationBtn"><i class="fas fa-bell-slash"></i> Mute</a></li>
+                            {% comment %} <li><a class="dropdown-item" href="#" id="muteConversationBtn"><i class="fas fa-bell-slash"></i> Mute</a></li> {% endcomment %}
                         </ul>
                     </div>
                 </div>

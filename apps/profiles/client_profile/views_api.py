@@ -52,7 +52,8 @@ def edit_client_profile(request):
         return redirect('profiles:create_client_profile')
     
     return render(request, 'profiles/client/client_profile_edit.html', {
-        'client': client
+        'client': client,
+        'profile': client  # template expects `profile.*` for initial values
     })
 
 

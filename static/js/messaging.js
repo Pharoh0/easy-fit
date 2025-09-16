@@ -280,14 +280,18 @@ class MessagingManager {
 
         const otherParticipant = conversation.other_participant || (conversation.participants || []).find(p => p.id !== authManager.getUser()?.id);
         const lastMessage = conversation.last_message;
+        const otherName = (otherParticipant?.full_name || otherParticipant?.username || 'User');
+        const otherAvatar = (otherParticipant?.avatar_url || '/static/images/default-avatar.svg');
 
         item.innerHTML = `
             <div class="d-flex w-100 justify-content-between">
                 <div class="d-flex align-items-center">
-                    <img src="${otherParticipant?.avatar_url || '/static/images/default-avatar.svg'}" 
-                         alt="Avatar" class="rounded-circle me-2" width="40" height="40">
+                    <img src="${otherAvatar}"
+                         alt="${otherName}"
+                         class="rounded-circle me-2 message-avatar" width="40" height="40"
+                         data-username="${otherName}">
                     <div>
-                        <h6 class="mb-1">${otherParticipant?.full_name || 'Unknown'} ${conversation.is_archived ? '<span class="badge bg-secondary ms-1">Archived</span>' : ''}</h6>
+                        <h6 class="mb-1">${otherName || 'Unknown'} ${conversation.is_archived ? '<span class="badge bg-secondary ms-1">Archived</span>' : ''}</h6>
                         <p class="mb-1 small text-muted">${lastMessage?.content || 'No messages yet'}</p>
                     </div>
                 </div>
@@ -335,8 +339,17 @@ class MessagingManager {
 
         // Update chat header
         const otherParticipant = (this.currentConversation.other_participant) || (this.currentConversation.participants || []).find(p => p.id !== authManager.getUser()?.id);
-        document.getElementById('chatAvatar').src = otherParticipant?.avatar_url || '/static/images/default-avatar.svg';
-        document.getElementById('chatName').textContent = otherParticipant?.full_name || 'Unknown';
+        const otherName = (otherParticipant?.full_name || otherParticipant?.username || 'User');
+        const otherAvatar = (otherParticipant?.avatar_url || '/static/images/default-avatar.svg');
+        const chatAvatarEl = document.getElementById('chatAvatar');
+        if (chatAvatarEl) {
+            // Ensure avatar fallback system can act on this image
+            chatAvatarEl.classList.add('message-avatar');
+            chatAvatarEl.setAttribute('data-username', otherName);
+            chatAvatarEl.alt = otherName;
+            chatAvatarEl.src = otherAvatar;
+        }
+        document.getElementById('chatName').textContent = otherName || 'Unknown';
         document.getElementById('chatStatus').textContent = '';
 
         // Toggle Archive/Unarchive visibility based on conversation state
@@ -475,8 +488,9 @@ class MessagingManager {
                     ${!isOwn ? `
                     <div class="d-flex align-items-center mb-2">
                         <img src="${message.sender.avatar_url || '/static/images/default-avatar.svg'}" 
-                             alt="Avatar" class="rounded-circle me-2" width="24" height="24">
-                        <small class="fw-bold">${message.sender.full_name}</small>
+                             alt="${message.sender.full_name || message.sender.username || 'User'}" class="rounded-circle me-2 message-avatar" width="24" height="24"
+                             data-username="${message.sender.full_name || message.sender.username || 'User'}">
+                        <small class="fw-bold">${message.sender.full_name || message.sender.username || 'User'}</small>
                     </div>
                     ` : ''}
                     

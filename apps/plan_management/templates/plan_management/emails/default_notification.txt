@@ -1,0 +1,8 @@
+Hello {{ client_name|default:coach_name|default:'there' }}
+
+You have a new update for your plan {{ plan_name|default:'your plan' }} on {{ site_name|default:'Easy Fit' }}.
+{% if plan_link %}
+View your plan: {{ plan_link }}
+{% endif %}
+
+This is an automated message. Please do not reply.

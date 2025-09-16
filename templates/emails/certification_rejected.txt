@@ -1,0 +1,11 @@
+Hello {{ user.username }},
+
+We’re writing to let you know that one of your certifications was rejected.
+
+Description: {{ certification.description|default:'(no description)' }}
+Reason: {{ reason|default:'(no reason provided)' }}
+
+You can review and update the certification details, then resubmit if appropriate.
+
+Thanks,
+Easy Fit Team

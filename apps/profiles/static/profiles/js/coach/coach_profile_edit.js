@@ -55,22 +55,32 @@ async function handleMainFormSubmit(event) {
             body: formData,
             headers: {
                 'X-CSRFToken': getCsrfToken(),
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
+        // Try to parse JSON; if fails, read text and show generic error
+        let payload = null;
+        const contentType = response.headers.get('content-type') || '';
+        if (contentType.includes('application/json')) {
+            payload = await response.json();
+        } else {
+            const text = await response.text();
+            if (!response.ok) {
+                console.error('Non-JSON error response:', text);
+                throw new Error('Server error');
+            }
+        }
+
         if (response.ok) {
             showSuccessMessage('Profile updated successfully!');
-            // Optionally redirect or reload
-            setTimeout(() => {
-                window.location.reload();
-            }, 1500);
+            setTimeout(() => { window.location.reload(); }, 1200);
         } else {
-            const errorData = await response.json();
-            handleFormErrors(errorData);
+            handleFormErrors(payload || { errors: { __all__: ['Unexpected server response'] } });
         }
     } catch (error) {
         console.error('Error updating profile:', error);
-        showErrorMessage('An error occurred while updating your profile. Please try again.');
+    showErrorMessage('An error occurred while updating your profile. Please try again.');
     } finally {
         // Reset button state
         submitBtn.innerHTML = originalText;
@@ -107,7 +117,7 @@ async function updateRegions(countryId, regionSelect, citySelect) {
     }
 
     try {
-        const response = await fetch(`/profiles/api/v1/regions/?country=${countryId}`);
+    const response = await fetch(`/profiles/api/v1/regions/?country_id=${countryId}`);
         const regions = await response.json();
         
         populateSelect(regionSelect, regions, 'Select a region');
@@ -124,7 +134,7 @@ async function updateCities(regionId, citySelect) {
     }
 
     try {
-        const response = await fetch(`/profiles/api/v1/cities/?region=${regionId}`);
+    const response = await fetch(`/profiles/api/v1/cities/?region_id=${regionId}`);
         const cities = await response.json();
         
         populateSelect(citySelect, cities, 'Select a city');
@@ -174,7 +184,49 @@ function setupAvatarPreview() {
 
 // Certification management
 function setupCertificationManagement() {
-    // Already handled in form submission
+    // Delegated click handler for delete action inside dropdowns
+    document.addEventListener('click', function(e) {
+        const el = e.target.closest('[data-action="delete-cert"]');
+        if (el) {
+            e.preventDefault();
+            const id = el.getAttribute('data-id');
+            if (id) {
+                deleteCertification(id);
+            }
+        }
+    });
+}
+
+// Helpers: CSRF and messaging fallbacks
+function getCsrfToken() {
+    const tokenInput = document.querySelector('[name=csrfmiddlewaretoken]');
+    if (tokenInput) return tokenInput.value;
+    // Fallback from cookie
+    const name = 'csrftoken=';
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+        c = c.trim();
+        if (c.startsWith(name)) return decodeURIComponent(c.substring(name.length));
+    }
+    return '';
+}
+
+function showSuccessMessage(msg) {
+    if (window.utils && window.utils.showToast) return window.utils.showToast(msg, 'success');
+    if (window.showToast) return window.showToast(msg, 'success');
+    alert(msg);
+}
+
+function showErrorMessage(msg) {
+    if (window.utils && window.utils.showToast) return window.utils.showToast(msg, 'danger');
+    if (window.showToast) return window.showToast(msg, 'danger');
+    alert(msg);
+}
+
+function handleFormErrors(errorData) {
+    console.error('Form errors:', errorData);
+    const msg = (errorData && errorData.errors) ? JSON.stringify(errorData.errors) : 'Validation error';
+    showErrorMessage(msg);
 }
 
 async function handleCertificationSubmit(event) {
@@ -195,7 +247,7 @@ async function handleCertificationSubmit(event) {
             body: formData,
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -219,16 +271,15 @@ async function handleCertificationSubmit(event) {
 }
 
 async function deleteCertification(certId) {
-    if (!confirm('Are you sure you want to delete this certification?')) {
-        return;
-    }
+    const ok = await confirmAction('Are you sure you want to delete this certification?', { confirmText: 'Delete', confirmClass: 'btn-danger' });
+    if (!ok) return;
 
     try {
         const response = await fetch(`/profiles/api/v1/coach-certifications/${certId}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -266,7 +317,7 @@ async function handleClientPictureSubmit(event) {
             body: formData,
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -306,7 +357,7 @@ async function handleCoachPictureSubmit(event) {
             body: formData,
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -330,16 +381,15 @@ async function handleCoachPictureSubmit(event) {
 }
 
 async function deleteClientPicture(pictureId) {
-    if (!confirm('Are you sure you want to delete this picture?')) {
-        return;
-    }
+    const ok = await confirmAction('Are you sure you want to delete this picture?', { confirmText: 'Delete', confirmClass: 'btn-danger' });
+    if (!ok) return;
 
     try {
         const response = await fetch(`/profiles/api/v1/coach-client-pictures/${pictureId}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -356,16 +406,15 @@ async function deleteClientPicture(pictureId) {
 }
 
 async function deleteCoachPicture(pictureId) {
-    if (!confirm('Are you sure you want to delete this picture?')) {
-        return;
-    }
+    const ok = await confirmAction('Are you sure you want to delete this picture?', { confirmText: 'Delete', confirmClass: 'btn-danger' });
+    if (!ok) return;
 
     try {
         const response = await fetch(`/profiles/api/v1/coach-pictures/${pictureId}/`, {
             method: 'DELETE',
             headers: {
                 'X-CSRFToken': getCsrfToken(),
-                'Authorization': `Bearer ${getAccessToken()}`,
+                'X-Requested-With': 'XMLHttpRequest',
             }
         });
 
@@ -391,8 +440,8 @@ function addCertificationToList(certification) {
                     <div class="d-flex justify-content-between align-items-start mb-2">
                         <div class="flex-grow-1">
                             <h6 class="mb-1">${certification.description || 'Certification'}</h6>
-                            <small class="text-muted">Status: 
-                                <span class="badge bg-warning">Pending</span>
+                            <small class="text-muted">Status:
+                                <span class="badge ${getStatusBadgeClass(certification.status)}">${certification.status ? certification.status.charAt(0).toUpperCase() + certification.status.slice(1) : 'Pending'}</span>
                             </small>
                         </div>
                         <div class="dropdown">
@@ -400,10 +449,10 @@ function addCertificationToList(certification) {
                                 <i class="fas fa-ellipsis-v"></i>
                             </button>
                             <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="${certification.file}" target="_blank">
+                                <li><a class="dropdown-item" href="${certification.file}" target="_blank" rel="noopener">
                                     <i class="fas fa-eye me-1"></i>View
                                 </a></li>
-                                <li><a class="dropdown-item text-danger" href="#" onclick="deleteCertification(${certification.id})">
+                                <li><a class="dropdown-item text-danger" href="#" data-action="delete-cert" data-id="${certification.id}">
                                     <i class="fas fa-trash me-1"></i>Delete
                                 </a></li>
                             </ul>
@@ -421,6 +470,58 @@ function addCertificationToList(certification) {
         
         certList.insertAdjacentHTML('beforeend', certHtml);
     }
+}
+
+// Map status to badge class
+function getStatusBadgeClass(status) {
+    switch ((status || '').toLowerCase()) {
+        case 'approved':
+            return 'bg-success';
+        case 'rejected':
+            return 'bg-danger';
+        default:
+            return 'bg-warning text-dark';
+    }
+}
+
+// Promise-based confirmation using Bootstrap modal
+function confirmAction(message, opts = {}) {
+    return new Promise(resolve => {
+        const modalEl = document.getElementById('confirmModal');
+        if (!modalEl) {
+            // Fallback
+            resolve(window.confirm(message));
+            return;
+        }
+        const msgEl = modalEl.querySelector('#confirmModalMessage');
+        const confirmBtn = modalEl.querySelector('#confirmModalConfirmBtn');
+        const bsModal = new bootstrap.Modal(modalEl);
+
+        msgEl.textContent = message || 'Are you sure?';
+        confirmBtn.textContent = opts.confirmText || 'Confirm';
+        confirmBtn.className = `btn ${opts.confirmClass || 'btn-primary'}`;
+
+        const onHide = () => {
+            cleanup();
+            resolve(false);
+        };
+        const onConfirm = () => {
+            cleanup();
+            resolve(true);
+        };
+        const cleanup = () => {
+            modalEl.removeEventListener('hidden.bs.modal', onHide);
+            confirmBtn.removeEventListener('click', onConfirm);
+        };
+
+        modalEl.addEventListener('hidden.bs.modal', onHide, { once: true });
+        confirmBtn.addEventListener('click', () => {
+            bsModal.hide();
+            onConfirm();
+        }, { once: true });
+
+        bsModal.show();
+    });
 }
 
 function addClientPictureToGallery(picture) {

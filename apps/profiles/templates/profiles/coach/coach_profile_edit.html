@@ -48,6 +48,16 @@
                             <div class="card-body">
                                 <div class="row">
                                     <div class="col-md-6 mb-3">
+                                        <label for="id_email" class="form-label">
+                                            <i class="fas fa-envelope text-muted me-1"></i>
+                                            Email
+                                        </label>
+                                        {{ form.email }}
+                                        {% if form.email.errors %}
+                                            <div class="text-danger small">{{ form.email.errors.0 }}</div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="col-md-6 mb-3">
                                         <label for="{{ form.years_of_experience.id_for_label }}" class="form-label">
                                             <i class="fas fa-briefcase text-muted me-1"></i>
                                             Years of Experience
@@ -225,7 +235,7 @@
                             <div class="card-body text-center">
                                 <div class="avatar-upload mb-3">
                                     <div class="avatar-preview">
-                                        <div id="imagePreview" style="background-image: url('{{ profile.avatar.url|default:'/static/img/default-avatar.png' }}');">
+                                        <div id="imagePreview" style="{% if profile.avatar %}background-image: url('{{ profile.avatar.url }}');{% endif %}">
                                         </div>
                                     </div>
                                     <div class="avatar-edit">
@@ -305,15 +315,19 @@
                         <div class="card-body">
                             <div id="certifications-list" class="row">
                                 {% for certification in profile.certifications.all %}
-                                    <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="col-md-6 col-lg-4 mb-3" data-cert-id="{{ certification.id }}">
                                         <div class="certification-item border rounded p-3">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
                                                 <div class="flex-grow-1">
                                                     <h6 class="mb-1">{{ certification.description|default:"Certification" }}</h6>
-                                                    <small class="text-muted">Status: 
-                                                        <span class="badge bg-{{ certification.status|yesno:'success,warning,danger' }}">
-                                                            {{ certification.get_status_display }}
-                                                        </span>
+                                                    <small class="text-muted">Status:
+                                                        {% if certification.status == 'approved' %}
+                                                            <span class="badge bg-success">{{ certification.get_status_display }}</span>
+                                                        {% elif certification.status == 'rejected' %}
+                                                            <span class="badge bg-danger">{{ certification.get_status_display }}</span>
+                                                        {% else %}
+                                                            <span class="badge bg-warning text-dark">{{ certification.get_status_display }}</span>
+                                                        {% endif %}
                                                     </small>
                                                 </div>
                                                 <div class="dropdown">
@@ -321,10 +335,10 @@
                                                         <i class="fas fa-ellipsis-v"></i>
                                                     </button>
                                                     <ul class="dropdown-menu">
-                                                        <li><a class="dropdown-item" href="{{ certification.file.url }}" target="_blank">
+                                                        <li><a class="dropdown-item" href="{{ certification.file.url }}" target="_blank" rel="noopener">
                                                             <i class="fas fa-eye me-1"></i>View
                                                         </a></li>
-                                                        <li><a class="dropdown-item text-danger" href="#" onclick="deleteCertification({{ certification.id }})">
+                                                        <li><a class="dropdown-item text-danger" href="javascript:void(0)" data-action="delete-cert" data-id="{{ certification.id }}" onclick="deleteCertification({{ certification.id }}); return false;">
                                                             <i class="fas fa-trash me-1"></i>Delete
                                                         </a></li>
                                                     </ul>
@@ -385,7 +399,7 @@
                                     </div>
                                     <div class="row" id="client-pictures-list">
                                         {% for picture in profile.client_pictures.all %}
-                                            <div class="col-md-4 col-lg-3 mb-3">
+                                            <div class="col-md-4 col-lg-3 mb-3" data-client-picture-id="{{ picture.id }}">
                                                 <div class="gallery-item">
                                                     <img src="{{ picture.image.url }}" class="img-fluid rounded" alt="{{ picture.description }}">
                                                     <div class="gallery-item-overlay">
@@ -419,7 +433,7 @@
                                     </div>
                                     <div class="row" id="coach-pictures-list">
                                         {% for picture in profile.coach_pictures.all %}
-                                            <div class="col-md-4 col-lg-3 mb-3">
+                                            <div class="col-md-4 col-lg-3 mb-3" data-coach-picture-id="{{ picture.id }}">
                                                 <div class="gallery-item">
                                                     <img src="{{ picture.image.url }}" class="img-fluid rounded" alt="{{ picture.description }}">
                                                     <div class="gallery-item-overlay">
@@ -551,68 +565,23 @@
 
 {% block extra_js %}
 <script src="{% static 'profiles/js/coach/coach_profile_edit.js' %}"></script>
-<script>
-// Initialize location cascading dropdowns
-document.addEventListener('DOMContentLoaded', function() {
-    const countrySelect = document.getElementById('id_country');
-    const regionSelect = document.getElementById('id_region');
-    const citySelect = document.getElementById('id_city');
 
-    if (countrySelect) {
-        countrySelect.addEventListener('change', function() {
-            const countryId = this.value;
-            updateRegions(countryId);
-        });
-    }
-
-    if (regionSelect) {
-        regionSelect.addEventListener('change', function() {
-            const regionId = this.value;
-            updateCities(regionId);
-        });
-    }
-
-    // Avatar upload preview
-    const imageUpload = document.getElementById('imageUpload');
-    if (imageUpload) {
-        imageUpload.addEventListener('change', function() {
-            const file = this.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('imagePreview').style.backgroundImage = `url(${e.target.result})`;
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-});
-
-function updateRegions(countryId) {
-    // Implementation for updating regions based on country
-}
-
-function updateCities(regionId) {
-    // Implementation for updating cities based on region
-}
-
-// Gallery management functions
-function deleteCertification(certId) {
-    if (confirm('Are you sure you want to delete this certification?')) {
-        // Implementation for deleting certification
-    }
-}
-
-function deleteClientPicture(pictureId) {
-    if (confirm('Are you sure you want to delete this picture?')) {
-        // Implementation for deleting client picture
-    }
-}
-
-function deleteCoachPicture(pictureId) {
-    if (confirm('Are you sure you want to delete this picture?')) {
-        // Implementation for deleting coach picture
-    }
-}
-</script>
+<!-- Reusable Confirm Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="confirmModalLabel">Please confirm</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmModalMessage">Are you sure?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmModalConfirmBtn">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

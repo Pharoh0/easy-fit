@@ -791,24 +791,65 @@ class DailyProgressLogViewSet(viewsets.ModelViewSet):
         p = canvas.Canvas(buffer, pagesize=A4)
         width, height = A4
 
-        # Title
-        p.setFont('Helvetica-Bold', 14)
-        p.drawString(40, height - 40, 'Daily Progress Logs')
+        # Branding helpers
+        def draw_header_footer():
+            header_h = 24
+            # Header bar
+            p.setFillColorRGB(13/255.0, 110/255.0, 253/255.0)
+            p.rect(0, height - header_h, width, header_h, fill=1, stroke=0)
+            p.setFillColorRGB(1, 1, 1)
+            p.setFont('Helvetica-Bold', 12)
+            p.drawString(40, height - 16, 'Easy Fit — Daily Progress Logs')
+            # Footer
+            p.setFillColorRGB(0, 0, 0)
+            p.setFont('Helvetica', 8)
+            try:
+                from django.utils import timezone
+                dt = timezone.now().strftime('%Y-%m-%d %H:%M')
+            except Exception:
+                from datetime import datetime
+                dt = datetime.now().strftime('%Y-%m-%d %H:%M')
+            p.drawString(40, 20, f'Generated on {dt}')
+            p.drawRightString(width - 40, 20, f'Page {p.getPageNumber()}')
+
+        def new_page(with_columns=True):
+            p.showPage()
+            draw_header_footer()
+            p.setFont('Helvetica', 9)
+            y_start = height - 24 - 30  # header height + spacing
+            if with_columns:
+                headers = ['Date', 'Plan', 'Completed', 'Meals', 'Workouts', 'Calories']
+                p.drawString(40, y_start, ' | '.join(headers))
+                return y_start - 12
+            return y_start
+
+        # First page
+        draw_header_footer()
         p.setFont('Helvetica', 9)
-
-        y = height - 70
-        line_height = 12
-        max_rows_per_page = int((height - 100) / line_height)
-        row_count = 0
-
-        # Header row
+        y = height - 24 - 30
         headers = ['Date', 'Plan', 'Completed', 'Meals', 'Workouts', 'Calories']
         p.drawString(40, y, ' | '.join(headers))
-        y -= line_height
-        row_count += 1
+        y -= 12
+
+        line_height = 12
+        min_y = 40  # bottom margin
+
+        # Optional filters line
+        try:
+            start = request.query_params.get('start_date') or ''
+            end = request.query_params.get('end_date') or ''
+            plan_type = request.query_params.get('plan_type') or 'All'
+            p.setFont('Helvetica', 8)
+            p.drawString(40, y, f'Filters: {start} → {end} • Type: {plan_type}')
+            p.setFont('Helvetica', 9)
+            y -= line_height
+        except Exception:
+            pass
 
         logs = queryset.select_related('progress__subscription__product_plan').order_by('-date')[:1000]
         for log in logs:
+            if y < min_y:
+                y = new_page(with_columns=True)
             row = [
                 log.date.strftime('%Y-%m-%d') if log.date else '',
                 getattr(getattr(log.progress.subscription, 'product_plan', None), 'name', '')[:30],
@@ -819,13 +860,8 @@ class DailyProgressLogViewSet(viewsets.ModelViewSet):
             ]
             p.drawString(40, y, ' | '.join(row))
             y -= line_height
-            row_count += 1
-            if row_count >= max_rows_per_page:
-                p.showPage()
-                p.setFont('Helvetica', 9)
-                y = height - 40
-                row_count = 0
 
+        # finalize
         p.showPage()
         p.save()
         buffer.seek(0)

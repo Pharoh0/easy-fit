@@ -3,6 +3,7 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.pagination import PageNumberPagination
 from apps.profiles.coach_profile.models import CoachProfile
+from apps.plan_management.ratings.models import CoachRatingStats
 from apps.profiles.coach_profile.serializers import CoachProfileSerializer
 from .filters import CoachProfileFilter
 from django_filters.rest_framework import DjangoFilterBackend
@@ -32,15 +33,30 @@ class CoachProfileSearchView(generics.ListAPIView):
     pagination_class = CoachSearchPagination
 
     def get_queryset(self):
-        # Start with all coach profiles
-        queryset = CoachProfile.objects.all().select_related(
+        # Only show approved coaches in public search results
+        queryset = CoachProfile.objects.filter(approval_status='approved').select_related(
             'user', 'country', 'region', 'city'
         )
         
-        # Add a dummy rating field for sorting and filtering (since we don't have a real rating field yet)
-        # In a real implementation, this would be calculated from reviews
-        from django.db import models
-        queryset = queryset.annotate(rating=Value(4, output_field=models.FloatField()))
+        # Attach real rating from CoachRatingStats if available; default to 0.0
+        from django.db.models import Subquery, OuterRef, IntegerField, FloatField
+        from django.db.models.functions import Coalesce
+        queryset = queryset.annotate(
+            rating=Coalesce(
+                Subquery(
+                    CoachRatingStats.objects.filter(coach=OuterRef('pk')).values('average_overall_rating')[:1]
+                ),
+                Value(0.0),
+                output_field=FloatField()
+            ),
+            total_ratings=Coalesce(
+                Subquery(
+                    CoachRatingStats.objects.filter(coach=OuterRef('pk')).values('total_ratings')[:1]
+                ),
+                Value(0),
+                output_field=IntegerField()
+            )
+        )
         
         # Log the query parameters for debugging
         print(f"Search parameters: {self.request.query_params}")
@@ -77,10 +93,6 @@ class CoachProfileSearchView(generics.ListAPIView):
                 queryset = queryset.order_by('-rating')
             elif sort_by == 'rating_low':
                 queryset = queryset.order_by('rating')
-            elif sort_by == 'price_high':
-                queryset = queryset.order_by('-hourly_rate')
-            elif sort_by == 'price_low':
-                queryset = queryset.order_by('hourly_rate')
             elif sort_by == 'experience_high':
                 queryset = queryset.order_by('-years_of_experience')
             elif sort_by == 'experience_low':

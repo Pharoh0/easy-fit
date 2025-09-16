@@ -175,6 +175,9 @@ class CoachProfileSerializer(serializers.ModelSerializer):
     region = serializers.SerializerMethodField()
     city = serializers.SerializerMethodField()
     user = UserSerializer(read_only=True)  # Include the user serializer
+    # Expose rating fields with fallback to rating_stats when not annotated
+    rating = serializers.SerializerMethodField()
+    total_ratings = serializers.SerializerMethodField()
     
 
     class Meta:
@@ -184,7 +187,9 @@ class CoachProfileSerializer(serializers.ModelSerializer):
             'locations', 'specialties', 'hourly_rate', 
             'facebook_profile_url', 'instagram_profile_url', 'twitter_profile_url', 
             'youtube_profile_url', 'tiktok_profilel_url', 'linkedin_profile_url', 
-            'certifications', 'client_pictures', 'coach_pictures'
+            'certifications', 'client_pictures', 'coach_pictures',
+            # annotated fields
+            'rating', 'total_ratings'
         ]
         read_only_fields = ['user']
         
@@ -248,6 +253,29 @@ class CoachProfileSerializer(serializers.ModelSerializer):
                 CoachPicture.objects.create(coach_profile=instance, **pic_data)
 
         return instance
+
+    # ----- Rating helpers -----
+    def get_rating(self, obj):
+        try:
+            if hasattr(obj, 'rating') and obj.rating is not None:
+                return float(obj.rating)
+            stats = getattr(obj, 'rating_stats', None)
+            if stats and getattr(stats, 'average_overall_rating', None) is not None:
+                return float(stats.average_overall_rating)
+        except Exception:
+            pass
+        return 0.0
+
+    def get_total_ratings(self, obj):
+        try:
+            if hasattr(obj, 'total_ratings') and obj.total_ratings is not None:
+                return int(obj.total_ratings)
+            stats = getattr(obj, 'rating_stats', None)
+            if stats and getattr(stats, 'total_ratings', None) is not None:
+                return int(stats.total_ratings)
+        except Exception:
+            pass
+        return 0
 
 
 # country ,city and regions
